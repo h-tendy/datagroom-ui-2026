@@ -2,20 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
 import styles from './SidebarLayout.module.css';
+import ThemeSwitcher from './components/ThemeSwitcher.jsx';
 
 const SIDEBAR_KEY = 'sidebarOpen';
 
 export default function SidebarLayout({ children, onLogout }) {
+  console.log('[SidebarLayout] Rendered');
   const navigate = useNavigate();
   const [open, setOpen] = useState(() => {
     try {
-      return localStorage.getItem(SIDEBAR_KEY) === 'true';
+      const val = localStorage.getItem(SIDEBAR_KEY) === 'true';
+      console.log('[SidebarLayout] Initial open:', val);
+      return val;
     } catch {
       return false;
     }
   });
 
   useEffect(() => {
+    console.log('[SidebarLayout] Sidebar open:', open);
     try {
       localStorage.setItem(SIDEBAR_KEY, open ? 'true' : 'false');
     } catch {}
@@ -71,10 +76,18 @@ export default function SidebarLayout({ children, onLogout }) {
                   fontSize: '1rem',
                   borderRadius: 'var(--border-radius)',
                   padding: '0.5rem 0.7rem',
-                  transition: 'background 0.15s'
+                  transition: 'background 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.7em'
                 }}
                 onClick={() => navigate('/')}
               >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="7" width="14" height="10" rx="2" fill="var(--color-primary)"/>
+                  <rect x="5" y="9" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
+                  <rect x="5" y="12" width="6" height="2" rx="1" fill="var(--color-bg-light)"/>
+                </svg>
                 Main Page
               </button>
               <button
@@ -89,10 +102,19 @@ export default function SidebarLayout({ children, onLogout }) {
                   fontSize: '1rem',
                   borderRadius: 'var(--border-radius)',
                   padding: '0.5rem 0.7rem',
-                  transition: 'background 0.15s'
+                  transition: 'background 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.7em'
                 }}
                 onClick={() => navigate('/sample1')}
               >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="4" width="14" height="12" rx="2" fill="var(--color-primary)"/>
+                  <rect x="5" y="6" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
+                  <rect x="5" y="9" width="8" height="2" rx="1" fill="var(--color-bg-light)"/>
+                  <rect x="5" y="12" width="6" height="2" rx="1" fill="var(--color-bg-light)"/>
+                </svg>
                 Sample 1
               </button>
               <button
@@ -107,14 +129,23 @@ export default function SidebarLayout({ children, onLogout }) {
                   fontSize: '1rem',
                   borderRadius: 'var(--border-radius)',
                   padding: '0.5rem 0.7rem',
-                  transition: 'background 0.15s'
+                  transition: 'background 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.7em'
                 }}
                 onClick={() => navigate('/sample2')}
               >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="5" width="14" height="10" rx="2" fill="var(--color-primary)"/>
+                  <rect x="5" y="7" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
+                  <rect x="5" y="10" width="8" height="2" rx="1" fill="var(--color-bg-light)"/>
+                </svg>
                 Sample 2
               </button>
             </div>
             <div style={{flex:1}} />
+            <ThemeSwitcher />
             <div style={{padding:'1.2rem 0 1.5rem 0', display:'flex', flexDirection:'column', alignItems:'center'}}>
               <Button
                 variant="outline-danger"
