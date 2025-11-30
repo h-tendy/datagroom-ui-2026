@@ -1,0 +1,52 @@
+@import './theme.module.css';
+
+.sidebar, .sidebar * {
+  font-size: var(--font-size-sidebar) !important;
+  font-family: var(--font-family-main) !important;
+}
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sidebar-width);
+  background: var(--color-sidebar);
+  color: var(--color-text);
+  border-right: none;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.12);
+  transition: transform 0.2s cubic-bezier(.4,0,.2,1);
+  z-index: 1040;
+  display: flex;
+  flex-direction: column;
+}
+.sidebarClosed {
+  transform: translateX(-100%);
+}
+.sidebarOpen {
+  transform: translateX(0);
+}
+.sidebarHeader {
+  padding: 1.4rem 1.4rem 0.7rem 1.4rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  color: var(--color-primary);
+  text-shadow: 0 1px 2px #10131a;
+}
+.sidebarBody {
+  flex: 1;
+  padding: 0 1.4rem;
+  color: var(--color-text-muted);
+}
+.mainContent {
+  margin-left: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: margin-left 0.2s cubic-bezier(.4,0,.2,1), background 0.2s;
+  width: 100vw;
+  overflow-x: auto;
+}
+.mainContentShift {
+  margin-left: var(--sidebar-width);
+  width: calc(100vw - var(--sidebar-width));
+}
