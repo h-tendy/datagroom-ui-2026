@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { loginApi, logoutApi, sessionCheckApi } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -15,24 +16,58 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(init);
   const [userId, setUserId] = useState(initUserId);
   useEffect(() => {
-    console.log('AuthProvider: isAuthenticated', isAuthenticated);
+    // validate session with backend on mount
+    let mounted = true;
+    (async function check() {
+      try {
+        const valid = await sessionCheckApi({ user: userId });
+        if (!valid && mounted) {
+          // sessionCheck in reference returned non-ok to indicate invalid session
+          logout();
+        }
+      } catch (e) {
+        // treat errors as invalid session
+        logout();
+      }
+    })();
+    return () => { mounted = false; };
   }, [isAuthenticated]);
 
-  function login(username, password) {
-    // simple demo auth
-    if (username === 'admin' && password === 'password') {
+  async function login(username, password) {
+    try {
+      const obj = await loginApi(username, password);
+      // reference handleResponse returned { user: JSON.parse(data.user), redirectUrl }
+      // backend returned obj.user and maybe obj.redirectUrl
+      const savedUser = obj.user || obj;
+      const savedUserId = savedUser?.id || savedUser?.username || username;
+      if (savedUser?.token) {
+        // keep full user object like reference did
+        localStorage.setItem('user', JSON.stringify(savedUser));
+      }
       localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userId', username);
+      localStorage.setItem('userId', savedUserId);
       setIsAuthenticated(true);
-      setUserId(username);
+      setUserId(savedUserId);
+      // handle redirectUrl if provided by backend
+      if (obj.redirectUrl) {
+        try { window.location.href = obj.redirectUrl; } catch (e) { /* ignore */ }
+      }
       return true;
+    } catch (err) {
+      console.error('Login failed', err);
+      return false;
     }
-    return false;
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await logoutApi();
+    } catch (e) {
+      // ignore logout errors
+    }
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('userId');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
     setUserId('');
   }

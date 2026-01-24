@@ -14,9 +14,10 @@ export default function LoginPage() {
 
   const from = (location.state && location.state.from && location.state.from.pathname) || '/';
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const ok = auth.login(username, password);
+    setError('');
+    const ok = await auth.login(username, password);
     if (ok) {
       navigate(from, { replace: true });
     } else {
