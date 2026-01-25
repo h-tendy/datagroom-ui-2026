@@ -67,6 +67,7 @@ export default function AllDsPage({ currentUserId }) {
           dsList={filtered}
           viewMode={viewMode}
           onDeleteRequest={handleRequestDelete}
+          currentUserId={userId}
         />
       )}
 
