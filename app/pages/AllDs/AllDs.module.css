@@ -12,23 +12,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-top: 32px;
+  margin-bottom: 32px;
+}
+
+.titleContainer { display:flex; align-items:center; gap:8px; }
+
+.headerControls { margin-left: 16px; display: flex; align-items: center; }
+
+.pageTitle {
+  font-size: 2.8rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  margin: 0;
 }
 
 .searchBar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: var(--ads-gap);
   margin-bottom: 16px;
-  flex-wrap: wrap;
 }
 
+.searchWrap { display: flex; align-items: center; margin: 0 8px; }
+.searchIcon { margin-right: 6px; color: var(--color-text-muted); font-size: 1.5rem; }
 .searchInput {
   padding: 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: calc(var(--border-radius, 8px) - 2px);
   min-width: 220px;
+  width: 320px;
+  max-width: 40vw;
   background: var(--color-bg-light);
   color: var(--color-text);
 }
@@ -97,6 +111,25 @@
 .cardTitle { font-weight: var(--font-weight-bold); color: var(--color-primary); font-size: 1rem; }
 .cardMeta { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; }
 
+.cardExtra { font-size: 13px; color: var(--color-text); background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; }
+
+.iconActive { color: var(--color-accent); }
+
+.fa { font-size: 1.25rem; }
+
+.viewIcon {
+  font-size: 2.1rem;
+  margin-right: 10px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.globalInfoIcon { font-size: 1.5rem; margin-left: 8px; cursor: pointer; transition: transform 0.15s ease, filter 0.15s ease; }
+.globalInfoIcon.active, .globalInfoIcon.iconActive, .globalInfoIcon.icon-active { transform: scale(1.08); filter: drop-shadow(0 2px 4px rgba(40,167,69,0.18)); }
+
+.cardInfoIcon { font-size: 1.2rem; margin-left: 8px; color: var(--color-text-muted); cursor: pointer; }
+.cardInfoIcon.iconActive { color: var(--color-accent); }
+
 .cardActions { display: flex; gap: 8px; align-items: center; }
 .openLink { color: var(--color-primary); text-decoration: none; padding: 6px 10px; border-radius: 6px; }
 .openLink:hover { background: rgba(79,140,255,0.08); }
@@ -113,7 +146,7 @@
 /* responsive: tighten layout on small screens */
 @media (max-width: 640px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-  .searchInput { min-width: 140px; width: 100%; }
+  .searchInput { min-width: 120px; width: 100%; }
   .controls { width: 100%; justify-content: flex-end; }
   .cardTitle { font-size: 0.95rem; }
 }

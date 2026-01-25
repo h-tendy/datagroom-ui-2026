@@ -16,11 +16,13 @@ export default function AllDsPage({ currentUserId }) {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('allDsViewMode') || 'grid');
   const [searchText, setSearchText] = useState(() => localStorage.getItem('allDsSearchText') || '');
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('allDsSortBy') || 'name_asc');
+  const [allInfoExpanded, setAllInfoExpanded] = useState(() => localStorage.getItem('allDsGlobalInfoExpanded') === 'true');
   const [deleteCandidate, setDeleteCandidate] = useState(null);
 
   useEffect(() => { localStorage.setItem('allDsViewMode', viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem('allDsSearchText', searchText); }, [searchText]);
   useEffect(() => { localStorage.setItem('allDsSortBy', sortBy); }, [sortBy]);
+  useEffect(() => { localStorage.setItem('allDsGlobalInfoExpanded', allInfoExpanded ? 'true' : 'false'); }, [allInfoExpanded]);
 
   const dbList = data?.dbList || [];
 
@@ -44,16 +46,32 @@ export default function AllDsPage({ currentUserId }) {
   return (
     <div className={styles.container}>
       <div className={styles.headerRow}>
-        <h3>Datasets</h3>
+        <div className={styles.titleContainer}>
+          <h3 className={styles.pageTitle} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            Your Datasets
+            <i
+              className={`fa fa-info-circle ${allInfoExpanded ? styles.iconActive : ''} ${styles.globalInfoIcon}`}
+              onClick={() => setAllInfoExpanded(v => !v)}
+              role="button"
+              aria-pressed={!!allInfoExpanded}
+              title={allInfoExpanded ? 'Collapse all info' : 'Expand all info'}
+            />
+          </h3>
+        </div>
+
+        <div className={styles.headerControls}>
+          <SearchSortBar
+            viewMode={viewMode}
+            onToggleView={() => setViewMode(v => v === 'grid' ? 'list' : 'grid')}
+            searchText={searchText}
+            onSearch={setSearchText}
+            sortBy={sortBy}
+            onSort={setSortBy}
+            allInfoExpanded={allInfoExpanded}
+            onToggleAllInfo={() => setAllInfoExpanded(v => !v)}
+          />
+        </div>
       </div>
-      <SearchSortBar
-        viewMode={viewMode}
-        onToggleView={() => setViewMode(v => v === 'grid' ? 'list' : 'grid')}
-        searchText={searchText}
-        onSearch={setSearchText}
-        sortBy={sortBy}
-        onSort={setSortBy}
-      />
 
       {isLoading && <div className={styles.loading}>Loading datasets...</div>}
       {isError && (
@@ -68,6 +86,7 @@ export default function AllDsPage({ currentUserId }) {
           viewMode={viewMode}
           onDeleteRequest={handleRequestDelete}
           currentUserId={userId}
+          allInfoExpanded={allInfoExpanded}
         />
       )}
 
