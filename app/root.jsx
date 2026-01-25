@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import RequireAuth from './auth/RequireAuth';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import MainPage from './MainPage';
 import LoginPage from './components/LoginPage';
@@ -20,9 +21,12 @@ export function AppRoutes() {
 }
 
 export default function App() {
+    const queryClient = React.useMemo(() => new QueryClient(), []);
     return (
-        <AuthProvider>
-            <AppRoutes />
-        </AuthProvider>
+        <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+                <AppRoutes />
+            </AuthProvider>
+        </QueryClientProvider>
     );
 }
