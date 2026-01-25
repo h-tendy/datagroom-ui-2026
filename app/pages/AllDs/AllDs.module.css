@@ -108,10 +108,10 @@
 }
 
 .cardBody { margin-bottom: 8px; }
-.cardTitle { font-weight: var(--font-weight-bold); color: var(--color-primary); font-size: 1rem; }
-.cardMeta { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; }
+.cardTitle { font-weight: var(--font-weight-bold); color: var(--color-primary); font-size: 1.25rem; }
+.cardMeta { font-size: 13px; color: var(--color-text-muted); margin-top: 8px; }
 
-.cardExtra { font-size: 13px; color: var(--color-text); background: rgba(0,0,0,0.02); padding: 8px; border-radius: 6px; }
+.cardExtra { font-size: 14px; color: var(--color-text); background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px; }
 
 .iconActive { color: var(--color-accent); }
 
@@ -131,7 +131,7 @@
 .cardInfoIcon.iconActive { color: var(--color-accent); }
 
 .cardActions { display: flex; gap: 8px; align-items: center; }
-.openLink { color: var(--color-primary); text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+.openLink { color: var(--color-primary); text-decoration: none; padding: 8px 12px; border-radius: 6px; font-size: 1rem; }
 .openLink:hover { background: rgba(79,140,255,0.08); }
 .deleteBtn {
   background: transparent;

@@ -4,6 +4,16 @@
   font-size: var(--font-size-sidebar) !important;
   font-family: var(--font-family-main) !important;
 }
+
+/* Ensure Font Awesome icons still use the FontAwesome font despite the global monospace override */
+.sidebar :global(.fa), .sidebar :global(.fas), .sidebar :global(.far) {
+  font-family: FontAwesome !important;
+  font-style: normal;
+  font-weight: normal;
+  speak: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 .sidebar {
   position: fixed;
   top: 0;
@@ -32,6 +42,14 @@
   color: var(--color-primary);
   text-shadow: 0 1px 2px #10131a;
 }
+
+.sidebarHomeIcon {
+  font-size: 2.5rem !important;
+  color: var(--color-primary);
+  margin-right: 12px;
+  vertical-align: middle;
+  display: inline-block;
+}
 .sidebarBody {
   flex: 1;
   padding: 0 1.4rem;
@@ -49,4 +67,45 @@
 .mainContentShift {
   margin-left: var(--sidebar-width);
   width: calc(100vw - var(--sidebar-width));
+}
+
+.siteHeader {
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: transparent;
+}
+
+.siteTitle {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 1.6rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  line-height: 1.1;
+}
+
+.siteWelcome {
+  font-size: 0.98rem;
+  color: var(--color-text-muted);
+}
+
+.sidebarSiteHeader {
+  padding: 8px 6px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebarSiteTitle {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 1.1rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
+.sidebarSiteWelcome {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }

@@ -10,7 +10,7 @@
   --color-text-muted: #888888;
   --color-border: #999999;
 
-  --font-family-main: 'Inter', 'Segoe UI', Arial, sans-serif;
+  --font-family-main: Consolas, 'Courier New', monospace;
   --font-size-main: 16px;
   --font-size-sidebar: 12pt;
   --font-weight-bold: 600;
@@ -32,7 +32,7 @@
   --color-text-muted: #a89984;
   --color-border: #e0cfa0;
 
-  --font-family-main: 'Inter', 'Segoe UI', Arial, sans-serif;
+  --font-family-main: Consolas, 'Courier New', monospace;
   --font-size-main: 16px;
   --font-size-sidebar: 12pt;
   --font-weight-bold: 600;
@@ -68,7 +68,7 @@
   --color-border: #343a40;
 
   /* Font family and size */
-  --font-family-main: 'Inter', 'Segoe UI', Arial, sans-serif;
+  --font-family-main: Consolas, 'Courier New', monospace;
   --font-size-main: 16px;
   --font-size-sidebar: 12pt;
   --font-weight-bold: 600;
@@ -92,7 +92,7 @@
   --color-text-muted: #6b7280;
   --color-border: #d1d5db;
 
-  --font-family-main: 'Inter', 'Segoe UI', Arial, sans-serif;
+  --font-family-main: Consolas, 'Courier New', monospace;
   --font-size-main: 16px;
   --font-size-sidebar: 12pt;
   --font-weight-bold: 600;

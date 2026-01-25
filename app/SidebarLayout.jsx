@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'react-bootstrap';
 import styles from './SidebarLayout.module.css';
+import { useAuth } from './auth/AuthProvider';
 import ThemeSwitcher from './components/ThemeSwitcher.jsx';
 
 const SIDEBAR_KEY = 'sidebarOpen';
@@ -27,6 +28,18 @@ export default function SidebarLayout({ children, onLogout }) {
   }, [open]);
 
   const handleToggle = () => setOpen(o => !o);
+
+  const auth = useAuth();
+  let displayName = auth?.userId || '';
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      displayName = saved?.name || saved?.username || displayName;
+    }
+  } catch (e) {
+    // ignore
+  }
 
   return (
     <>
@@ -58,12 +71,16 @@ export default function SidebarLayout({ children, onLogout }) {
         </svg>
       </button>
       <div style={{display:'flex', minHeight:'100vh'}}>
-        <div className={[
+          <div className={[
           styles.sidebar,
           open ? styles.sidebarOpen : styles.sidebarClosed
         ].join(' ')}>
-          <div className={styles.sidebarBody} style={{display:'flex', flexDirection:'column', height:'100%'}}>
-            <div style={{marginTop: '2.5rem', padding: '0.7rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+          <div className={styles.sidebarBody} style={{display:'flex', flexDirection: 'column', height:'100%'}}>
+            <div className={styles.sidebarSiteHeader} style={{padding: '0.6rem 0 0.6rem 0'}}>
+              <div className={styles.sidebarSiteTitle}>Datagroom</div>
+              <div className={styles.sidebarSiteWelcome}>Welcome, {displayName}</div>
+            </div>
+            <div style={{marginTop: '1rem', padding: '0.7rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
               <button
                 type="button"
                 className="btn btn-outline-light"
@@ -83,12 +100,8 @@ export default function SidebarLayout({ children, onLogout }) {
                 }}
                 onClick={() => navigate('/')}
               >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="7" width="14" height="10" rx="2" fill="var(--color-primary)"/>
-                  <rect x="5" y="9" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
-                  <rect x="5" y="12" width="6" height="2" rx="1" fill="var(--color-bg-light)"/>
-                </svg>
-                Main Page
+                <i className={`fa fa-home ${styles.sidebarHomeIcon}`} aria-hidden="true" />
+                Your datasets
               </button>
               <button
                 type="button"
