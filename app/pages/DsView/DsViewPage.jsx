@@ -95,6 +95,7 @@ function DsViewPage() {
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [frozenCol, setFrozenCol] = useState(null);
   const [chronologyDescending, setChronologyDescending] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0); // Counter to force table refresh
   const [fetchAllMatchingRecords, setFetchAllMatchingRecords] = useState(false);
   const [totalRecs, setTotalRecs] = useState(0);
   const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
@@ -152,6 +153,31 @@ function DsViewPage() {
   const tabulatorConfigHelper = useRef(null);
   const jiraHelpers = useRef(null);
   const [columns, setColumns] = useState([]);
+
+  // Initialize chronologyDescending from localStorage on mount
+  // Reference: DsView.js lines 138-143
+  // Default to true if never set (matching reference implementation)
+  useEffect(() => {
+    const chronologyDescendingFromLocal = localStorage.getItem('chronologyDescending');
+    if (chronologyDescendingFromLocal === 'false') {
+      setChronologyDescending(false);
+    } else {
+      // Default to true if null/undefined or any other value
+      setChronologyDescending(true);
+    }
+  }, []);
+
+  // Process URL parameters for chronologyDescending
+  // Reference: DsView.js lines 343-345, 439
+  // URL params override localStorage
+  useEffect(() => {
+    const chronologyDescendingParam = searchParams.get('chronologyDescending');
+    if (chronologyDescendingParam !== null) {
+      const value = chronologyDescendingParam.toLowerCase() === 'true';
+      setChronologyDescending(value);
+      localStorage.setItem('chronologyDescending', JSON.stringify(value));
+    }
+  }, [searchParams]);
 
   // Ajax helper functions (from reference implementation)
   const generateParamsList = useCallback((data, prefix = "") => {
@@ -491,7 +517,7 @@ function DsViewPage() {
                 onChange={(e) => {
                   setChronologyDescending(e.target.checked);
                   localStorage.setItem('chronologyDescending', JSON.stringify(e.target.checked));
-                  tabulatorRef.current?.table?.setData();
+                  setForceRefresh(prev => prev + 1); // Increment counter to trigger table refresh
                 }}
               />
               Desc order <i className='fas fa-level-down-alt'></i>
@@ -579,6 +605,8 @@ function DsViewPage() {
               layout: 'fitDataStretch',
               pagination: 'remote',
               paginationSize: pageSize,
+              chronology: chronologyDescending ? 'desc' : 'asc', // Triggers shouldComponentUpdate
+              forceRefresh: forceRefresh, // Triggers shouldComponentUpdate
               ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}`,
               ajaxURLGenerator: ajaxURLGenerator,
               ajaxResponse: ajaxResponse,
