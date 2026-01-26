@@ -1,97 +1,199 @@
-// Tabulator configuration and callbacks skeleton
-export default function createTabulatorConfig(context) {
-  const { props, getState, setState, component, ref, MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter, QueryParsers, MarkdownIt } = context;
+// Tabulator configuration and callbacks for hooks-based DsViewPage
+import MarkdownIt from 'markdown-it';
+import mditBracketedSpans from 'markdown-it-bracketed-spans';
+import mditAttrs from 'markdown-it-attrs';
+import mditContainer from 'markdown-it-container';
+import mditHighlightjs from 'markdown-it-highlightjs';
+import mditPlantuml from 'markdown-it-plantuml';
+import * as mditFancyListsModule from 'markdown-it-fancy-lists';
+import { parseExpr, evalExpr } from '../../../components/editors/QueryParsers';
 
+// Extract the plugin function from fancy-lists module
+const mditFancyLists = mditFancyListsModule.markdownItFancyListPlugin || mditFancyListsModule.default || mditFancyListsModule;
+
+// Initialize markdown-it with all plugins (matching reference implementation)
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: false,
+  breaks: true,
+})
+  .use(mditBracketedSpans)
+  .use(mditAttrs)
+  .use(mditContainer, 'code')
+  .use(mditContainer, 'indent1')
+  .use(mditContainer, 'indent2')
+  .use(mditContainer, 'indent3')
+  .use(mditHighlightjs)
+  // mermaid temporarily disabled due to d3.js document access errors
+  // .use(mditMermaid)
+  .use(mditPlantuml, { imageFormat: 'png' })
+  .use(mditContainer, 'slide')
+  .use(mditFancyLists);
+
+// Custom link renderer - open in new tab
+const defaultLinkOpen = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
+  const aIndex = tokens[idx].attrIndex('target');
+  if (aIndex < 0) {
+    tokens[idx].attrPush(['target', '_blank']);
+  } else {
+    tokens[idx].attrs[aIndex][1] = '_blank';
+  }
+  return defaultLinkOpen(tokens, idx, options, env, self);
+};
+
+// Custom fence renderer for plotly graphs
+md.renderer.rules.fence = function(tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const info = token.info ? token.info.trim() : '';
+  
+  if (info === 'plotly') {
+    // Encode plotly data for rendering
+    const encoded = btoa(token.content);
+    return `<div class="plotly-graph-div" data-plotly="${encoded}"></div>`;
+  }
+  
+  return `<pre class="hljs"><code>${md.utils.escapeHtml(token.content)}</code></pre>`;
+};
+
+/**
+ * Create Tabulator configuration with all formatters, editors, and callbacks
+ * @param {Object} context - { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol }
+ * @param {Object} context.handlers - All handler functions from DsViewPage
+ * @returns {Object} - { setColumnDefinitions, ajaxURLGenerator, ajaxResponse }
+ */
+export default function createTabulatorConfig(context) {
+  const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol } = context;
+  
+  // Extract handlers passed from DsViewPage
+  const {
+    cellEditCheck,
+    cellForceEditTrigger,
+    isKey,
+    toggleSingleFilter,
+    freezeColumn,
+    unfreezeColumn,
+    hideColumn,
+    hideColumnFromCell,
+    showAllCols,
+    copyCellToClipboard,
+    startPreso,
+    urlGeneratorFunction,
+    duplicateAndAddRowHandler,
+    addRow,
+    deleteAllRowsInViewQuestion,
+    deleteAllRowsInQuery,
+    deleteRowQuestion,
+    deleteColumnQuestion,
+    addColumnQuestion,
+    downloadXlsx,
+    convertToJiraRow,
+    addJiraRow,
+    isJiraRow,
+    showAllFilters,
+  } = handlers || {};
+
+  /**
+   * Generate Tabulator column definitions from viewConfig
+   */
   function setColumnDefinitions() {
-    // Use the current component props at call time to avoid stale snapshot
-    // values captured at helper construction. This ensures `dsHome` and
-    // other props are available after async loads.
-    const { match, dsHome } = component.props;
-    let dsName = match.params.dsName;
-    let dsView = match.params.dsView;
-    // If dsHome or the view metadata isn't ready yet, return empty columns
-    // so the table renders once the data is loaded. This prevents
-    // exceptions during initial render when props are still being fetched.
-    if (!dsHome || !dsHome.dsViews || !dsHome.dsViews[dsView] || !dsHome.dsViews[dsView].columnAttrs) {
+    if (!viewConfig || !viewConfig.columnAttrs) {
       return [];
     }
-    let jiraConfig = dsHome.dsViews[dsView].jiraConfig;
-    let jiraAgileConfig = dsHome.dsViews[dsView].jiraAgileConfig;
-    let me = component;
-    let headerMenuWithoutHide = [
-      { label: "Toggle Filters", action: me.toggleSingleFilter },
-      { label: "Freeze", action: me.freezeColumn },
-      { label: "Unfreeze", action: me.unfreezeColumn }
+
+    const jiraConfig = viewConfig.jiraConfig;
+    const jiraAgileConfig = viewConfig.jiraAgileConfig;
+    const keys = viewConfig.keys || [];
+
+    // Header menu for key columns (no hide option)
+    const headerMenuWithoutHide = [
+      { label: "Toggle Filters", action: toggleSingleFilter },
+      { label: "Freeze", action: freezeColumn },
+      { label: "Unfreeze", action: unfreezeColumn }
     ];
-    let headerMenuWithHide = [
-      { label: "Toggle Filters", action: me.toggleSingleFilter },
-      { label: "Freeze", action: me.freezeColumn },
-      { label: "Unfreeze", action: me.unfreezeColumn },
-      { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: me.hideColumn },
-      { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: me.showAllCols }
+
+    // Header menu for non-key columns
+    const headerMenuWithHide = [
+      { label: "Toggle Filters", action: toggleSingleFilter },
+      { label: "Freeze", action: freezeColumn },
+      { label: "Unfreeze", action: unfreezeColumn },
+      { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: hideColumn },
+      { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: showAllCols }
     ];
-    let cellContextMenu = [
-      { label: "Copy cell to clipboard...", action: me._clipboard.copyCellToClipboard },
-      { label: "Generate slides...", action: me.startPreso },
+
+    // Context menu for all cells
+    const cellContextMenu = [
+      { label: "Copy cell to clipboard...", action: copyCellToClipboard },
+      // Presentation mode - deferred
+      // { label: "Generate slides...", action: startPreso },
       { label: "Generate URL.....", menu: [
-        { label: "Copy URL for this row to clipboard...", action: function (e, cell) { me.urlGeneratorFunction(e, cell, false) } },
-        { label: "Copy URL for current view to clipboard...", action: function (e, cell) { me.urlGeneratorFunction(e, cell, true); } }
+        { label: "Copy URL for this row to clipboard...", action: function (e, cell) { urlGeneratorFunction(e, cell, false) } },
+        { label: "Copy URL for current view to clipboard...", action: function (e, cell) { urlGeneratorFunction(e, cell, true); } }
       ] },
       { separator: true },
       { label: "Hide/Unhide column...", menu: [
-        { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: me.hideColumnFromCell },
-        { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: me.showAllCols }
+        { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: hideColumnFromCell },
+        { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: showAllCols }
       ] },
       { label: "Add row.....", menu: [
-        { label: "Duplicate row & add (above)", action: function (e, cell) { me.duplicateAndAddRowHandler(e, cell, true) } },
-        { label: "Duplicate row & add (below)", action: function (e, cell) { me.duplicateAndAddRowHandler(e, cell, false) } },
-        { label: "Add empty row...", action: function (e, cell) { me.addRow(e, cell, null, true) } }
+        { label: "Duplicate row & add (above)", action: function (e, cell) { duplicateAndAddRowHandler(e, cell, true) } },
+        { label: "Duplicate row & add (below)", action: function (e, cell) { duplicateAndAddRowHandler(e, cell, false) } },
+        { label: "Add empty row...", action: function (e, cell) { addRow(e, cell, null, true) } }
       ] },
       { label: "Delete row....", menu: [
-        { label: "Delete all rows in view...", action: me.deleteAllRowsInViewQuestion },
-        { label: "Delete all rows in query...", action: me.deleteAllRowsInQuery },
-        { label: "Delete row...", action: me.deleteRowQuestion }
+        { label: "Delete all rows in view...", action: deleteAllRowsInViewQuestion },
+        { label: "Delete all rows in query...", action: deleteAllRowsInQuery },
+        { label: "Delete row...", action: deleteRowQuestion }
       ] },
-      { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { me.deleteColumnQuestion(e, cell); } } ] },
-      { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { me.addColumnQuestion(cell.getColumn().getField()); } } ] },
+      { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { deleteColumnQuestion(e, cell); } } ] },
+      { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { addColumnQuestion(cell.getColumn().getField()); } } ] },
       { label: "Get xlsx....", menu: [
-        { label: "Get xlsx for whole DS...", action: function () { let useQuery = false; me.downloadXlsx(useQuery); } },
-        { label: "Get xlsx in query...", action: function () { let useQuery = true; me.downloadXlsx(useQuery); } }
+        { label: "Get xlsx for whole DS...", action: function () { downloadXlsx('whole'); } },
+        { label: "Get xlsx in query...", action: function () { downloadXlsx('query'); } }
       ] },
-      { label: "JIRA Menu....", menu: [
-        { label: "Convert to JIRA row...", action: me.convertToJiraRow },
-        { label: "Add new JIRA...", action: function (e, cell) { me.addJiraRow(e, cell, null) } },
-        { label: "Add Story to Epic", action: function (e, cell) { me.addJiraRow(e, cell, 'Story') } },
-        { label: "Add a Story Task to Story", action: function (e, cell) { me.addJiraRow(e, cell, 'Story Task') } }
-      ] }
+      // JIRA integration - deferred
+      // { label: "JIRA Menu....", menu: [...] }
     ];
 
-    let columns = [];
-    for (let i = 0; i < dsHome.dsViews[dsView].columnAttrs.length; i++) {
-      let col = JSON.parse(JSON.stringify(dsHome.dsViews[dsView].columnAttrs[i]));
-      if (!me.isKey(col.field)) {
-        col.headerMenu = headerMenuWithHide;
-      } else {
-        col.headerMenu = headerMenuWithoutHide;
-        col.titleFormatter = (t, titleFormatterParams) => { return `<u>${t.getValue()}</u>`; };
+    const columns = [];
+    
+    for (let i = 0; i < viewConfig.columnAttrs.length; i++) {
+      const col = { ...viewConfig.columnAttrs[i] };
+      
+      // Determine if this is a key column
+      const isKeyColumn = keys.includes(col.field);
+      
+      // Set header menu based on key status
+      col.headerMenu = isKeyColumn ? headerMenuWithoutHide : headerMenuWithHide;
+      
+      // Underline title for key columns
+      if (isKeyColumn) {
+        col.titleFormatter = (cell) => `<u>${cell.getValue()}</u>`;
       }
+      
+      // Set context menu
       col.contextMenu = cellContextMenu;
-      col.editable = me.cellEditCheck;
-      col.cellForceEditTrigger = me.cellForceEditTrigger;
-      if (getState().showAllFilters) {
-        col.headerFilter = "input";
-        if (col.headerFilterType) col.headerFilter = col.headerFilterType;
+      
+      // Set editable check
+      col.editable = cellEditCheck;
+      
+      // Enable header filter if showAllFilters is true
+      if (showAllFilters) {
+        col.headerFilter = col.headerFilterType || "input";
       }
 
-      function doConditionalFormatting (cell, formatterParams) {
+      // Conditional formatting function
+      function doConditionalFormatting(cell, formatterParams) {
         if (formatterParams && formatterParams.conditionalFormatting) {
-          let rowData = cell.getRow().getData();
+          const rowData = cell.getRow().getData();
           for (let i = 0; i < formatterParams.conditionalExprs.length; i++) {
-            let exprStr = formatterParams.conditionalExprs[i].split('->')[0].trim();
-            let expr = QueryParsers.parseExpr(exprStr);
-            if (QueryParsers.evalExpr(expr, rowData, cell.getColumn().getField())) {
-              let values = formatterParams.conditionalExprs[i].split('->')[1].trim();
-              values = JSON.parse(values);
+            const exprStr = formatterParams.conditionalExprs[i].split('->')[0].trim();
+            const expr = parseExpr(exprStr);
+            if (evalExpr(expr, rowData, cell.getColumn().getField())) {
+              const values = JSON.parse(formatterParams.conditionalExprs[i].split('->')[1].trim());
               if (values.backgroundColor) cell.getElement().style.backgroundColor = values.backgroundColor;
               if (values.color) cell.getElement().style.color = values.color;
               break;
@@ -100,98 +202,130 @@ export default function createTabulatorConfig(context) {
         }
       }
 
-      if (col.editor === "input") {
+      // Apply formatters based on editor type
+      if (col.editor === "input" || !col.editor) {
         col.formatter = (cell, formatterParams) => {
           let value = cell.getValue();
           doConditionalFormatting(cell, formatterParams);
           if (value === undefined) return "";
           return value;
-        }
+        };
       }
 
-      if (col.editor === "textarea" || col.editor === "codemirror" || (col.editor === false && col.formatter === "textarea") || (col.editor === "autocomplete")) {
-        col.formatter = (cell, formatterParams) => {
+      // Markdown/HTML formatting for textarea, codemirror, autocomplete
+      if (col.editor === "textarea" || col.editor === "codemirror" || 
+          (col.editor === false && col.formatter === "textarea") || 
+          col.editor === "autocomplete") {
+        
+        col.formatter = function(cell, formatterParams) {
           let value = cell.getValue();
           doConditionalFormatting(cell, formatterParams);
+          
           if (value === undefined) return "";
-          if (typeof value != "string") return value;
-          let width = cell.getColumn().getWidth();
-          let data = cell.getRow().getData();
-          if (me.isJiraRow(data, jiraConfig, jiraAgileConfig)) {
-            let arr = value.split("\n");
-            if (arr.length >= 20) {
-              value = `<noDivStyling/><div style="white-space:pre-wrap;overflow-wrap: break-all;word-wrap:break-all;word-break:break-all;overflow-x:auto;overflow-y:auto;height:250px;">${value}</div>`
-              value = value.replace(/{noformat}([\s\S]*?){noformat}/gi, `<pre style="width:${width - 30}px">$1</pre>`);
-              value = value.replaceAll(/^==/gm, `\\==`);
-            }
-          }
-          value = MarkdownIt.render(value);
-          if (value.startsWith("<noDivStyling/>")) {
-            return `<div style="overflow-x: auto;width:${width - 8}px">${value}</div>`;
-          } else {
-            return `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px">${value}</div>`;
-          }
-        }
-        col.formatterClipboard = (cell, formatterParams) => {
-          let h = cell.getRow().getCell(cell.getField())._cell.element;
-          h = h.cloneNode(true);
-          cell.getElement().style.backgroundColor = h.style.backgroundColor;
-          cell.getElement().style.color = h.style.color;
-          return h;
-        }
+          if (typeof value !== "string") return value;
+          
+          const width = cell.getColumn().getWidth();
+          
+          // Render markdown to HTML
+          value = md.render(value);
+          
+          // Wrap in div with proper width
+          return `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px">${value}</div>`;
+        };
+        
+        // Clipboard formatter - preserve styling
+        col.formatterClipboard = (cell) => {
+          const h = cell.getRow().getCell(cell.getField())._cell.element;
+          const cloned = h.cloneNode(true);
+          cell.getElement().style.backgroundColor = cloned.style.backgroundColor;
+          cell.getElement().style.color = cloned.style.color;
+          return cloned;
+        };
+        
+        // CRITICAL: Enable variable height for proper HTML rendering
         col.variableHeight = true;
+        
+        // Setup editor params and custom editors for textarea/codemirror
         if (col.editor === "textarea" || col.editor === "codemirror") {
           col.editorParams = col.editorParams || {};
           col.editorParams.dsName = dsName;
-          if (col.editor === "textarea") col.editor = MyTextArea; else col.editor = MyCodeMirror;
-          let me2 = me;
-          col.cellEditCancelled = (cell) => {
-            if (!me2.cellImEditing) {
-              console.log("Normalize, Inside second editcancelled..")
+          
+          // Note: MyTextArea and MyCodeMirror will be assigned in DsViewPage
+          // They need React component instances which aren't available here
+          
+          // Add cellEditCancelled callback to normalize height
+          const cellEditCancelled = (cell) => {
+            if (!cellImEditingRef || !cellImEditingRef.current) {
+              console.log("Normalize, Inside second editcancelled..");
               cell.getRow().normalizeHeight();
             } else {
               console.log("Skipping normalize, Inside second editcancelled");
             }
-          }
+          };
+          col.cellEditCancelled = cellEditCancelled;
         }
       }
 
-      if (col.editor === "autocomplete" && col.editorParams && col.editorParams.multiselect) {
-        col.editor = MyAutoCompleter;
-        if (!col.editorParams.verticalNavigation) col.editorParams.verticalNavigation = "table";
-      } else if (col.editor === "autocomplete" && col.editorParams && !col.editorParams.multiselect) {
-        col.editor = MySingleAutoCompleter;
-        if (!col.editorParams.verticalNavigation) col.editorParams.verticalNavigation = "table";
+      // Setup autocomplete editors
+      if (col.editor === "autocomplete" && col.editorParams) {
+        if (!col.editorParams.verticalNavigation) {
+          col.editorParams.verticalNavigation = "table";
+        }
+        // Note: MyAutoCompleter/MySingleAutoCompleter will be assigned in DsViewPage
       }
+
+      // Setup date editor
       if (col.editor === "date") {
-        col.editor = DateEditor;
         col.editorParams = { format: "MM/DD/YYYY" };
+        // Note: DateEditor will be assigned in DsViewPage
       }
+
       columns.push(col);
     }
 
-    if (getState().frozenCol) {
+    // Handle frozen columns if frozenCol state is set
+    if (frozenCol) {
       let beforeFrozen = true;
       for (let i = 0; i < columns.length; i++) {
-        let col = columns[i];
-        if (beforeFrozen) col.frozen = true; else delete col.frozen;
-        if (col.field === getState().frozenCol) beforeFrozen = false;
+        const col = columns[i];
+        if (beforeFrozen) {
+          col.frozen = true;
+        } else {
+          delete col.frozen;
+        }
+        if (col.field === frozenCol) {
+          beforeFrozen = false;
+        }
       }
     } else {
+      // Clear all frozen columns
       for (let i = 0; i < columns.length; i++) {
-        let col = columns[i];
-        delete col.frozen;
+        delete columns[i].frozen;
       }
     }
+
     return columns;
   }
 
+  /**
+   * Ajax URL generator - adds chronology, reqCount, fetchAllMatchingRecords to params
+   */
   function ajaxURLGenerator(url, config, params) {
+    // This will be implemented in DsViewPage with state access
     return url;
+  }
+
+  /**
+   * Ajax response handler - extract total records and data
+   */
+  function ajaxResponse(url, params, response) {
+    // This will be implemented in DsViewPage with state access
+    return response;
   }
 
   return {
     setColumnDefinitions,
-    ajaxURLGenerator
+    ajaxURLGenerator,
+    ajaxResponse,
   };
 }

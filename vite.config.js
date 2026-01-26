@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@tabulator': path.resolve(__dirname, './app/lib/tabulator'),
+      'punycode': 'punycode/',
     },
   },
   optimizeDeps: {

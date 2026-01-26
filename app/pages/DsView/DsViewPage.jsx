@@ -67,9 +67,6 @@ function DsViewPage() {
   const navigate = useNavigate();
   const auth = useAuth();
   const userId = auth.userId;
-  
-  // Debug - check userId format
-  console.log('[DsViewPage] userId:', userId, 'auth:', auth);
 
   // Refs
   const tabulatorRef = useRef(null);
@@ -94,6 +91,7 @@ function DsViewPage() {
   const [pageSize, setPageSize] = useState(30);
   const [filter, setFilter] = useState('');
   const [showAllFilters, setShowAllFilters] = useState(false);
+  const [frozenCol, setFrozenCol] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalQuestion, setModalQuestion] = useState('');
@@ -144,27 +142,9 @@ function DsViewPage() {
   // Helper modules
   const clipboardHelpers = useRef(null);
   const domHelpers = useRef(null);
-  const tabulatorConfig = useRef(null);
+  const tabulatorConfigHelper = useRef(null);
   const jiraHelpers = useRef(null);
-
-  // Initialize helper modules
-  useEffect(() => {
-    if (!viewConfig) return;
-
-    const helperContext = {
-      tabulatorRef,
-      viewConfig,
-      dsName,
-      dsView,
-      userId,
-      // Add more context as needed
-    };
-
-    clipboardHelpers.current = createClipboardHelpers(helperContext);
-    domHelpers.current = createDomHelpers(helperContext);
-    tabulatorConfig.current = createTabulatorConfig(helperContext);
-    jiraHelpers.current = createJiraHelpers(helperContext);
-  }, [viewConfig, dsName, dsView, userId]);
+  const [columns, setColumns] = useState([]);
 
   // Cell editing handler
   const handleCellEditing = useCallback((cell) => {
@@ -315,6 +295,61 @@ function DsViewPage() {
     setShowModal(true);
   }, [dsName, dsView, userId, deleteRowMutation]);
 
+  // Handlers object for tabulatorConfig (defined after all handler functions)
+  const handlers = useMemo(() => ({
+    cellEditCheck: handleCellEditing,
+    cellForceEditTrigger: () => false, // TODO
+    isKey: (field) => viewConfig?.keys?.includes(field) || false,
+    toggleSingleFilter: () => {}, // TODO
+    freezeColumn: () => {}, // TODO
+    unfreezeColumn: () => {}, // TODO
+    hideColumn: () => {}, // TODO
+    hideColumnFromCell: () => {}, // TODO
+    showAllCols: () => {}, // TODO
+    copyCellToClipboard: () => {}, // TODO
+    startPreso: () => {}, // Deferred
+    urlGeneratorFunction: () => {}, // TODO
+    duplicateAndAddRowHandler: () => {}, // TODO
+    addRow: handleAddRow,
+    deleteAllRowsInViewQuestion: () => {}, // TODO
+    deleteAllRowsInQuery: () => {}, // TODO
+    deleteRowQuestion: () => {}, // TODO
+    deleteColumnQuestion: () => {}, // TODO
+    addColumnQuestion: () => {}, // TODO
+    downloadXlsx: () => {}, // TODO
+    convertToJiraRow: () => {}, // Deferred
+    addJiraRow: () => {}, // Deferred
+    isJiraRow: () => false, // Deferred
+    showAllFilters: showAllFilters,
+  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters]);
+
+  // Initialize helper modules and generate columns
+  useEffect(() => {
+    if (!viewConfig) return;
+
+    const helperContext = {
+      tabulatorRef,
+      viewConfig,
+      dsName,
+      dsView,
+      userId,
+      handlers,
+      cellImEditingRef,
+      frozenCol,
+    };
+
+    clipboardHelpers.current = createClipboardHelpers(helperContext);
+    domHelpers.current = createDomHelpers(helperContext);
+    tabulatorConfigHelper.current = createTabulatorConfig(helperContext);
+    jiraHelpers.current = createJiraHelpers(helperContext);
+    
+    // Generate columns using tabulatorConfig
+    if (tabulatorConfigHelper.current) {
+      const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
+      setColumns(generatedColumns);
+    }
+  }, [viewConfig, dsName, dsView, userId]);
+
   // TODO: Implement remaining handlers:
   // - handleAddColumn
   // - handleDeleteColumn
@@ -337,9 +372,6 @@ function DsViewPage() {
     return <div className="error">No view configuration found</div>;
   }
 
-  // TODO: Build Tabulator columns from viewConfig using tabulatorConfig helper
-  const columns = viewConfig.columnAttrs || [];
-
   return (
     <div className="ds-view-page">
       <Row>
@@ -355,7 +387,7 @@ function DsViewPage() {
 
           <MyTabulator
             innerref={(ref) => (tabulatorRef.current = ref)}
-            columns={columns}
+            columns={columns.length > 0 ? columns : viewConfig.columnAttrs || []}
             data={[]}
             options={{
               height: '600px',
