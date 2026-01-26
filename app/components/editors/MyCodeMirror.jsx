@@ -1,6 +1,6 @@
 import ModalEditor from '../../pages/DsView/components/ModalEditor';
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 
 function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) {
     var self = this,
@@ -36,21 +36,22 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
     input.value = value;
 
     if (ctrlKey) {
-        let cellWidth = cell._cell.element.style.width;    
+        let cellWidth = cell._cell.element.style.width;
         let div = document.createElement("div");
         document.body.appendChild(div);
         let cmRef = {};
+        let root = null;
         const PopupContent = () => {
             return (
-                <ModalEditor show={true} 
+                <ModalEditor show={true}
                     title={"Edit"} text={value} onClose={clear} editorParams={editorParams}
                     cancel={"Cancel"} ok={"Done"} cmRef={cmRef} width={cellWidth}>
                 </ModalEditor>
             );
         };
-        
+
         const clear = (ok, value) => {
-            ReactDOM.unmountComponentAtNode(div);
+            if (root) root.unmount();
             div.remove();
             if (ok && (input.value != value)) {
                 success(value);
@@ -59,7 +60,8 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
                 cancel();
             }
         }
-        ReactDOM.render(<PopupContent/>, div);
+        root = createRoot(div);
+        root.render(<PopupContent/>);
     }
 
 
