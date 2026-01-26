@@ -74,6 +74,10 @@ function DsViewPage() {
   const timersRef = useRef({});
   const cellImEditingRef = useRef(null);
   const reqCount = useRef(0);
+  
+  // Store edit-related state in refs so cellEditCheck can access current values
+  const singleClickEditRef = useRef(false);
+  const disableEditingRef = useRef(false);
 
   // Fetch view configuration
   const { data: viewConfig, isLoading, isError, error } = useDsView(dsName, dsView, userId);
@@ -99,8 +103,23 @@ function DsViewPage() {
   const [fetchAllMatchingRecords, setFetchAllMatchingRecords] = useState(false);
   const [totalRecs, setTotalRecs] = useState(0);
   const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
-  const [singleClickEdit, setSingleClickEdit] = useState(false);
-  const [disableEditing, setDisableEditing] = useState(false);
+  
+  // Initialize singleClickEdit from localStorage
+  const [singleClickEdit, setSingleClickEdit] = useState(() => {
+    try {
+      const saved = localStorage.getItem('singleClickEdit');
+      const value = saved ? JSON.parse(saved) : false;
+      singleClickEditRef.current = value; // Sync ref
+      return value;
+    } catch {
+      return false;
+    }
+  });
+  const [disableEditing, setDisableEditing] = useState(() => {
+    const value = false;
+    disableEditingRef.current = value; // Sync ref
+    return value;
+  });
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalQuestion, setModalQuestion] = useState('');
@@ -234,6 +253,54 @@ function DsViewPage() {
       console.log('ajaxResponse: avoided stale setting of response.total');
     }
     return response;
+  }, []);
+
+  // Cell edit check - controls single-click editing based on checkbox state
+  // Reference: DsView.js lines 1014-1020
+  // Uses refs to always check current state, not captured closure values
+  const cellEditCheck = useCallback((cell) => {
+    if (!singleClickEditRef.current) return false;  // Checkbox unchecked = no single-click edit
+    if (disableEditingRef.current) return false;
+    if (!connectedState) return false;      // Not connected to socket
+    if (!dbConnectivityState) return false; // No DB connectivity
+    // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
+    // TODO: Check for mouseDownOnHtmlLink, mouseDownOnBadgeCopyIcon
+    return true;
+  }, [connectedState, dbConnectivityState]);
+
+  // Cell force edit trigger - called when user clicks/focuses a cell
+  // This should check if editing is allowed and then force the edit
+  const cellForceEditTrigger = useCallback((cell) => {
+    // Check all conditions using same logic as cellEditCheck
+    if (!singleClickEditRef.current) return;  // Checkbox unchecked = no single-click edit
+    if (disableEditingRef.current) return;
+    if (!connectedState) return;      // Not connected to socket
+    if (!dbConnectivityState) return; // No DB connectivity
+    // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
+    // TODO: Check for mouseDownOnHtmlLink, mouseDownOnBadgeCopyIcon
+    // Force the edit by calling cell.edit(true)
+    cell.edit(true);
+  }, [connectedState, dbConnectivityState]);
+
+  // Handle cell click/double-click events
+  // Reference: DsView.js lines 906-912
+  const cellClickEvents = useCallback((e, cell) => {
+    if (!connectedState || !dbConnectivityState) return;
+    
+    // Double-click editing when single-click edit is OFF
+    if (e.type === 'dblclick' && !singleClickEditRef.current && !disableEditingRef.current) {
+      // TODO: Add cellEditCheckForConflicts check
+      // Force edit on double-click bypassing cellEditCheck
+      cell.edit(true);
+    }
+  }, [connectedState, dbConnectivityState]);
+
+  // Handler for checkbox change
+  const handleSingleClickEditToggle = useCallback((event) => {
+    const checked = event.target.checked;
+    singleClickEditRef.current = checked; // Sync ref
+    setSingleClickEdit(checked);
+    localStorage.setItem('singleClickEdit', JSON.stringify(checked));
   }, []);
 
   // Toggle functions for checkboxes
@@ -410,8 +477,8 @@ function DsViewPage() {
 
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => ({
-    cellEditCheck: handleCellEditing,
-    cellForceEditTrigger: () => false, // TODO
+    cellEditCheck: cellEditCheck,
+    cellForceEditTrigger: cellForceEditTrigger, // Separate function that triggers edit
     isKey: (field) => viewConfig?.keys?.includes(field) || false,
     toggleSingleFilter: () => {}, // TODO
     freezeColumn: () => {}, // TODO
@@ -434,7 +501,7 @@ function DsViewPage() {
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
-  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters]);
+  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
@@ -467,7 +534,7 @@ function DsViewPage() {
       const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
       setColumns(generatedColumns);
     }
-  }, [viewConfig, dsName, dsView, userId]);
+  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState]);
 
   // TODO: Implement remaining handlers:
   // - handleAddColumn
@@ -532,18 +599,6 @@ function DsViewPage() {
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
-                checked={singleClickEdit}
-                onChange={(e) => {
-                  setSingleClickEdit(e.target.checked);
-                  localStorage.setItem('singleClickEdit', JSON.stringify(e.target.checked));
-                }}
-              />
-              1-click editing <i className='fas fa-bolt'></i>
-            </label>
-            <span className={styles.separator}>|</span>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
                 checked={showAllFilters}
                 onChange={(e) => {
                   setShowAllFilters(e.target.checked);
@@ -555,12 +610,23 @@ function DsViewPage() {
             </label>
             <span className={styles.separator}>|</span>
             <label className={styles.checkboxLabel}>
+              <input 
+                type="checkbox" 
+                checked={singleClickEdit} 
+                onChange={handleSingleClickEditToggle}
+              />
+              &nbsp;1-click editing <i className='fas fa-bolt'></i>
+            </label>
+            <span className={styles.separator}>|</span>
+            <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={disableEditing}
                 onChange={(e) => {
-                  setDisableEditing(e.target.checked);
-                  localStorage.setItem('disableEditing', JSON.stringify(e.target.checked));
+                  const checked = e.target.checked;
+                  disableEditingRef.current = checked; // Sync ref
+                  setDisableEditing(checked);
+                  localStorage.setItem('disableEditing', JSON.stringify(checked));
                   toggleEditing();
                 }}
               />
@@ -612,6 +678,8 @@ function DsViewPage() {
               pagination: 'remote',
               paginationSize: pageSize,
               chronology: chronologyDescending ? 'desc' : 'asc', // Triggers shouldComponentUpdate
+              cellClick: cellClickEvents,
+              cellDblClick: cellClickEvents,
               forceRefresh: forceRefresh, // Triggers shouldComponentUpdate
               ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}`,
               ajaxURLGenerator: ajaxURLGenerator,

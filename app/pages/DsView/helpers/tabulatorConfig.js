@@ -178,8 +178,9 @@ export default function createTabulatorConfig(context) {
       // Set context menu
       col.contextMenu = cellContextMenu;
       
-      // Set editable check
+      // Set editable check and force edit trigger
       col.editable = cellEditCheck;
+      col.cellForceEditTrigger = cellForceEditTrigger;
       
       // Enable header filter if showAllFilters is true
       if (showAllFilters) {
