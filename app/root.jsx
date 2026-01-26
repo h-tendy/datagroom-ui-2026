@@ -11,12 +11,14 @@ import Sample2Page from './Sample2Page';
 import NewDsFromDsPage from './pages/AllDs/NewDsFromDsPage';
 import NewDsFromXlsPage from './pages/AllDs/NewDsFromXlsPage';
 import NewDsFromCsvPage from './pages/AllDs/NewDsFromCsvPage';
+import DsViewPage from './pages/DsView/DsViewPage';
 
 export function AppRoutes() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireAuth><MainPage /></RequireAuth>} />
+            <Route path="/ds/:dsName/:dsView" element={<RequireAuth><DsViewPage /></RequireAuth>} />
             <Route path="/ds/new-from-ds" element={<RequireAuth><NewDsFromDsPage /></RequireAuth>} />
             <Route path="/ds/new-from-xls" element={<RequireAuth><NewDsFromXlsPage /></RequireAuth>} />
             <Route path="/ds/new-from-csv" element={<RequireAuth><NewDsFromCsvPage /></RequireAuth>} />

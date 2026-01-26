@@ -132,7 +132,18 @@
 }
 
 .cardBody { margin-bottom: 8px; }
-.cardTitle { font-weight: var(--font-weight-bold); color: var(--color-primary); font-size: 1.25rem; }
+.cardTitle { 
+  font-weight: var(--font-weight-bold); 
+  color: var(--color-primary); 
+  font-size: 1.25rem; 
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.cardTitle:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
 .cardMeta { font-size: 13px; color: var(--color-text-muted); margin-top: 8px; }
 
 .cardExtra { font-size: 14px; color: var(--color-text); background: rgba(0,0,0,0.02); padding: 10px; border-radius: 6px; }

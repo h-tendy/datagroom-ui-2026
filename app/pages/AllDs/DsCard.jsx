@@ -23,7 +23,9 @@ export default function DsCard({ ds, viewMode, onDeleteRequest, onConfirmDelete,
     <div className={viewMode === 'grid' ? styles.card : styles.cardList}>
       <div className={styles.cardBody}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className={styles.cardTitle}>{ds.name}</div>
+          <Link to={`/ds/${encodeURIComponent(ds.name)}/default`} className={styles.cardTitle}>
+            {ds.name}
+          </Link>
           <i
             className={`fa fa-info-circle ${styles.cardInfoIcon} ${expanded ? styles.iconActive : ''}`}
             onClick={toggleCard}
@@ -43,7 +45,6 @@ export default function DsCard({ ds, viewMode, onDeleteRequest, onConfirmDelete,
         )}
       </div>
       <div className={styles.cardActions}>
-        <Link to={`/ds/${encodeURIComponent(ds.name)}`} className={styles.openLink}>Open</Link>
         {isOwner && !isAwaitingConfirm && (
           <button className={styles.deleteBtn} onClick={onDeleteRequest}>Delete</button>
         )}
