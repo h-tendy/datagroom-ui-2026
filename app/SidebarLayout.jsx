@@ -43,12 +43,12 @@ export default function SidebarLayout({ children, onLogout }) {
 
   return (
     <>
-      {/* Hamburger button always at top left of viewport */}
+      {/* Hamburger button scrolls with content */}
       <button
         aria-label="Toggle sidebar"
         onClick={handleToggle}
         style={{
-          position: 'fixed',
+          position: 'absolute',
           top: 18,
           left: open ? 250 : 18,
           zIndex: 2001,
