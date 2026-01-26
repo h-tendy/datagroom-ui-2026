@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styles from './AllDs.module.css';
 
-export default function DsCard({ ds, viewMode, onDelete, currentUserId, allInfoExpanded }) {
+export default function DsCard({ ds, viewMode, onDeleteRequest, onConfirmDelete, isAwaitingConfirm, currentUserId, allInfoExpanded }) {
   const owner = ds?.perms?.owner || null;
   const size = ds?.sizeOnDisk ? `${Math.round(ds.sizeOnDisk / 1024)} KB` : '—';
   const isOwner = owner && currentUserId && String(owner).toLowerCase() === String(currentUserId).toLowerCase();
@@ -44,8 +44,11 @@ export default function DsCard({ ds, viewMode, onDelete, currentUserId, allInfoE
       </div>
       <div className={styles.cardActions}>
         <Link to={`/ds/${encodeURIComponent(ds.name)}`} className={styles.openLink}>Open</Link>
-        {isOwner && (
-          <button className={styles.deleteBtn} onClick={onDelete}>Delete</button>
+        {isOwner && !isAwaitingConfirm && (
+          <button className={styles.deleteBtn} onClick={onDeleteRequest}>Delete</button>
+        )}
+        {isOwner && isAwaitingConfirm && (
+          <button className={styles.deleteBtnConfirm} onClick={onConfirmDelete}>Confirm Deletion</button>
         )}
       </div>
     </div>

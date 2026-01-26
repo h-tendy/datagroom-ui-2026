@@ -4,20 +4,21 @@ import useAllDs from './useAllDs';
 import useDeleteDs from './useDeleteDs';
 import SearchSortBar from './SearchSortBar';
 import DsList from './DsList';
-import ConfirmDeleteModal from './ConfirmDeleteModal';
 import { useAuth } from '../../auth/AuthProvider';
+import { useNavigate } from 'react-router-dom';
 
 export default function AllDsPage({ currentUserId }) {
   const auth = useAuth();
   const userId = currentUserId || auth.userId;
   const { data, isLoading, isError, refetch } = useAllDs(userId);
   const deleteMut = useDeleteDs();
+  const navigate = useNavigate();
 
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('allDsViewMode') || 'grid');
   const [searchText, setSearchText] = useState(() => localStorage.getItem('allDsSearchText') || '');
   const [sortBy, setSortBy] = useState(() => localStorage.getItem('allDsSortBy') || 'name_asc');
   const [allInfoExpanded, setAllInfoExpanded] = useState(() => localStorage.getItem('allDsGlobalInfoExpanded') === 'true');
-  const [deleteCandidate, setDeleteCandidate] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({});
 
   useEffect(() => { localStorage.setItem('allDsViewMode', viewMode); }, [viewMode]);
   useEffect(() => { localStorage.setItem('allDsSearchText', searchText); }, [searchText]);
@@ -36,11 +37,16 @@ export default function AllDsPage({ currentUserId }) {
     return out;
   }, [dbList, searchText, sortBy]);
 
-  function handleRequestDelete(ds) { setDeleteCandidate(ds); }
-  function handleConfirmDelete() {
-    if (!deleteCandidate) return;
-    deleteMut.mutate({ dsName: deleteCandidate.name, dsUser: userId });
-    setDeleteCandidate(null);
+  function handleRequestDelete(dsName) {
+    setDeleteConfirm(prev => ({ ...prev, [dsName]: true }));
+  }
+  function handleConfirmDelete(dsName) {
+    deleteMut.mutate({ dsName, dsUser: userId });
+    setDeleteConfirm(prev => {
+      const updated = { ...prev };
+      delete updated[dsName];
+      return updated;
+    });
   }
 
   return (
@@ -70,6 +76,13 @@ export default function AllDsPage({ currentUserId }) {
             allInfoExpanded={allInfoExpanded}
             onToggleAllInfo={() => setAllInfoExpanded(v => !v)}
           />
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={() => navigate('/ds/new-from-ds')}
+          >
+            <b>Copy Ds</b>
+          </button>
         </div>
       </div>
 
@@ -85,17 +98,12 @@ export default function AllDsPage({ currentUserId }) {
           dsList={filtered}
           viewMode={viewMode}
           onDeleteRequest={handleRequestDelete}
+          onConfirmDelete={handleConfirmDelete}
+          deleteConfirm={deleteConfirm}
           currentUserId={userId}
           allInfoExpanded={allInfoExpanded}
         />
       )}
-
-      <ConfirmDeleteModal
-        visible={!!deleteCandidate}
-        dsName={deleteCandidate?.name}
-        onCancel={() => setDeleteCandidate(null)}
-        onConfirm={handleConfirmDelete}
-      />
     </div>
   );
 }
