@@ -66,7 +66,8 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
  * @returns {Object} - { setColumnDefinitions, ajaxURLGenerator, ajaxResponse }
  */
 export default function createTabulatorConfig(context) {
-  const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol } = context;
+  const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol,
+          MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter } = context;
   
   // Extract handlers passed from DsViewPage
   const {
@@ -250,8 +251,12 @@ export default function createTabulatorConfig(context) {
           col.editorParams = col.editorParams || {};
           col.editorParams.dsName = dsName;
           
-          // Note: MyTextArea and MyCodeMirror will be assigned in DsViewPage
-          // They need React component instances which aren't available here
+          // Replace string editor names with actual function references
+          if (col.editor === "textarea") {
+            col.editor = MyTextArea;
+          } else if (col.editor === "codemirror") {
+            col.editor = MyCodeMirror;
+          }
           
           // Add cellEditCancelled callback to normalize height
           const cellEditCancelled = (cell) => {
@@ -271,13 +276,19 @@ export default function createTabulatorConfig(context) {
         if (!col.editorParams.verticalNavigation) {
           col.editorParams.verticalNavigation = "table";
         }
-        // Note: MyAutoCompleter/MySingleAutoCompleter will be assigned in DsViewPage
+        // Replace string editor name with actual component reference
+        if (col.editorParams.multiselect) {
+          col.editor = MyAutoCompleter;
+        } else {
+          col.editor = MySingleAutoCompleter;
+        }
       }
 
       // Setup date editor
       if (col.editor === "date") {
         col.editorParams = { format: "MM/DD/YYYY" };
-        // Note: DateEditor will be assigned in DsViewPage
+        // Replace string editor name with actual component reference
+        col.editor = DateEditor;
       }
 
       columns.push(col);
@@ -304,6 +315,7 @@ export default function createTabulatorConfig(context) {
       }
     }
 
+    console.log('[tabulatorConfig] Returning columns:', columns.length, 'columns');
     return columns;
   }
 

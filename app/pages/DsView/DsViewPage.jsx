@@ -449,6 +449,12 @@ function DsViewPage() {
       handlers,
       cellImEditingRef,
       frozenCol,
+      // Editor functions for Tabulator columns
+      MyTextArea,
+      MyCodeMirror,
+      DateEditor,
+      MyAutoCompleter,
+      MySingleAutoCompleter,
     };
 
     clipboardHelpers.current = createClipboardHelpers(helperContext);
@@ -598,7 +604,7 @@ function DsViewPage() {
 
           <MyTabulator
             innerref={(ref) => (tabulatorRef.current = ref)}
-            columns={columns.length > 0 ? columns : viewConfig.columnAttrs || []}
+            columns={columns}
             data={[]}
             options={{
               height: '600px',
