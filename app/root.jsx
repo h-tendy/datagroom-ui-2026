@@ -12,13 +12,26 @@ import NewDsFromDsPage from './pages/AllDs/NewDsFromDsPage';
 import NewDsFromXlsPage from './pages/AllDs/NewDsFromXlsPage';
 import NewDsFromCsvPage from './pages/AllDs/NewDsFromCsvPage';
 import DsViewPage from './pages/DsView/DsViewPage';
+import SidebarLayout from './SidebarLayout';
+import { useAuth } from './auth/AuthProvider';
+
+function DsViewWithLayout() {
+    const auth = useAuth();
+    return (
+        <SidebarLayout onLogout={() => { auth.logout(); window.location.href = '/login'; }}>
+            <div style={{ position: 'relative', width: '100%', margin: '0 auto', padding: '0 20px' }}>
+                <DsViewPage currentUserId={auth.userId} />
+            </div>
+        </SidebarLayout>
+    );
+}
 
 export function AppRoutes() {
     return (
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireAuth><MainPage /></RequireAuth>} />
-            <Route path="/ds/:dsName/:dsView" element={<RequireAuth><DsViewPage /></RequireAuth>} />
+            <Route path="/ds/:dsName/:dsView" element={<RequireAuth><DsViewWithLayout /></RequireAuth>} />
             <Route path="/ds/new-from-ds" element={<RequireAuth><NewDsFromDsPage /></RequireAuth>} />
             <Route path="/ds/new-from-xls" element={<RequireAuth><NewDsFromXlsPage /></RequireAuth>} />
             <Route path="/ds/new-from-csv" element={<RequireAuth><NewDsFromCsvPage /></RequireAuth>} />

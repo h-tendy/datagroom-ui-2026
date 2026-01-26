@@ -18,6 +18,7 @@
 import React, { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Row, Col } from 'react-bootstrap';
+import styles from './DsViewPage.module.css';
 import { useAuth } from '../../auth/AuthProvider';
 
 // Hooks
@@ -72,6 +73,7 @@ function DsViewPage() {
   const tabulatorRef = useRef(null);
   const timersRef = useRef({});
   const cellImEditingRef = useRef(null);
+  const reqCount = useRef(0);
 
   // Fetch view configuration
   const { data: viewConfig, isLoading, isError, error } = useDsView(dsName, dsView, userId);
@@ -92,6 +94,12 @@ function DsViewPage() {
   const [filter, setFilter] = useState('');
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [frozenCol, setFrozenCol] = useState(null);
+  const [chronologyDescending, setChronologyDescending] = useState(false);
+  const [fetchAllMatchingRecords, setFetchAllMatchingRecords] = useState(false);
+  const [totalRecs, setTotalRecs] = useState(0);
+  const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
+  const [singleClickEdit, setSingleClickEdit] = useState(false);
+  const [disableEditing, setDisableEditing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalQuestion, setModalQuestion] = useState('');
@@ -139,12 +147,91 @@ function DsViewPage() {
     onCellUnlocked: handleCellUnlocked,
   });
 
-  // Helper modules
   const clipboardHelpers = useRef(null);
   const domHelpers = useRef(null);
   const tabulatorConfigHelper = useRef(null);
   const jiraHelpers = useRef(null);
   const [columns, setColumns] = useState([]);
+
+  // Ajax helper functions (from reference implementation)
+  const generateParamsList = useCallback((data, prefix = "") => {
+    let output = [];
+    
+    if (Array.isArray(data)) {
+      data.forEach((item, i) => {
+        output = output.concat(generateParamsList(item, prefix ? prefix + "[" + i + "]" : i));
+      });
+    } else if (typeof data === "object" && data !== null) {
+      for (let key in data) {
+        output = output.concat(generateParamsList(data[key], prefix ? prefix + "[" + key + "]" : key));
+      }
+    } else {
+      output.push({ key: prefix, value: data });
+    }
+    
+    return output;
+  }, []);
+
+  const serializeParams = useCallback((params) => {
+    const output = generateParamsList(params);
+    const encoded = [];
+    
+    output.forEach((item) => {
+      encoded.push(encodeURIComponent(item.key) + "=" + encodeURIComponent(item.value));
+    });
+    
+    return encoded.join("&");
+  }, [generateParamsList]);
+
+  const ajaxURLGenerator = useCallback((url, config, params) => {
+    if (url) {
+      if (params && Object.keys(params).length) {
+        params.fetchAllMatchingRecords = fetchAllMatchingRecords;
+        params.chronology = chronologyDescending ? 'desc' : 'asc';
+        params.reqCount = ++(reqCount.current);
+        
+        if (!config.method || config.method.toLowerCase() === "get") {
+          config.method = "get";
+          url += (url.includes("?") ? "&" : "?") + serializeParams(params);
+        }
+      }
+    }
+    return url;
+  }, [fetchAllMatchingRecords, chronologyDescending, serializeParams]);
+
+  const ajaxResponse = useCallback((url, params, response) => {
+    console.log('ajaxResponse', url, params, response);
+    if ((response.reqCount === reqCount.current) || (response.reqCount === 0)) {
+      setTotalRecs(response.total || 0);
+      setMoreMatchingDocs(response.moreMatchingDocs || false);
+    } else {
+      console.log('ajaxResponse: avoided stale setting of response.total');
+    }
+    return response;
+  }, []);
+
+  // Toggle functions for checkboxes
+  const toggleFilters = useCallback(() => {
+    setShowAllFilters(prev => {
+      const newValue = !prev;
+      localStorage.setItem('showAllFilters', JSON.stringify(newValue));
+      return newValue;
+    });
+  }, []);
+
+  const toggleEditing = useCallback(() => {
+    setDisableEditing(prev => {
+      const newValue = !prev;
+      localStorage.setItem('disableEditing', JSON.stringify(newValue));
+      return newValue;
+    });
+  }, []);
+
+  const toggleFetchAllRecords = useCallback(() => {
+    setFetchAllMatchingRecords(prev => !prev);
+    // Trigger table refresh
+    tabulatorRef.current?.table?.setData();
+  }, []);
 
   // Cell editing handler
   const handleCellEditing = useCallback((cell) => {
@@ -308,7 +395,7 @@ function DsViewPage() {
     showAllCols: () => {}, // TODO
     copyCellToClipboard: () => {}, // TODO
     startPreso: () => {}, // Deferred
-    urlGeneratorFunction: () => {}, // TODO
+    urlGeneratorFunction: () => window.location.href,
     duplicateAndAddRowHandler: () => {}, // TODO
     addRow: handleAddRow,
     deleteAllRowsInViewQuestion: () => {}, // TODO
@@ -361,29 +448,127 @@ function DsViewPage() {
   // - And all other methods from the original 2,360-line component
 
   if (isLoading) {
-    return <div className="loading">Loading dataset view...</div>;
+    return <div className={styles.loading}>Loading dataset view...</div>;
   }
 
   if (isError) {
-    return <div className="error">Error loading view: {error?.message}</div>;
+    return <div className={styles.error}>Error loading view: {error?.message}</div>;
   }
 
   if (!viewConfig) {
-    return <div className="error">No view configuration found</div>;
+    return <div className={styles.error}>No view configuration found</div>;
   }
 
   return (
-    <div className="ds-view-page">
+    <div className={styles.container}>
       <Row>
         <Col>
-          <h2>{dsName} - {dsView}</h2>
-          <div className="connectivity-status">
-            Socket: {connectedState ? '🟢' : '🔴'} | 
-            DB: {dbConnectivityState ? '🟢' : '🔴'}
+          <div className={styles.header}>
+            <h2 className={styles.title}>{dsName} - {dsView}</h2>
+            <div className={styles.connectivityStatus}>
+              <span className={styles.statusIndicator}>Socket: {connectedState ? '🟢' : '🔴'}</span>
+              <span className={styles.statusIndicator}>DB: {dbConnectivityState ? '🟢' : '🔴'}</span>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className={styles.actionBar}>
+            <button className={styles.btnLink} onClick={() => console.log('Copy to clipboard')}>
+              <i className='fas fa-clipboard'></i> Copy-to-clipboard
+            </button>
+            <span className={styles.separator}>|</span>
+            <button className={styles.btnLink} onClick={handleAddRow}>
+              <i className='fas fa-plus'></i> Add Row
+            </button>
+          </div>
+
+          {/* Settings checkboxes */}
+          <div className={styles.settingsBar}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={chronologyDescending}
+                onChange={(e) => {
+                  setChronologyDescending(e.target.checked);
+                  localStorage.setItem('chronologyDescending', JSON.stringify(e.target.checked));
+                  tabulatorRef.current?.table?.setData();
+                }}
+              />
+              Desc order <i className='fas fa-level-down-alt'></i>
+            </label>
+            <span className={styles.separator}>|</span>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={singleClickEdit}
+                onChange={(e) => {
+                  setSingleClickEdit(e.target.checked);
+                  localStorage.setItem('singleClickEdit', JSON.stringify(e.target.checked));
+                }}
+              />
+              1-click editing <i className='fas fa-bolt'></i>
+            </label>
+            <span className={styles.separator}>|</span>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={showAllFilters}
+                onChange={(e) => {
+                  setShowAllFilters(e.target.checked);
+                  localStorage.setItem('showAllFilters', JSON.stringify(e.target.checked));
+                  toggleFilters();
+                }}
+              />
+              Show filters <i className='fas fa-filter'></i>
+            </label>
+            <span className={styles.separator}>|</span>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={disableEditing}
+                onChange={(e) => {
+                  setDisableEditing(e.target.checked);
+                  localStorage.setItem('disableEditing', JSON.stringify(e.target.checked));
+                  toggleEditing();
+                }}
+              />
+              Disable Editing <i className='fas fa-ban'></i>
+            </label>
           </div>
 
           {/* TODO: Add FilterControls component */}
-          {/* TODO: Add toolbar with buttons */}
+
+          {/* Total records display */}
+          <div className={styles.infoBar}>
+            {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 ? (
+              fetchAllMatchingRecords ? (
+                <b><i className='fas fa-clone'></i> Total matching records: {totalRecs}</b>
+              ) : (
+                moreMatchingDocs ? (
+                  <b><i className='fas fa-clone'></i> Top matching records: {totalRecs - 1}+</b>
+                ) : (
+                  <b><i className='fas fa-clone'></i> Top matching records: {totalRecs}</b>
+                )
+              )
+            ) : (
+              <b><i className='fas fa-clone'></i> Total records: {totalRecs}</b>
+            )}
+            
+            {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 && (
+              <>
+                <span className={styles.separator}>|</span>
+                <button className={styles.btnLink} onClick={toggleFetchAllRecords}>
+                  <i className='fa fa-download'></i>
+                  {fetchAllMatchingRecords ? 'Fetch top matches only' : 'Fetch all matches'}
+                </button>
+              </>
+            )}
+            
+            <span className={styles.separator}>|</span>
+            <button className={styles.btnLink} onClick={() => tabulatorRef.current?.table?.setData()}>
+              <i className='fas fa-redo'></i> Refresh
+            </button>
+          </div>
 
           <MyTabulator
             innerref={(ref) => (tabulatorRef.current = ref)}
@@ -395,6 +580,8 @@ function DsViewPage() {
               pagination: 'remote',
               paginationSize: pageSize,
               ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}`,
+              ajaxURLGenerator: ajaxURLGenerator,
+              ajaxResponse: ajaxResponse,
               ajaxConfig: {
                 headers: {
                   'Content-Type': 'application/json',
@@ -407,10 +594,6 @@ function DsViewPage() {
               },
               paginationDataReceived: {
                 last_page: 'total_pages'
-              },
-              ajaxResponse: (url, params, response) => {
-                console.log('ajaxResponse', url, params, response);
-                return response;
               },
               ajaxError: (error) => {
                 console.error('ajaxError', error);
