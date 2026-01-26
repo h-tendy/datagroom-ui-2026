@@ -133,3 +133,105 @@
   padding: 12px;
   text-align: center;
 }
+
+/* Tabulator table theme styling */
+.container :global(.tabulator) {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-header) {
+  background: var(--color-bg);
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-col) {
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+}
+
+.container :global(.tabulator-col-title) {
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-row) {
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.container :global(.tabulator-row:hover) {
+  background: var(--color-sidebar-active);
+}
+
+.container :global(.tabulator-row.tabulator-row-even),
+.container :global(.tabulator-row.tabulator-row-odd) {
+  background: var(--color-bg);
+}
+
+.container :global(.tabulator-cell) {
+  color: var(--color-text);
+  border-right: 1px solid var(--color-border);
+}
+
+.container :global(.tabulator-tableHolder) {
+  background: var(--color-bg);
+}
+
+.container :global(.tabulator-footer) {
+  background: var(--color-bg);
+  border-top: 2px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-paginator) {
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-page) {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.container :global(.tabulator-page.active) {
+  background: var(--color-primary);
+  color: var(--color-bg-light);
+}
+
+.container :global(.tabulator-page:hover) {
+  background: var(--color-sidebar-active);
+}
+
+/* Header filter inputs */
+.container :global(.tabulator-header-filter input),
+.container :global(.tabulator-header-filter select) {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+/* Editable cells */
+.container :global(.tabulator-cell.tabulator-editing) {
+  background: var(--color-sidebar-active);
+  border: 2px solid var(--color-primary);
+}
+
+.container :global(.tabulator-cell.tabulator-editing input),
+.container :global(.tabulator-cell.tabulator-editing select),
+.container :global(.tabulator-cell.tabulator-editing textarea) {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+/* Selected rows */
+.container :global(.tabulator-row.tabulator-selected) {
+  background: var(--color-sidebar-active);
+}
+
+/* Frozen columns */
+.container :global(.tabulator-frozen) {
+  background: var(--color-sidebar);
+}
