@@ -79,6 +79,20 @@ export default function AllDsPage({ currentUserId }) {
           <button
             type="button"
             className={styles.actionButton}
+            onClick={() => navigate('/ds/new-from-xls')}
+          >
+            <b>New Ds (xlsx)</b>
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={() => navigate('/ds/new-from-csv')}
+          >
+            <b>New Ds (csv)</b>
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
             onClick={() => navigate('/ds/new-from-ds')}
           >
             <b>Copy Ds</b>

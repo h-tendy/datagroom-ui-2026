@@ -9,6 +9,8 @@ import LoginPage from './components/LoginPage';
 import Sample1Page from './Sample1Page';
 import Sample2Page from './Sample2Page';
 import NewDsFromDsPage from './pages/AllDs/NewDsFromDsPage';
+import NewDsFromXlsPage from './pages/AllDs/NewDsFromXlsPage';
+import NewDsFromCsvPage from './pages/AllDs/NewDsFromCsvPage';
 
 export function AppRoutes() {
     return (
@@ -16,6 +18,8 @@ export function AppRoutes() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireAuth><MainPage /></RequireAuth>} />
             <Route path="/ds/new-from-ds" element={<RequireAuth><NewDsFromDsPage /></RequireAuth>} />
+            <Route path="/ds/new-from-xls" element={<RequireAuth><NewDsFromXlsPage /></RequireAuth>} />
+            <Route path="/ds/new-from-csv" element={<RequireAuth><NewDsFromCsvPage /></RequireAuth>} />
             <Route path="/sample1" element={<RequireAuth><Sample1Page /></RequireAuth>} />
             <Route path="/sample2" element={<RequireAuth><Sample2Page /></RequireAuth>} />
         </Routes>

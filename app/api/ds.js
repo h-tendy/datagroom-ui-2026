@@ -25,7 +25,61 @@ export async function createDsFromDs(body) {
   }
 }
 
+export async function uploadXlsFile(formData) {
+  const headers = getAuthHeaders();
+  try {
+    const BASE = import.meta.env.VITE_API_BASE || '/api';
+    const res = await fetch(`${BASE}/upload`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: { ...headers }
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    return await res.json();
+  } catch (err) {
+    throw new Error(err.message || 'Upload failed');
+  }
+}
+
+export async function loadHdrsFromRange(body) {
+  const headers = getAuthHeaders();
+  return api('/upload/loadHdrsFromRange', { method: 'POST', body, headers });
+}
+
+export async function createDsFromXls(body) {
+  const headers = getAuthHeaders();
+  return api('/upload/createDs', { method: 'POST', body, headers });
+}
+
+export async function uploadCsvFile(formData) {
+  const headers = getAuthHeaders();
+  try {
+    const BASE = import.meta.env.VITE_API_BASE || '/api';
+    const res = await fetch(`${BASE}/uploadCsv`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+      headers: { ...headers }
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    return await res.json();
+  } catch (err) {
+    throw new Error(err.message || 'Upload failed');
+  }
+}
+
+export async function createDsFromCsv(body) {
+  const headers = getAuthHeaders();
+  return api('/uploadCsv/createDs', { method: 'POST', body, headers });
+}
+
 export default {
   fetchDsList,
   createDsFromDs,
+  uploadXlsFile,
+  loadHdrsFromRange,
+  createDsFromXls,
+  uploadCsvFile,
+  createDsFromCsv,
 };
