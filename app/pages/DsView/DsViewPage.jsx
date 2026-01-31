@@ -524,6 +524,13 @@ function DsViewPage() {
     );
   }, [dsName, dsView, userId, insertRowMutation]);
 
+  // Copy to clipboard handler
+  const handleCopyToClipboard = useCallback(() => {
+    if (tabulatorRef.current && clipboardHelpers.current) {
+      clipboardHelpers.current.copyToClipboard(tabulatorRef.current);
+    }
+  }, []);
+
   // Delete row handler
   const handleDeleteRow = useCallback((_id) => {
     setModalTitle('Confirm Delete');
@@ -657,7 +664,7 @@ function DsViewPage() {
 
           {/* Action buttons */}
           <div className={styles.actionBar}>
-            <button className={styles.btnLink} onClick={() => console.log('Copy to clipboard')}>
+            <button className={styles.btnLink} onClick={handleCopyToClipboard}>
               Copy-to-clipboard <i className='fas fa-clipboard'></i>
             </button>
             <span className={styles.separator}>|</span>
