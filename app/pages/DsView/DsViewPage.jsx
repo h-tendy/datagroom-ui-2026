@@ -78,6 +78,7 @@ function DsViewPage() {
   // Store edit-related state in refs so cellEditCheck can access current values
   const singleClickEditRef = useRef(false);
   const disableEditingRef = useRef(false);
+  const originalColumnAttrsRef = useRef(null);
 
   // Fetch view configuration
   const { data: viewConfig, isLoading, isError, error } = useDsView(dsName, dsView, userId);
@@ -116,9 +117,14 @@ function DsViewPage() {
     }
   });
   const [disableEditing, setDisableEditing] = useState(() => {
-    const value = false;
-    disableEditingRef.current = value; // Sync ref
-    return value;
+    try {
+      const saved = localStorage.getItem('disableEditing');
+      const value = saved ? JSON.parse(saved) : false;
+      disableEditingRef.current = value; // Sync ref
+      return value;
+    } catch {
+      return false;
+    }
   });
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -314,12 +320,49 @@ function DsViewPage() {
     });
   }, []);
 
-  const toggleEditing = useCallback(() => {
-    setDisableEditing(prev => {
-      const newValue = !prev;
-      localStorage.setItem('disableEditing', JSON.stringify(newValue));
-      return newValue;
-    });
+  const toggleEditing = useCallback((shouldDisable) => {
+    // Dynamically toggle column editors based on shouldDisable parameter
+    // Reference: DsView.js lines 726-755
+    if (tabulatorRef.current?.table && originalColumnAttrsRef.current) {
+      const currentDefs = tabulatorRef.current.table.getColumnDefinitions();
+      
+      // Modify column definitions in place
+      for (let j = 0; j < currentDefs.length; j++) {
+        const originalCol = originalColumnAttrsRef.current[j];
+        
+        if (shouldDisable) {
+          // Disabling: Set all editors to false
+          currentDefs[j].editor = false;
+        } else {
+          // Enabling: Restore original editor from viewConfig
+          if (originalCol && originalCol.editor) {
+            let restoredEditor = originalCol.editor;
+            
+            // Map string editor names to function references
+            if (restoredEditor === 'textarea') {
+              restoredEditor = MyTextArea;
+            } else if (restoredEditor === 'codemirror') {
+              restoredEditor = MyCodeMirror;
+            } else if (restoredEditor === 'date') {
+              restoredEditor = DateEditor;
+            } else if (restoredEditor === 'autocomplete') {
+              // Check for multiselect in editorParams
+              if (originalCol.editorParams?.multiselect) {
+                restoredEditor = MyAutoCompleter;
+              } else {
+                restoredEditor = MySingleAutoCompleter;
+              }
+            }
+            
+            currentDefs[j].editor = restoredEditor;
+          }
+        }
+      }
+      
+      // Directly update Tabulator columns without triggering React re-render
+      // This avoids backend calls that would happen with setColumns(updatedDefs)
+      tabulatorRef.current.table.setColumns(currentDefs);
+    }
   }, []);
 
   const toggleFetchAllRecords = useCallback(() => {
@@ -544,6 +587,11 @@ function DsViewPage() {
   useEffect(() => {
     if (!viewConfig) return;
 
+    // Store original columnAttrs for editor restoration when toggling editing
+    if (!originalColumnAttrsRef.current && viewConfig.columnAttrs) {
+      originalColumnAttrsRef.current = JSON.parse(JSON.stringify(viewConfig.columnAttrs));
+    }
+
     const helperContext = {
       tabulatorRef,
       viewConfig,
@@ -664,7 +712,7 @@ function DsViewPage() {
                   disableEditingRef.current = checked; // Sync ref
                   setDisableEditing(checked);
                   localStorage.setItem('disableEditing', JSON.stringify(checked));
-                  toggleEditing();
+                  toggleEditing(checked);
                 }}
               />
               Disable Editing <i className='fas fa-ban'></i>
