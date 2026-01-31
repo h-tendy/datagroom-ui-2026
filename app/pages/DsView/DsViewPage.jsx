@@ -270,28 +270,30 @@ function DsViewPage() {
 
   // Cell force edit trigger - called when user clicks/focuses a cell
   // This should check if editing is allowed and then force the edit
-  const cellForceEditTrigger = useCallback((cell) => {
+  const cellForceEditTrigger = useCallback((cell, e) => {
     // Check all conditions using same logic as cellEditCheck
     if (!singleClickEditRef.current) return;  // Checkbox unchecked = no single-click edit
     if (disableEditingRef.current) return;
     if (!connectedState) return;      // Not connected to socket
     if (!dbConnectivityState) return; // No DB connectivity
+    if (cellImEditingRef.current === cell) return;
     // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
     // TODO: Check for mouseDownOnHtmlLink, mouseDownOnBadgeCopyIcon
     // Force the edit by calling cell.edit(true)
-    cell.edit(true);
+    cell.edit(true, e);
   }, [connectedState, dbConnectivityState]);
 
   // Handle cell click/double-click events
   // Reference: DsView.js lines 906-912
   const cellClickEvents = useCallback((e, cell) => {
     if (!connectedState || !dbConnectivityState) return;
-    
+
     // Double-click editing when single-click edit is OFF
     if (e.type === 'dblclick' && !singleClickEditRef.current && !disableEditingRef.current) {
+      if (cellImEditingRef.current === cell) return;
       // TODO: Add cellEditCheckForConflicts check
       // Force edit on double-click bypassing cellEditCheck
-      cell.edit(true);
+      cell.edit(true, e);
     }
   }, [connectedState, dbConnectivityState]);
 
@@ -343,12 +345,26 @@ function DsViewPage() {
     return true; // Allow edit
   }, [dsName, isCellLocked, emitLock, auth.user]);
 
+  // Cell edit cancelled handler
+  const handleCellEditCancelled = useCallback((cell) => {
+    const _id = cell.getRow().getData()._id;
+    const field = cell.getField();
+    const oldVal = cell.getOldValue();
+
+    // Emit unlock when edit is cancelled (e.g., Escape key)
+    emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
+    cellImEditingRef.current = null;
+  }, [dsName, emitUnlock, auth.user]);
+
   // Cell edited handler
   const handleCellEdited = useCallback((cell) => {
     const _id = cell.getRow().getData()._id;
     const field = cell.getField();
     const newVal = cell.getValue();
     const oldVal = cell.getOldValue();
+
+    // Normalize row height immediately (synchronously)
+    cell.getRow().normalizeHeight();
 
     if (newVal === oldVal) {
       // No change, just unlock
@@ -365,16 +381,23 @@ function DsViewPage() {
     });
 
     // Call API to save edit
+    // Match reference implementation payload shape
+    const selectorObj = { _id, [field]: oldVal };
+    const editObj = { [field]: newVal };
+    const payload = {
+      dsName,
+      dsView,
+      dsUser: userId,
+      column: field,
+      selectorObj,
+      editObj,
+    };
+    
+    // Store cell reference to check later if still valid
+    const editedCell = cell;
+    
     editCellMutation.mutate(
-      {
-        dsName,
-        dsView,
-        dsUser: userId,
-        _id,
-        field,
-        newVal,
-        oldVal,
-      },
+      payload,
       {
         onSuccess: (result) => {
           dispatchEdit({
@@ -392,8 +415,12 @@ function DsViewPage() {
           setNotificationType('success');
           setNotificationMessage('Cell updated successfully');
           setShowNotification(true);
+          
+          // Note: Do NOT call cell.setValue() or other cell methods here
+          // The cell is no longer in edit mode by the time this async callback runs
         },
         onError: (error) => {
+          console.error('editCell API error', error);
           dispatchEdit({
             type: EDIT_ACTION_TYPES.EDIT_FAILURE,
             _id,
@@ -401,9 +428,19 @@ function DsViewPage() {
             error: error.message,
           });
 
-          // Revert cell value
-          cell.setValue(oldVal);
-          
+          // Only try to restore value if cell is still being edited
+          // Check if this is still the current cell being edited
+          if (cellImEditingRef.current === editedCell) {
+            // Cell is still in edit mode, safe to restore
+            if (typeof editedCell.restoreOldValue === 'function') {
+              editedCell.restoreOldValue();
+            } else {
+              editedCell.setValue(oldVal);
+            }
+          }
+          // If cell is no longer being edited, the table state already has the old value
+          // so we don't need to do anything
+
           // Emit unlock
           emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
           cellImEditingRef.current = null;
@@ -706,6 +743,7 @@ function DsViewPage() {
             }}
             cellEditing={handleCellEditing}
             cellEdited={handleCellEdited}
+            cellEditCancelled={handleCellEditCancelled}
           />
 
           {/* Notification */}

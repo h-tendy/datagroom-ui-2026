@@ -69,11 +69,17 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
         input.style.height = "100%";
     });
 
+    var editCompleted = false;
+
     function onChange(e) {
+        if (editCompleted) {
+            return;
+        }
 
         if (((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue) {
 
             if (success(input.value)) {
+                editCompleted = true;
                 cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
             }
             /*
@@ -81,6 +87,7 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
                 cell.getRow().normalizeHeight();
             }, 300) */
         } else {
+            editCompleted = true;
             cancel();
         }
     }
@@ -107,7 +114,6 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
 
         if (!scrollHeight) scrollHeight = heightNow;
         if (heightNow != scrollHeight) {
-            console.log("ScrollHeight, heightNow", scrollHeight, heightNow);
             input.style.height = heightNow + "px";
             scrollHeight = heightNow;
             cell.getRow().normalizeHeight();
@@ -119,6 +125,8 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
         switch (e.keyCode) {
             case 13:
                 if (e.ctrlKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
                     onChange(e);
                 }
                 break;

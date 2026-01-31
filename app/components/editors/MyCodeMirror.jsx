@@ -153,6 +153,8 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
             switch (e.keyCode) {
                 case 13:
                     if (e.ctrlKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         onChange(e);
                     }
                     break;
@@ -203,11 +205,17 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
         
     });
 
+    var editCompleted = false;
+
     function onChange(e) {
+        if (editCompleted) {
+            return;
+        }
         if (!editor) return;
         let curValue = editor.getValue();
         if (((cellValue === null || typeof cellValue === "undefined") && curValue !== "") || curValue !== cellValue) {
             if (success(curValue)) {
+                editCompleted = true;
                 cellValue = curValue; //persist value if successfully validated incase editor is used as header filter
             }
             /*
@@ -216,6 +224,7 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
             }, 300)
             */
         } else {
+            editCompleted = true;
             cancel();
         }
     }
