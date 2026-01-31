@@ -658,11 +658,11 @@ function DsViewPage() {
           {/* Action buttons */}
           <div className={styles.actionBar}>
             <button className={styles.btnLink} onClick={() => console.log('Copy to clipboard')}>
-              <i className='fas fa-clipboard'></i> Copy-to-clipboard
+              Copy-to-clipboard <i className='fas fa-clipboard'></i>
             </button>
             <span className={styles.separator}>|</span>
             <button className={styles.btnLink} onClick={handleAddRow}>
-              <i className='fas fa-plus'></i> Add Row
+              Add Row <i className='fas fa-plus'></i>
             </button>
           </div>
 
