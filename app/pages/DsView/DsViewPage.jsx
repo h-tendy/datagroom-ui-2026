@@ -376,6 +376,12 @@ function DsViewPage() {
     const _id = cell.getRow().getData()._id;
     const field = cell.getField();
 
+    // Skip locking for new rows (no _id yet)
+    if (!_id) {
+      cellImEditingRef.current = cell;
+      return true; // Allow edit
+    }
+
     // Check if cell is locked by another user
     if (isCellLocked(_id, field)) {
       return false; // Cancel edit
@@ -394,20 +400,88 @@ function DsViewPage() {
     const field = cell.getField();
     const oldVal = cell.getOldValue();
 
-    // Emit unlock when edit is cancelled (e.g., Escape key)
-    emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
+    // Skip unlocking for new rows (no _id yet)
+    if (_id) {
+      // Emit unlock when edit is cancelled (e.g., Escape key)
+      emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
+    }
     cellImEditingRef.current = null;
   }, [dsName, emitUnlock, auth.user]);
 
   // Cell edited handler
   const handleCellEdited = useCallback((cell) => {
-    const _id = cell.getRow().getData()._id;
+    const rowData = cell.getRow().getData();
+    const _id = rowData._id;
     const field = cell.getField();
     const newVal = cell.getValue();
     const oldVal = cell.getOldValue();
 
     // Normalize row height immediately (synchronously)
     cell.getRow().normalizeHeight();
+
+    // Check if this is a new row (no _id) - Reference: DsView.js lines 1111-1180
+    if (!_id) {
+      // This is a new row that needs to be inserted to backend
+      // Build key object from configured key fields
+      const keyObj = {};
+      const keys = viewConfig?.keys || [];
+      
+      // Collect key field values
+      for (const key of keys) {
+        if (rowData[key] !== undefined && rowData[key] !== null && rowData[key] !== '') {
+          keyObj[key] = rowData[key];
+        }
+      }
+      
+      // Ensure at least one key field is populated before inserting
+      if (Object.keys(keyObj).length === 0) {
+        console.log('New row: waiting for key fields to be populated');
+        cellImEditingRef.current = null;
+        return;
+      }
+      
+      // Insert the new row to backend
+      // Backend expects: dsName, dsView, dsUser, selectorObj (key fields), doc (full row data)
+      const payload = {
+        dsName,
+        dsView,
+        dsUser: userId,
+        selectorObj: keyObj,  // Only the key fields
+        doc: rowData,         // Complete row data
+      };
+      
+      const uiRow = cell.getRow();
+      
+      insertRowMutation.mutate(
+        payload,
+        {
+          onSuccess: (result) => {
+            console.log('New row inserted successfully:', result);
+            
+            // Update the UI row with the _id from backend
+            if (result._id) {
+              uiRow.update({ _id: result._id });
+            }
+            
+            setNotificationType('success');
+            setNotificationMessage('Row added successfully');
+            setShowNotification(true);
+          },
+          onError: (error) => {
+            console.error('insertRow API error', error);
+            setNotificationType('error');
+            setNotificationMessage(`Failed to add row: ${error.message}`);
+            setShowNotification(true);
+            
+            // Optionally remove the row from UI on failure
+            // uiRow.delete();
+          },
+        }
+      );
+      
+      cellImEditingRef.current = null;
+      return;
+    }
 
     if (newVal === oldVal) {
       // No change, just unlock
@@ -495,34 +569,40 @@ function DsViewPage() {
         },
       }
     );
-  }, [dsName, dsView, userId, editCellMutation, emitUnlock, auth.user]);
+  }, [dsName, dsView, userId, viewConfig, editCellMutation, insertRowMutation, emitUnlock, auth.user]);
 
   // Add row handler
-  const handleAddRow = useCallback(() => {
-    const newRow = {}; // Create empty row based on columns
+  // Reference: DsView.js lines 1971-2001
+  // Adds a temporary row to Tabulator (no backend call yet)
+  // When user edits a cell in the new row, handleCellEdited will detect
+  // the missing _id and trigger the actual insertRow API call
+  const handleAddRow = useCallback(async () => {
+    if (!tabulatorRef.current?.table) return;
     
-    insertRowMutation.mutate(
-      {
-        dsName,
-        dsView,
-        dsUser: userId,
-        doc: newRow,
-      },
-      {
-        onSuccess: () => {
-          setNotificationType('success');
-          setNotificationMessage('Row added successfully');
-          setShowNotification(true);
-          // Table will refresh via query invalidation
-        },
-        onError: (error) => {
-          setNotificationType('error');
-          setNotificationMessage(`Failed to add row: ${error.message}`);
-          setShowNotification(true);
-        },
+    // Create empty row
+    const newRow = {};
+    
+    // Add user-name if per-row access control is enabled
+    try {
+      if (viewConfig?.perRowAccessConfig?.enabled && viewConfig?.perRowAccessConfig?.column) {
+        newRow[viewConfig.perRowAccessConfig.column] = auth.user?.user;
       }
-    );
-  }, [dsName, dsView, userId, insertRowMutation]);
+    } catch (e) {
+      console.error('Error setting per-row access:', e);
+    }
+    
+    // Add row to Tabulator (no _id yet, will be added by backend later)
+    // pos=true means add at bottom of table
+    try {
+      await tabulatorRef.current.table.addRow(newRow, true, null);
+      console.log('Temporary row added to table');
+    } catch (error) {
+      console.error('Error adding row to table:', error);
+      setNotificationType('error');
+      setNotificationMessage('Failed to add row to table');
+      setShowNotification(true);
+    }
+  }, [tabulatorRef, viewConfig, auth.user]);
 
   // Copy to clipboard handler
   const handleCopyToClipboard = useCallback(() => {
@@ -794,6 +874,24 @@ function DsViewPage() {
               },
               ajaxSorting: true,
               ajaxFiltering: true,
+              // Row formatter to style unsaved rows (no _id) with different background
+              // Reference: DsView.js lines 1962-1968
+              // Uses CSS variables to match current theme with accent color for contrast
+              rowFormatter: (row) => {
+                const rootStyles = getComputedStyle(document.documentElement);
+                const rowElement = row.getElement();
+                
+                if (!row.getData()._id) {
+                  // New unsaved row - use accent color with transparency + left border for high visibility
+                  const accentColor = rootStyles.getPropertyValue('--color-accent').trim();
+                  rowElement.style.backgroundColor = `${accentColor}22`; // 22 = ~13% opacity in hex
+                  rowElement.style.borderLeft = `4px solid ${accentColor}`;
+                } else {
+                  // Saved row - use normal background color from theme
+                  rowElement.style.backgroundColor = rootStyles.getPropertyValue('--color-bg').trim();
+                  rowElement.style.borderLeft = 'none';
+                }
+              },
               // TODO: Add more options from original
             }}
             cellEditing={handleCellEditing}
