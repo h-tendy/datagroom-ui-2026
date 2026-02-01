@@ -75,6 +75,7 @@ function DsViewPage() {
   const timersRef = useRef({});
   const cellImEditingRef = useRef(null);
   const reqCount = useRef(0);
+  const fetchAllMatchingRecordsRef = useRef(false);
   
   // Store edit-related state in refs so cellEditCheck can access current values
   const singleClickEditRef = useRef(false);
@@ -222,6 +223,26 @@ function DsViewPage() {
       setChronologyDescending(true);
     }
   }, []);
+
+  // Initialize fetchAllMatchingRecords from localStorage (per dataset view)
+  useEffect(() => {
+    try {
+      const key = `fetchAllMatchingRecords:${dsName}:${dsView}`;
+      const saved = localStorage.getItem(key);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        setFetchAllMatchingRecords(parsed);
+        fetchAllMatchingRecordsRef.current = parsed;
+      }
+    } catch (e) {
+      console.error('Error restoring fetchAllMatchingRecords from localStorage', e);
+    }
+  }, [dsName, dsView]);
+
+  // Keep refs in sync so functions passed once to Tabulator can read latest values
+  useEffect(() => { fetchAllMatchingRecordsRef.current = fetchAllMatchingRecords; }, [fetchAllMatchingRecords]);
+  const chronologyDescendingRef = useRef(chronologyDescending);
+  useEffect(() => { chronologyDescendingRef.current = chronologyDescending; }, [chronologyDescending]);
 
   // Process URL parameters for chronologyDescending
   // Reference: DsView.js lines 343-345, 439
@@ -407,8 +428,8 @@ function DsViewPage() {
       if (!url) return url;
       if (!params || typeof params !== 'object') params = {};
       // Always attach our special params so server can return totals and reqCount
-      params.fetchAllMatchingRecords = fetchAllMatchingRecords;
-      params.chronology = chronologyDescending ? 'desc' : 'asc';
+      params.fetchAllMatchingRecords = fetchAllMatchingRecordsRef.current;
+      params.chronology = chronologyDescendingRef.current ? 'desc' : 'asc';
       params.reqCount = ++(reqCount.current);
 
       // Always append our params as query string so server can report totals
@@ -709,9 +730,27 @@ function DsViewPage() {
   }, []);
 
   const toggleFetchAllRecords = useCallback(() => {
-    setFetchAllMatchingRecords(prev => !prev);
-    // Trigger table refresh
-    tabulatorRef.current?.table?.setData();
+    setFetchAllMatchingRecords(prev => {
+      const next = !prev;
+      try {
+        // Persist choice in localStorage per dataset/view
+        const key = `fetchAllMatchingRecords:${dsName}:${dsView}`;
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch (e) {}
+
+      // Force tabulator to reload from page 1 with new params
+      setTimeout(() => {
+        try {
+          if (tabulatorRef.current?.table) {
+            if (typeof tabulatorRef.current.table.setPage === 'function')
+              tabulatorRef.current.table.setPage(1);
+            tabulatorRef.current.table.setData();
+          }
+        } catch (e) { console.error('toggleFetchAllRecords refresh error', e); }
+      }, 20);
+
+      return next;
+    });
   }, []);
 
   // Cell editing handler
