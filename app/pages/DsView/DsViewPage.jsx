@@ -101,7 +101,14 @@ function DsViewPage() {
   const [initialHeaderFilter, setInitialHeaderFilter] = useState([]);
   const [initialSort, setInitialSort] = useState([]);
   const [filterColumnAttrs, setFilterColumnAttrs] = useState({});
-  const [showAllFilters, setShowAllFilters] = useState(false);
+  const [showAllFilters, setShowAllFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('showAllFilters');
+      return saved ? JSON.parse(saved) : false;
+    } catch (e) {
+      return false;
+    }
+  });
   const [frozenCol, setFrozenCol] = useState(null);
   const [chronologyDescending, setChronologyDescending] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0); // Counter to force table refresh
