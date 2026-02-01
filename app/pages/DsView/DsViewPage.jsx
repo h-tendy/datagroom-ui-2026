@@ -138,6 +138,23 @@ function DsViewPage() {
   // Memoize user object to prevent socket reconnections
   const socketUser = useMemo(() => ({ user: userId }), [userId]);
 
+  // Calculate table height based on fixedHeight setting
+  // Reference: DsView.js lines 1872-1883, 1941
+  const tableHeight = useMemo(() => {
+    let fixedHeight = false;
+    try {
+      fixedHeight = viewConfig?.otherTableAttrs?.fixedHeight;
+    } catch (e) {}
+    
+    if (fixedHeight) {
+      const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+      if (vh) {
+        return `${vh - 50}px`;
+      }
+    }
+    return undefined; // Let Tabulator auto-size
+  }, [viewConfig]);
+
   // Handle cell unlock callback from socket (defined early to be used in socket hook)
   const handleCellUnlocked = useCallback((unlockedObj) => {
     // Additional processing after cell unlock
@@ -845,7 +862,7 @@ function DsViewPage() {
             columns={columns}
             data={[]}
             options={{
-              height: '600px',
+              height: tableHeight,
               layout: 'fitDataStretch',
               pagination: 'remote',
               paginationSize: pageSize,
