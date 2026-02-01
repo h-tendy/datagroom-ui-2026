@@ -17,16 +17,45 @@
  * @param {boolean} columnResizedRecently - Flag to skip width setting if column was manually resized
  * Reference: DsView.js lines 2039-2073
  */
-export function applyFilterColumnAttrs(tabulatorRef, filterColumnAttrs, columnResizedRecently) {
+export function applyFilterColumnAttrs(tabulatorRef, filterColumnAttrs, columnResizedRecently, originalColumnAttrs) {
   if (!tabulatorRef?.table) return;
   
   const cols = tabulatorRef.table.getColumns();
   
+  // Helper to get original width for a field whether originalColumnAttrs
+  // is an object keyed by field or an array of column defs
+  function getOriginalWidth(field) {
+    if (!originalColumnAttrs) return undefined;
+    // object keyed by field
+    if (originalColumnAttrs[field] && originalColumnAttrs[field].width !== undefined) {
+      return originalColumnAttrs[field].width;
+    }
+    // array of column defs
+    if (Array.isArray(originalColumnAttrs)) {
+      for (let k = 0; k < originalColumnAttrs.length; k++) {
+        const c = originalColumnAttrs[k];
+        if (c && c.field === field && c.width !== undefined) return c.width;
+      }
+    }
+    return undefined;
+  }
+  
   // If filterColumnAttrs is empty, show all columns
   if (!filterColumnAttrs || Object.keys(filterColumnAttrs).length === 0) {
     for (let i = 0; i < cols.length; i++) {
+      const field = cols[i].getField();
       if (!cols[i].isVisible()) {
         cols[i].show();
+      }
+
+      // Restore original width if provided and column wasn't manually resized
+      try {
+        const origW = getOriginalWidth(field);
+        if (origW !== undefined && !columnResizedRecently) {
+          cols[i].setWidth(origW);
+        }
+      } catch (e) {
+        // ignore width setting errors
       }
     }
     return;
@@ -37,7 +66,7 @@ export function applyFilterColumnAttrs(tabulatorRef, filterColumnAttrs, columnRe
     const field = cols[i].getField();
     const attrsForField = filterColumnAttrs[field];
     
-    if (attrsForField) {
+      if (attrsForField) {
       // Apply visibility
       if (attrsForField.hidden) {
         cols[i].hide();
@@ -48,9 +77,16 @@ export function applyFilterColumnAttrs(tabulatorRef, filterColumnAttrs, columnRe
       }
       
       // Apply width (skip if column was manually resized recently)
-      if (attrsForField.width && !columnResizedRecently) {
-        cols[i].setWidth(attrsForField.width);
-      }
+        if (!columnResizedRecently) {
+          if (attrsForField.width !== undefined) {
+            try { cols[i].setWidth(attrsForField.width); } catch (e) {}
+          } else {
+            const origW = getOriginalWidth(field);
+            if (origW !== undefined) {
+              try { cols[i].setWidth(origW); } catch (e) {}
+            }
+          }
+        }
     }
   }
 }

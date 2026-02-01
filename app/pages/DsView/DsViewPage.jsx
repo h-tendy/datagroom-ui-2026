@@ -281,23 +281,51 @@ function DsViewPage() {
           
           // Apply filter column attributes after state update
           setTimeout(() => {
-            if (tabulatorRef.current) {
-              applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current);
-              // Apply header filter values so Tabulator (and backend) perform filtering
-              try {
-                if (hdrFilters && hdrFilters.length && tabulatorRef.current?.table && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                  for (let i = 0; i < hdrFilters.length; i++) {
-                    const hf = hdrFilters[i];
-                    // Only apply if field and value present
-                    if (hf && hf.field) {
-                      tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+              if (tabulatorRef.current?.table) {
+                try {
+                  // Clear all existing header filters first so old regexes are removed
+                  const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+                  for (let j = 0; j < existing.length; j++) {
+                    const f = existing[j];
+                    if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                      tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
                     }
                   }
+
+                  // Apply column visibility/width attrs (pass original attrs so widths can be restored when needed)
+                  applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+
+                  // Now apply saved header filter values so Tabulator (and backend) perform filtering
+                  if (Array.isArray(hdrFilters) && hdrFilters.length) {
+                    for (let i = 0; i < hdrFilters.length; i++) {
+                      const hf = hdrFilters[i];
+                      if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                        tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                      }
+                    }
+                  }
+                  // Apply saved sorters (hdrSorters) if present
+                  if (Array.isArray(hdrSorters) && hdrSorters.length) {
+                    try {
+                      // Tabulator accepts sort entries like [{column: 'field', dir: 'asc'}]
+                      tabulatorRef.current.table.setSort(hdrSorters);
+                    } catch (e) {
+                      console.error('Error applying saved sorters:', e);
+                    }
+                  } else {
+                    // No saved sorters for this filter: clear any existing sort
+                    try {
+                      if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                        tabulatorRef.current.table.clearSort();
+                      }
+                    } catch (e) {
+                      console.error('Error clearing sorters:', e);
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error applying header filters or column attrs:', e);
                 }
-              } catch (e) {
-                console.error('Error applying header filters:', e);
               }
-            }
           }, 100);
         } catch (e) {
           console.error('Error parsing filter data:', e);
@@ -315,6 +343,32 @@ function DsViewPage() {
       setInitialHeaderFilter([]);
       setInitialSort([]);
       setFilterColumnAttrs({});
+      // Clear header filters and restore column attrs
+      setTimeout(() => {
+        if (tabulatorRef.current?.table) {
+          try {
+            const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+            for (let j = 0; j < existing.length; j++) {
+              const f = existing[j];
+              if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+              }
+            }
+            // Apply empty attrs to show all columns and restore original widths
+            applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+            // Clear sorters when filter cleared
+            try {
+              if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                tabulatorRef.current.table.clearSort();
+              }
+            } catch (e) {
+              console.error('Error clearing sorters on filter clear:', e);
+            }
+          } catch (e) {
+            console.error('Error clearing header filters:', e);
+          }
+        }
+      }, 100);
     }
   }, [filterParam]); // ONLY depend on filterParam, NOT viewConfig
 
@@ -838,6 +892,7 @@ function DsViewPage() {
       console.error('Error rebuilding columns on showAllFilters change:', e);
     }
   }, [showAllFilters, viewConfig]);
+
 
   // TODO: Implement remaining handlers:
   // - handleAddColumn
