@@ -403,31 +403,206 @@ function DsViewPage() {
   }, [generateParamsList]);
 
   const ajaxURLGenerator = useCallback((url, config, params) => {
-    if (url) {
-      if (params && Object.keys(params).length) {
-        params.fetchAllMatchingRecords = fetchAllMatchingRecords;
-        params.chronology = chronologyDescending ? 'desc' : 'asc';
-        params.reqCount = ++(reqCount.current);
-        
-        if (!config.method || config.method.toLowerCase() === "get") {
-          config.method = "get";
-          url += (url.includes("?") ? "&" : "?") + serializeParams(params);
-        }
-      }
+    try {
+      if (!url) return url;
+      if (!params || typeof params !== 'object') params = {};
+      // Always attach our special params so server can return totals and reqCount
+      params.fetchAllMatchingRecords = fetchAllMatchingRecords;
+      params.chronology = chronologyDescending ? 'desc' : 'asc';
+      params.reqCount = ++(reqCount.current);
+
+      // Always append our params as query string so server can report totals
+      if (!config) config = {};
+      const qs = serializeParams(params);
+      url += (url.includes('?') ? '&' : '?') + qs;
+    } catch (e) {
+      console.error('ajaxURLGenerator error', e);
     }
     return url;
   }, [fetchAllMatchingRecords, chronologyDescending, serializeParams]);
 
   const ajaxResponse = useCallback((url, params, response) => {
-    console.log('ajaxResponse', url, params, response);
-    if ((response.reqCount === reqCount.current) || (response.reqCount === 0)) {
-      setTotalRecs(response.total || 0);
-      setMoreMatchingDocs(response.moreMatchingDocs || false);
-    } else {
-      console.log('ajaxResponse: avoided stale setting of response.total');
+    try {
+      // ajax response received; process below
+      if (response == null) return response;
+      const respReqCount = response.reqCount;
+      // Optionally inspect response keys during debugging
+      try { /* inspect response keys if needed */ } catch (e) {}
+      const respReqCountNum = respReqCount == null ? undefined : Number(respReqCount);
+
+      if (respReqCount == null || respReqCountNum === reqCount.current || respReqCountNum === 0) {
+        // Try common field names for totals in case server uses a different key
+        const totals = response.total ?? response.count ?? response.totalCount ?? response.totals ?? 0;
+        const more = response.moreMatchingDocs ?? response.more ?? false;
+        setTotalRecs(totals || 0);
+        setMoreMatchingDocs(more || false);
+      } else {
+        // ignored stale response
+      }
+    } catch (e) {
+      console.error('ajaxResponse handler error', e);
     }
     return response;
   }, []);
+
+  // Restore fetchAllMatchingRecords from URL search params on load
+  useEffect(() => {
+    try {
+      const val = searchParams.get('fetchAllMatchingRecords');
+      if (val !== null) {
+        const parsed = String(val).toLowerCase() === 'true';
+        setFetchAllMatchingRecords(parsed);
+        // Trigger table refresh so Tabulator uses new param
+        setTimeout(() => { try { tabulatorRef.current?.table?.setData(); } catch (e) {} }, 50);
+      }
+    } catch (e) {
+      console.error('Error restoring fetchAllMatchingRecords from URL', e);
+    }
+  }, [searchParams]);
+
+  // Generate a view URL capturing current header filters, sorters, column attrs and options
+  const urlGeneratorFunctionForView = useCallback((e, cell) => {
+    try {
+      // If in single-row view (no filters) we could fallback to row URL, but keep view-level URL here
+      const table = tabulatorRef.current?.table;
+      if (!table) return;
+
+      const currentHeaderFilters = table.getHeaderFilters() || [];
+      const queryParamsObject = {};
+
+      for (const hf of currentHeaderFilters) {
+        if (hf && hf.field && hf.value != null && hf.value !== '' && hf.type === 'like') {
+          queryParamsObject[hf.field] = hf.value;
+        }
+      }
+
+      // Sorters
+      const hdrSortersTmp = table.getSorters() || [];
+      const hdrSorters = hdrSortersTmp.map(s => ({ column: s.field, dir: s.dir }));
+      if (hdrSorters.length) queryParamsObject['hdrSorters'] = JSON.stringify(hdrSorters);
+
+      // Column attrs (visibility / width)
+      const cols = table.getColumns() || [];
+      const filterColumnAttrsObj = {};
+      for (let i = 0; i < cols.length; i++) {
+        const field = cols[i].getField();
+        const attrsForField = {};
+        if (!cols[i].isVisible()) attrsForField.hidden = true;
+        attrsForField.width = cols[i].getWidth();
+        filterColumnAttrsObj[field] = attrsForField;
+      }
+      queryParamsObject['filterColumnAttrs'] = JSON.stringify(filterColumnAttrsObj);
+
+      // fetchAllMatchingRecords, pageSize, chronology
+      queryParamsObject['fetchAllMatchingRecords'] = fetchAllMatchingRecords ? true : false;
+      queryParamsObject['pageSize'] = table.getPageSize ? (table.getPageSize() || pageSize) : pageSize;
+      queryParamsObject['chronologyDescending'] = chronologyDescending ? true : false;
+
+      const queryParams = new URLSearchParams(Object.entries(queryParamsObject));
+      let finalUrl = window.location.origin + window.location.pathname;
+      if (queryParams.toString()) finalUrl += '?' + queryParams.toString();
+
+      // Use clipboard helper if available
+      let copied = false;
+      try {
+        if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
+          copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
+        }
+      } catch (e) {
+        copied = false;
+      }
+
+      if (!copied) {
+        try {
+          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(finalUrl);
+            copied = true;
+          }
+        } catch (e) {
+          copied = false;
+        }
+      }
+
+      // Provide user feedback via modal
+      if (copied) {
+        setModalTitle('Copy URL');
+        setModalQuestion('URL copied to clipboard');
+        setModalCallback(null);
+        setShowModal(true);
+      } else {
+        setModalTitle('Copy URL');
+        setModalQuestion(finalUrl);
+        setModalCallback(null);
+        setShowModal(true);
+      }
+    } catch (e) {
+      console.error('urlGeneratorFunctionForView error', e);
+    }
+  }, [tabulatorRef, fetchAllMatchingRecords, pageSize, chronologyDescending]);
+
+  // Delete all rows matching current header filters - preview (pretend) and confirm
+  const deleteAllRowsInQuery = useCallback(async () => {
+    try {
+      const table = tabulatorRef.current?.table;
+      if (!table) {
+        setNotificationType('error');
+        setNotificationMessage('Table not initialized');
+        setShowNotification(true);
+        return;
+      }
+
+      const filters = table.getHeaderFilters ? (table.getHeaderFilters() || []) : [];
+      const baseUrl = `${API_URL}/ds/deleteFromQuery/${dsName}/${dsView}/${userId}`;
+      const previewUrl = ajaxURLGenerator(baseUrl, {}, { filters, pretend: true });
+
+      // Preview POST
+      let previewJson = null;
+      try {
+        const resp = await fetch(previewUrl, { method: 'post', body: JSON.stringify({}), headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+        if (!resp.ok) throw new Error('Preview failed');
+        previewJson = await resp.json();
+      } catch (err) {
+        console.error('deleteAllRowsInQuery preview error', err);
+        setNotificationType('error');
+        setNotificationMessage('Preview failed');
+        setShowNotification(true);
+        return;
+      }
+
+      const total = previewJson?.total ?? 0;
+      const more = previewJson?.moreMatchingDocs ?? false;
+
+      const question = `This will delete ${total} rows${more ? ' (and more matches on server)' : ''}. Please confirm.`;
+      setModalTitle('Delete all rows in query?');
+      setModalQuestion(question);
+
+      // Set callback for confirm button
+      setModalCallback(() => async () => {
+        try {
+          const deleteUrl = ajaxURLGenerator(baseUrl, {}, { filters, pretend: false });
+          const resp = await fetch(deleteUrl, { method: 'post', body: JSON.stringify({}), headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+          if (!resp.ok) throw new Error('Delete failed');
+          const result = await resp.json();
+
+          setNotificationType('success');
+          setNotificationMessage('Delete completed');
+          setShowNotification(true);
+          setShowModal(false);
+          try { tabulatorRef.current?.table?.setData(); } catch (e) { console.error(e); }
+        } catch (err) {
+          console.error('deleteAllRowsInQuery error', err);
+          setNotificationType('error');
+          setNotificationMessage('Delete failed');
+          setShowNotification(true);
+          setShowModal(false);
+        }
+      });
+
+      setShowModal(true);
+    } catch (e) {
+      console.error('deleteAllRowsInQuery outer error', e);
+    }
+  }, [tabulatorRef, API_URL, dsName, dsView, userId, ajaxURLGenerator]);
 
   // Cell edit check - controls single-click editing based on checkbox state
   // Reference: DsView.js lines 1014-1020
@@ -823,11 +998,11 @@ function DsViewPage() {
     showAllCols: () => {}, // TODO
     copyCellToClipboard: () => {}, // TODO
     startPreso: () => {}, // Deferred
-    urlGeneratorFunction: () => window.location.href,
+    urlGeneratorFunction: urlGeneratorFunctionForView,
     duplicateAndAddRowHandler: () => {}, // TODO
     addRow: handleAddRow,
     deleteAllRowsInViewQuestion: () => {}, // TODO
-    deleteAllRowsInQuery: () => {}, // TODO
+    deleteAllRowsInQuery: deleteAllRowsInQuery,
     deleteRowQuestion: () => {}, // TODO
     deleteColumnQuestion: () => {}, // TODO
     addColumnQuestion: () => {}, // TODO
