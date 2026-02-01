@@ -283,6 +283,20 @@ function DsViewPage() {
           setTimeout(() => {
             if (tabulatorRef.current) {
               applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current);
+              // Apply header filter values so Tabulator (and backend) perform filtering
+              try {
+                if (hdrFilters && hdrFilters.length && tabulatorRef.current?.table && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                  for (let i = 0; i < hdrFilters.length; i++) {
+                    const hf = hdrFilters[i];
+                    // Only apply if field and value present
+                    if (hf && hf.field) {
+                      tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Error applying header filters:', e);
+              }
             }
           }, 100);
         } catch (e) {
