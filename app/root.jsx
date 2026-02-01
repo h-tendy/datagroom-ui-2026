@@ -31,6 +31,7 @@ export function AppRoutes() {
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireAuth><MainPage /></RequireAuth>} />
+            <Route path="/ds/:dsName/:dsView/:filter" element={<RequireAuth><DsViewWithLayout /></RequireAuth>} />
             <Route path="/ds/:dsName/:dsView" element={<RequireAuth><DsViewWithLayout /></RequireAuth>} />
             <Route path="/ds/new-from-ds" element={<RequireAuth><NewDsFromDsPage /></RequireAuth>} />
             <Route path="/ds/new-from-xls" element={<RequireAuth><NewDsFromXlsPage /></RequireAuth>} />

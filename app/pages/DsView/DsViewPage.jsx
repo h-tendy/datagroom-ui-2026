@@ -30,7 +30,7 @@ import useDatasetSocket from '../../hooks/useDatasetSocket';
 // Components
 import MyTabulator from '../../components/MyTabulator';
 import Notification from '../../components/Notification';
-// import FilterControls from './components/FilterControls.jsx'; // TODO: Refactor for hooks
+import FilterControls from './components/FilterControls.jsx';
 import Modal from './components/Modal.jsx';
 import ModalEditor from './components/ModalEditor.jsx';
 import JiraForm from './components/jiraForm.jsx';
@@ -49,6 +49,7 @@ import createClipboardHelpers from './helpers/clipboardHelpers';
 import createDomHelpers from './helpers/domHelpers';
 import createTabulatorConfig from './helpers/tabulatorConfig';
 import createJiraHelpers from './helpers/jiraHelpers.jsx';
+import { applyFilterColumnAttrs } from './helpers/filterHelpers';
 
 // Reducer
 import { editReducer, initialEditState, EDIT_ACTION_TYPES } from './reducers/editReducer';
@@ -63,7 +64,7 @@ import 'highlight.js/styles/default.css';
 const API_URL = import.meta.env.VITE_API_BASE || '';
 
 function DsViewPage() {
-  const { dsName, dsView } = useParams();
+  const { dsName, dsView, filter: filterParam } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const auth = useAuth();
@@ -97,6 +98,9 @@ function DsViewPage() {
   // UI State
   const [pageSize, setPageSize] = useState(30);
   const [filter, setFilter] = useState('');
+  const [initialHeaderFilter, setInitialHeaderFilter] = useState([]);
+  const [initialSort, setInitialSort] = useState([]);
+  const [filterColumnAttrs, setFilterColumnAttrs] = useState({});
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [frozenCol, setFrozenCol] = useState(null);
   const [chronologyDescending, setChronologyDescending] = useState(false);
@@ -104,6 +108,9 @@ function DsViewPage() {
   const [fetchAllMatchingRecords, setFetchAllMatchingRecords] = useState(false);
   const [totalRecs, setTotalRecs] = useState(0);
   const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
+  
+  // Column resize tracking ref
+  const columnResizedRecentlyRef = useRef(false);
   
   // Initialize singleClickEdit from localStorage
   const [singleClickEdit, setSingleClickEdit] = useState(() => {
@@ -220,6 +227,75 @@ function DsViewPage() {
       localStorage.setItem('chronologyDescending', JSON.stringify(value));
     }
   }, [searchParams]);
+
+  // Process filter change - handle filter selection from FilterControls
+  // Reference: DsView.js lines 1996-2037
+  const processFilterChange = useCallback((filterName) => {
+    // Build URL with filter and navigate
+    const newUrl = filterName ? `/ds/${dsName}/${dsView}/${filterName}` : `/ds/${dsName}/${dsView}`;
+    navigate(newUrl, { replace: true });
+    // State will be updated by the useEffect that watches filterParam
+  }, [dsName, dsView, navigate]);
+  
+  // Handle column resize to set the flag
+  const handleColumnResized = useCallback((column) => {
+    columnResizedRecentlyRef.current = true;
+    // Clear flag after 1 second
+    setTimeout(() => {
+      columnResizedRecentlyRef.current = false;
+    }, 1000);
+    
+    // Redraw table
+    if (tabulatorRef.current?.table) {
+      tabulatorRef.current.table.redraw(true);
+    }
+  }, []);
+
+  // Process filter from URL - only when filterParam actually changes
+  useEffect(() => {
+    if (!viewConfig) return;
+    
+    // Update filter state based on URL parameter
+    if (filterParam) {
+      const filterData = viewConfig.filters?.[filterParam];
+      
+      if (filterData) {
+        // Deep clone filter data
+        try {
+          const hdrFilters = JSON.parse(JSON.stringify(filterData.hdrFilters || []));
+          const hdrSorters = JSON.parse(JSON.stringify(filterData.hdrSorters || []));
+          const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
+          
+          setFilter(filterParam);
+          setInitialHeaderFilter(hdrFilters);
+          setInitialSort(hdrSorters);
+          setFilterColumnAttrs(colAttrs);
+          setShowAllFilters(true);
+          
+          // Apply filter column attributes after state update
+          setTimeout(() => {
+            if (tabulatorRef.current) {
+              applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current);
+            }
+          }, 100);
+        } catch (e) {
+          console.error('Error parsing filter data:', e);
+        }
+      } else {
+        // Filter name in URL but no data found
+        setFilter(filterParam);
+        setInitialHeaderFilter([]);
+        setInitialSort([]);
+        setFilterColumnAttrs({});
+      }
+    } else {
+      // No filter in URL - clear everything
+      setFilter('');
+      setInitialHeaderFilter([]);
+      setInitialSort([]);
+      setFilterColumnAttrs({});
+    }
+  }, [filterParam]); // ONLY depend on filterParam, NOT viewConfig
 
   // Ajax helper functions (from reference implementation)
   const generateParamsList = useCallback((data, prefix = "") => {
@@ -723,7 +799,24 @@ function DsViewPage() {
       const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
       setColumns(generatedColumns);
     }
-  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState]);
+  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters]);
+
+  // Rebuild Tabulator columns when `showAllFilters` toggles so header filters are applied
+  useEffect(() => {
+    if (!viewConfig || !tabulatorConfigHelper.current) return;
+
+    try {
+      const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
+      setColumns(generatedColumns);
+
+      // If table already initialized, apply new column defs directly
+      if (tabulatorRef.current?.table) {
+        tabulatorRef.current.table.setColumns(generatedColumns);
+      }
+    } catch (e) {
+      console.error('Error rebuilding columns on showAllFilters change:', e);
+    }
+  }, [showAllFilters, viewConfig]);
 
   // TODO: Implement remaining handlers:
   // - handleAddColumn
@@ -792,7 +885,6 @@ function DsViewPage() {
                 onChange={(e) => {
                   setShowAllFilters(e.target.checked);
                   localStorage.setItem('showAllFilters', JSON.stringify(e.target.checked));
-                  toggleFilters();
                 }}
               />
               Show filters <i className='fas fa-filter'></i>
@@ -823,7 +915,16 @@ function DsViewPage() {
             </label>
           </div>
 
-          {/* TODO: Add FilterControls component */}
+          {/* FilterControls component */}
+          <FilterControls
+            show={showAllFilters}
+            dsName={dsName}
+            dsView={dsView}
+            tableRef={tabulatorRef.current}
+            onFilterChange={processFilterChange}
+            defaultValue={filter}
+            viewConfig={viewConfig}
+          />
 
           {/* Total records display */}
           <div className={styles.infoBar}>
@@ -891,6 +992,10 @@ function DsViewPage() {
               },
               ajaxSorting: true,
               ajaxFiltering: true,
+              // Apply saved filter header filters
+              initialHeaderFilter: initialHeaderFilter,
+              // Apply saved filter sort order
+              initialSort: initialSort,
               // Row formatter to style unsaved rows (no _id) with different background
               // Reference: DsView.js lines 1962-1968
               // Uses CSS variables to match current theme with accent color for contrast
@@ -909,6 +1014,8 @@ function DsViewPage() {
                   rowElement.style.borderLeft = 'none';
                 }
               },
+              // Track manual column resizes to prevent conflicts with filter column widths
+              columnResized: handleColumnResized,
               // TODO: Add more options from original
             }}
             cellEditing={handleCellEditing}
