@@ -1,0 +1,15 @@
+/* Minimal fallback for highlight.js solarized-light theme
+   This file prevents Vite import resolution errors when node_modules
+   aren't installed. Install highlight.js and restore the original
+   import if you want the full theme from the package.
+*/
+.hljs {
+  background: #fdf6e3;
+  color: #657b83;
+}
+
+/* Basic code element styling so highlighted blocks remain readable */
+pre code, code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+  font-size: 0.9em;
+}

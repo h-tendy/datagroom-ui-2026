@@ -1,0 +1,36 @@
+/* Minimal copy of reference rjs_white.css focusing on list defaults */
+.reveal ol,
+.reveal ul,
+.reveal dl {
+  display: block;
+  text-align: left;
+}
+
+.reveal ul ul,
+.reveal ul ol,
+.reveal ol ol,
+.reveal ol ul {
+  margin-left: 40px;
+}
+
+.reveal ul {
+  list-style-type: disc;
+}
+
+.reveal ul ul {
+  list-style-type: square;
+}
+
+.reveal ul ul ul {
+  list-style-type: circle;
+}
+
+.reveal ol {
+  list-style-type: decimal;
+}
+
+/* Ensure list markers are visible inside table cells containing markdown */
+.tabulator .tabulator-cell ul,
+.tabulator .tabulator-cell ol {
+  margin: 0 0 0 1.2em;
+}

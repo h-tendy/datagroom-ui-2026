@@ -1,0 +1,63 @@
+/* Copied (partial) from reference simpleStyles.css - includes rules affecting markdown and tabulator */
+.codeArea {
+  flex:1 1 auto;
+  margin-top:0;
+  height:100%;
+  position:relative;
+}
+
+.CodeMirror {
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:0;
+  right:0;
+  height:100%;
+  font-size: 12px;
+}
+
+/* For revealjs integration. Don't remove! */
+.slide {}
+
+h5 { font-weight: bold; }
+h1, h2 { color: black !important; }
+
+body blockquote {
+  margin: 0 0 16px 0;
+  padding: 0 1em;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: small;
+  color: black;
+  background-color: lightgray;
+  border-left: 0.5em solid #2A313F;
+}
+
+.indent1 { display: block; }
+.indent1 p { margin-left: 30px; }
+.indent2 { display: block; }
+.indent2 p { margin-left: 60px; }
+.indent3 { display: block; }
+.indent3 p { margin-left: 90px; }
+
+.code { 
+  display: block;
+  unicode-bidi: embed;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  padding-left: 10px;
+  padding-right: 10px;
+  font-weight: bold;
+  background-color: rgb(240, 240, 240);
+  border-radius: 5px;
+  font-size: 105%;
+}
+
+code { background-color: #ddd; color: black; border-radius: 5px; font-weight: bold; }
+
+/* Tabulator styles (partial) - keep simple defaults for tables */
+.tabulator { position: relative; background-color: #fff; overflow: hidden; font-size: 12px; text-align: left; }
+.tabulator .tabulator-tableHolder .tabulator-table { position: relative; display: inline-block; background-color: #fff; white-space: nowrap; overflow: visible; color: #333; }
+.tabulator-row .tabulator-cell { display: inline-block; position: relative; box-sizing: border-box; padding: 4px; border-right: 1px solid #ddd; border-bottom: 1px solid #ddd; vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
