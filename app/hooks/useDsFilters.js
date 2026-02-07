@@ -23,11 +23,13 @@ export function useAddFilter(dsName, dsView, userId) {
         dsName,
         dsView,
         dsUser: userId,
-        name,
-        description,
-        hdrFilters,
-        hdrSorters,
-        filterColumnAttrs,
+        filter: {
+          name,
+          description,
+          hdrFilters,
+          hdrSorters,
+          filterColumnAttrs,
+        },
       });
     },
     onSuccess: () => {
@@ -54,11 +56,13 @@ export function useEditFilter(dsName, dsView, userId) {
         dsName,
         dsView,
         dsUser: userId,
-        name,
-        description,
-        hdrFilters,
-        hdrSorters,
-        filterColumnAttrs,
+        filter: {
+          name,
+          description,
+          hdrFilters,
+          hdrSorters,
+          filterColumnAttrs,
+        },
       });
     },
     onSuccess: () => {
@@ -83,7 +87,9 @@ export function useDeleteFilter(dsName, dsView, userId) {
         dsName,
         dsView,
         dsUser: userId,
-        name: filterName,
+        filter: {
+          name: filterName,
+        },
       });
     },
     onSuccess: () => {
