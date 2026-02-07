@@ -288,7 +288,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
       <br/>
       <Row style={{ marginBottom: '10px' }}>
         <Col md={1} sm={1} xs={1}>
-          <b>Filters:</b>
+          <b style={{ fontSize: 'var(--info-main-size, 1.45rem)', fontWeight: 700, color: 'var(--color-text)' }}>Filters:</b>
         </Col>
         <Col md={8} sm={8} xs={8}>
           <Select
@@ -322,43 +322,58 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
       
       <Row style={{ marginBottom: '10px' }}>
         <Col md={12} sm={12} xs={12}>
-          <button 
-            className="btn btn-link"
-            onClick={() => {
-              setSaveAsNew(!saveAsNew);
-              setSave(false);
-              setDeleteFilter(false);
-              setSaveAsNewErrorMsg('');
-            }}
-          >
-            <i className='fas fa-filter'></i> Save-as-new-filter
-          </button>
-          <span> | </span>
-          <button 
-            className="btn btn-link"
-            onClick={() => {
-              setSave(!save);
-              setSaveAsNew(false);
-              setDeleteFilter(false);
-              setSaveErrorMsg('');
-            }}
-            disabled={!defaultValue}
-          >
-            <i className='fas fa-save'></i> Save
-          </button>
-          <span> | </span>
-          <button 
-            className="btn btn-link"
-            onClick={() => {
-              setDeleteFilter(!deleteFilter);
-              setSave(false);
-              setSaveAsNew(false);
-              setDeleteFilterErrorMsg('');
-            }}
-            disabled={!defaultValue}
-          >
-            <i className='fas fa-trash-alt'></i> Delete-filter
-          </button>
+          {(() => {
+            const controlStyle = { fontSize: 'var(--info-main-size, 1.45rem)', color: 'var(--color-text)', cursor: 'pointer', fontWeight: 700, lineHeight: '1', padding: '0 6px', display: 'inline-flex', alignItems: 'center' };
+            const iconStyle = { fontSize: 'var(--info-main-size, 1.45rem)', marginRight: '6px', verticalAlign: 'middle' };
+            const textStyle = { fontSize: 'var(--info-main-size, 1.45rem)', fontWeight: 700 };
+            return (
+              <>
+                <button
+                  className="btn btn-link"
+                  style={controlStyle}
+                  onClick={() => {
+                    setSaveAsNew(!saveAsNew);
+                    setSave(false);
+                    setDeleteFilter(false);
+                    setSaveAsNewErrorMsg('');
+                  }}
+                >
+                  <i className='fas fa-filter' style={iconStyle}></i>
+                  <span style={textStyle}>Save-as-new-filter</span>
+                </button>
+                <span style={{ padding: '0 6px' }}> | </span>
+                <button
+                  className="btn btn-link"
+                  style={controlStyle}
+                  onClick={() => {
+                    setSave(!save);
+                    setSaveAsNew(false);
+                    setDeleteFilter(false);
+                    setSaveErrorMsg('');
+                  }}
+                  disabled={!defaultValue}
+                >
+                  <i className='fas fa-save' style={iconStyle}></i>
+                  <span style={textStyle}>Save</span>
+                </button>
+                <span style={{ padding: '0 6px' }}> | </span>
+                <button
+                  className="btn btn-link"
+                  style={controlStyle}
+                  onClick={() => {
+                    setDeleteFilter(!deleteFilter);
+                    setSave(false);
+                    setSaveAsNew(false);
+                    setDeleteFilterErrorMsg('');
+                  }}
+                  disabled={!defaultValue}
+                >
+                  <i className='fas fa-trash-alt' style={iconStyle}></i>
+                  <span style={textStyle}>Delete-filter</span>
+                </button>
+              </>
+            );
+          })()}
         </Col>
       </Row>
       

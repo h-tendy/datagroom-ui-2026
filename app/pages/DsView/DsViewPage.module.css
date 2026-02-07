@@ -26,7 +26,6 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  font-size: 1rem;
   margin-bottom: 6px;
 }
 
@@ -37,16 +36,15 @@
 .btnLink {
   background: none;
   border: none;
-  color: var(--color-primary);
+  color: var(--color-text);
   cursor: pointer;
   padding: 6px 10px;
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: var(--info-main-size, 1.45rem);
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: color 0.2s, opacity 0.2s;
-  font-family: var(--font-family-main);
 }
 
 .btnLink:hover {
@@ -55,25 +53,7 @@
 }
 
 .btnLink i {
-  font-size: 1.05rem;
-}
-
-/* Action bar buttons: match infoBar sizing/style */
-.actionBar .btnLink,
-.actionBar :global(.btn-link) {
   font-size: var(--info-main-size, 1.45rem);
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-.actionBar .btnLink i,
-.actionBar :global(.btn-link) i {
-  font-size: var(--info-main-size, 1.45rem);
-  margin-left: 6px;
-  vertical-align: middle;
 }
 
 .separator {
@@ -89,20 +69,7 @@
   gap: 10px;
   margin: 6px 0;
   flex-wrap: wrap;
-  font-size: 1rem;
-}
-
-/* Settings check labels: match infoBar sizing/style */
-.settingsBar .checkboxLabel {
   font-size: var(--info-main-size, 1.45rem);
-  gap: 8px;
-}
-
-.settingsBar .checkboxLabel i {
-  font-size: calc(var(--info-main-size, 1.45rem) - 0.05rem);
-  margin-left: 6px;
-  vertical-align: middle;
-  opacity: 0.8;
 }
 
 .checkboxLabel {
@@ -112,8 +79,7 @@
   color: var(--color-text);
   cursor: pointer;
   user-select: none;
-  font-family: var(--font-family-main);
-  font-size: 1rem;
+  font-size: var(--info-main-size, 1.45rem);
 }
 
 .checkboxLabel input[type="checkbox"] {
@@ -135,7 +101,7 @@
   gap: 8px;
   margin: 6px 0;
   flex-wrap: wrap;
-  font-size: 1rem;
+  font-size: var(--info-main-size, 1.45rem);
   --info-main-size: 1.45rem;
 }
 
@@ -147,7 +113,7 @@
 }
 
 .infoBar .totalIcon {
-  font-size: 1.3rem;
+  font-size: var(--info-main-size);
   margin-right: 4px;
   vertical-align: middle;
 }
@@ -160,7 +126,7 @@
 
 .infoBar .btnLink {
   padding: 6px 10px;
-  font-size: 1.15rem;
+  font-size: var(--info-main-size);
   line-height: 1;
 }
 
@@ -170,7 +136,7 @@
 }
 
 .infoBar .btnLink i {
-  font-size: 1.15rem;
+  font-size: var(--info-main-size);
   margin-right: 4px;
   vertical-align: middle;
 }
@@ -184,9 +150,10 @@
   align-items: center;
   color: var(--color-text);
   text-decoration: none;
+  font-family: inherit;
 }
 .infoBar :global(.btn-link) i {
-  font-size: 1.4rem;
+  font-size: var(--info-main-size);
   margin-right: 6px;
   vertical-align: middle;
 }
