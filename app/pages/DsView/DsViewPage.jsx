@@ -82,6 +82,7 @@ function DsViewPage() {
   const cellImEditingRef = useRef(null);
   const reqCount = useRef(0);
   const fetchAllMatchingRecordsRef = useRef(false);
+  const singleIdRef = useRef(null);
   
   // Store edit-related state in refs so cellEditCheck can access current values
   const singleClickEditRef = useRef(false);
@@ -122,6 +123,7 @@ function DsViewPage() {
   const [fetchAllMatchingRecords, setFetchAllMatchingRecords] = useState(false);
   const [totalRecs, setTotalRecs] = useState(0);
   const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
+  const [_id, set_id] = useState('');
   
   // Column resize tracking ref
   const columnResizedRecentlyRef = useRef(false);
@@ -270,14 +272,20 @@ function DsViewPage() {
   // Process filter change - handle filter selection from FilterControls
   // Reference: DsView.js lines 1996-2037
   const processFilterChange = useCallback((filterName) => {
+    // Don't navigate if viewing single row
+    if (searchParams.get('_id')) return;
+    
     // Build URL with filter and navigate
     const newUrl = filterName ? `/ds/${dsName}/${dsView}/${filterName}` : `/ds/${dsName}/${dsView}`;
     navigate(newUrl, { replace: true });
     // State will be updated by the useEffect that watches filterParam
-  }, [dsName, dsView, navigate]);
+  }, [dsName, dsView, navigate, searchParams]);
 
   // Clicking the title should clear all filters (path and search params)
   const handleTitleClick = useCallback(() => {
+    // Don't clear if viewing single row (preserves _id URL)
+    if (searchParams.get('_id')) return;
+    
     try {
       // Clear query string params
       setSearchParams({});
@@ -373,8 +381,11 @@ function DsViewPage() {
       setFilter('');
       setInitialHeaderFilter([]);
       setShowAllFilters(false);
-      // Keep singleId handling minimal here; other logic can read _id from URL when requesting data
+      set_id(singleId);
+      // Trigger table refresh after state update
+      setTimeout(() => { try { tabulatorRef.current?.table?.setData(); } catch (e) {} }, 50);
     } else {
+      set_id('');
       setInitialHeaderFilter(hdrFilters);
       setInitialSort(hdrSorters);
       setFilterColumnAttrs(colAttrs);
@@ -435,8 +446,12 @@ function DsViewPage() {
   // Process filter from URL - only when filterParam actually changes
   useEffect(() => {
     if (!viewConfig) return;
+    // If viewing single row via _id param, don't process pathname filters
+    if (searchParams.get('_id')) return;
     // If a query string is present, it takes precedence over pathname-based saved filters
     if (searchParams.toString()) return;
+    // If in single-row mode (_id state is set), don't process pathname filters
+    if (_id) return;
     
     // Update filter state based on URL parameter
     if (filterParam) {
@@ -546,7 +561,7 @@ function DsViewPage() {
         }
       }, 100);
     }
-  }, [filterParam, viewConfig, searchParams]); // Respect viewConfig and searchParams for reload handling
+  }, [filterParam, viewConfig, searchParams, _id]); // Respect viewConfig, searchParams, and _id for reload handling
 
   // If there is no URL pathname filter and no query string, we'll allow mount once columns are ready
 
@@ -597,7 +612,7 @@ function DsViewPage() {
       console.error('ajaxURLGenerator error', e);
     }
     return url;
-  }, [fetchAllMatchingRecords, chronologyDescending, serializeParams]);
+  }, [serializeParams]);
 
   const ajaxResponse = useCallback((url, params, response) => {
     try {
@@ -717,6 +732,67 @@ function DsViewPage() {
       console.error('urlGeneratorFunctionForView error', e);
     }
   }, [tabulatorRef, fetchAllMatchingRecords, pageSize, chronologyDescending]);
+
+  // Wrapper to support both row and view URL generation (used by context menu)
+  const urlGeneratorFunction = useCallback((e, cell, forView) => {
+    try {
+      if (forView) {
+        urlGeneratorFunctionForView(e, cell);
+        return;
+      }
+
+      // Determine _id from the provided cell
+      let _id = null;
+      try {
+        if (cell && typeof cell.getRow === 'function') {
+          _id = cell.getRow().getData()?._id;
+        }
+      } catch (err) {
+        _id = null;
+      }
+
+      // Use canonical base view path (do not include any pathname-based filter)
+      const basePath = `/ds/${dsName}/${dsView}`;
+      let finalUrl = window.location.origin + basePath;
+      if (_id) finalUrl += '?' + `_id=${encodeURIComponent(_id)}`;
+
+      // Try clipboard helper then navigator.clipboard
+      let copied = false;
+      try {
+        if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
+          copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
+        }
+      } catch (err) {
+        copied = false;
+      }
+
+      if (!copied) {
+        try {
+          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(finalUrl);
+            copied = true;
+          }
+        } catch (err) {
+          copied = false;
+        }
+      }
+
+      // Provide same modal feedback as view generator
+      if (copied) {
+        setModalTitle('Copy URL');
+        setModalQuestion('URL copied to clipboard');
+        setModalCallback(null);
+        setShowModal(true);
+      } else {
+        setModalTitle('Copy URL');
+        setModalQuestion(finalUrl);
+        setModalCallback(null);
+        setShowModal(true);
+      }
+    } catch (e) {
+      console.error('urlGeneratorFunction error', e);
+    }
+  }, [urlGeneratorFunctionForView, dsName, dsView]);
 
   // Delete all rows matching current header filters - preview (pretend) and confirm
   const deleteAllRowsInQuery = useCallback(async () => {
@@ -1219,7 +1295,7 @@ function DsViewPage() {
       }
     },
     startPreso: () => {}, // Deferred
-    urlGeneratorFunction: urlGeneratorFunctionForView,
+    urlGeneratorFunction: urlGeneratorFunction,
     duplicateAndAddRowHandler: () => {}, // TODO
     addRow: handleAddRow,
     deleteAllRowsInViewQuestion: () => {}, // TODO
@@ -1481,7 +1557,8 @@ function DsViewPage() {
               cellClick: cellClickEvents,
               cellDblClick: cellClickEvents,
               forceRefresh: forceRefresh, // Triggers shouldComponentUpdate
-              ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}`,
+              _id: _id, // Triggers shouldComponentUpdate when single-row mode changes
+              ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}${_id ? `/${_id}` : ''}`,
               ajaxURLGenerator: ajaxURLGenerator,
               ajaxResponse: ajaxResponse,
               ajaxConfig: {
