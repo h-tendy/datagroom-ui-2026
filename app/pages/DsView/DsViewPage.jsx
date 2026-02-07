@@ -212,6 +212,9 @@ function DsViewPage() {
   const tabulatorConfigHelper = useRef(null);
   const jiraHelpers = useRef(null);
   const [columns, setColumns] = useState([]);
+  // Prevent initial table mount until URL-derived filters/sorts/attrs are applied
+  const [initialUrlProcessed, setInitialUrlProcessed] = useState(false);
+  const lastGeneratedFilterAttrsRef = useRef('');
 
   // Initialize chronologyDescending from localStorage on mount
   // Reference: DsView.js lines 138-143
@@ -421,6 +424,8 @@ function DsViewPage() {
     lastProcessedSearchRef.current = searchString;
   }, [searchParams, viewConfig]);
 
+  // (removed premature marking here — we'll set `initialUrlProcessed` once columns are generated)
+
   // Process filter from URL - only when filterParam actually changes
   useEffect(() => {
     if (!viewConfig) return;
@@ -536,6 +541,8 @@ function DsViewPage() {
       }, 100);
     }
   }, [filterParam, viewConfig, searchParams]); // Respect viewConfig and searchParams for reload handling
+
+  // If there is no URL pathname filter and no query string, we'll allow mount once columns are ready
 
   // Ajax helper functions (from reference implementation)
   const generateParamsList = useCallback((data, prefix = "") => {
@@ -1214,6 +1221,9 @@ function DsViewPage() {
       handlers,
       cellImEditingRef,
       frozenCol,
+      filterColumnAttrs,
+      columnResizedRecently: columnResizedRecentlyRef.current,
+      originalColumnAttrs: originalColumnAttrsRef.current,
       // Editor functions for Tabulator columns
       MyTextArea,
       MyCodeMirror,
@@ -1231,8 +1241,27 @@ function DsViewPage() {
     if (tabulatorConfigHelper.current) {
       const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
       setColumns(generatedColumns);
+      try {
+        lastGeneratedFilterAttrsRef.current = JSON.stringify(filterColumnAttrs || {});
+      } catch (e) {
+        lastGeneratedFilterAttrsRef.current = '';
+      }
     }
-  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters]);
+  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters, filterColumnAttrs]);
+
+  // Once column definitions (including saved filter attrs) are generated, allow table to mount
+  useEffect(() => {
+    if (!initialUrlProcessed && viewConfig && Array.isArray(columns) && columns.length > 0) {
+      try {
+        const currentAttrs = JSON.stringify(filterColumnAttrs || {});
+        if (lastGeneratedFilterAttrsRef.current === currentAttrs) {
+          setInitialUrlProcessed(true);
+        }
+      } catch (e) {
+        setInitialUrlProcessed(true);
+      }
+    }
+  }, [columns, viewConfig, initialUrlProcessed]);
 
   // Rebuild Tabulator columns when `showAllFilters` toggles so header filters are applied
   useEffect(() => {
@@ -1249,7 +1278,7 @@ function DsViewPage() {
     } catch (e) {
       console.error('Error rebuilding columns on showAllFilters change:', e);
     }
-  }, [showAllFilters, viewConfig]);
+  }, [showAllFilters, viewConfig, filterColumnAttrs]);
 
 
   // TODO: Implement remaining handlers:
@@ -1400,6 +1429,7 @@ function DsViewPage() {
             </button>
           </div>
 
+          {initialUrlProcessed && (
           <MyTabulator
             innerref={(ref) => (tabulatorRef.current = ref)}
             columns={columns}
@@ -1464,6 +1494,7 @@ function DsViewPage() {
             cellEdited={handleCellEdited}
             cellEditCancelled={handleCellEditCancelled}
           />
+          )}
 
           {/* Notification */}
           <Notification

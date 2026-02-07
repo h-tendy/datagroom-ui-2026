@@ -67,7 +67,8 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
  */
 export default function createTabulatorConfig(context) {
   const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol,
-          MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter } = context;
+          MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter,
+          filterColumnAttrs, columnResizedRecently, originalColumnAttrs } = context;
   
   // Extract handlers passed from DsViewPage
   const {
@@ -163,6 +164,37 @@ export default function createTabulatorConfig(context) {
     
     for (let i = 0; i < viewConfig.columnAttrs.length; i++) {
       const col = { ...viewConfig.columnAttrs[i] };
+      // If saved filter column attributes provided, apply visibility/width before returning
+      try {
+        const attrsForField = filterColumnAttrs && col.field ? filterColumnAttrs[col.field] : null;
+        if (attrsForField) {
+          if (attrsForField.hidden) {
+            // Tabulator column definition uses 'visible' boolean
+            col.visible = false;
+          } else {
+            col.visible = true;
+          }
+
+          if (!columnResizedRecently && attrsForField.width !== undefined) {
+            col.width = attrsForField.width;
+          }
+        } else if (!columnResizedRecently && originalColumnAttrs) {
+          // If no saved attrs but original widths exist, restore width from original attrs
+          if (originalColumnAttrs[col.field] && originalColumnAttrs[col.field].width !== undefined) {
+            col.width = originalColumnAttrs[col.field].width;
+          } else if (Array.isArray(originalColumnAttrs)) {
+            for (let o = 0; o < originalColumnAttrs.length; o++) {
+              const oc = originalColumnAttrs[o];
+              if (oc && oc.field === col.field && oc.width !== undefined) {
+                col.width = oc.width;
+                break;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore attr application errors
+      }
       
       // Determine if this is a key column
       const isKeyColumn = keys.includes(col.field);
