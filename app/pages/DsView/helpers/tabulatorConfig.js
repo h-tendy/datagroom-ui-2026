@@ -5,11 +5,8 @@ import mditAttrs from 'markdown-it-attrs';
 import mditContainer from 'markdown-it-container';
 import mditHighlightjs from 'markdown-it-highlightjs';
 import mditPlantuml from 'markdown-it-plantuml';
-import * as mditFancyListsModule from 'markdown-it-fancy-lists';
+import { markdownItFancyListPlugin as mditFancyLists } from 'markdown-it-fancy-lists';
 import { parseExpr, evalExpr } from '../../../components/editors/QueryParsers';
-
-// Extract the plugin function from fancy-lists module
-const mditFancyLists = mditFancyListsModule.markdownItFancyListPlugin || mditFancyListsModule.default || mditFancyListsModule;
 
 // Initialize markdown-it with all plugins (matching reference implementation)
 const md = new MarkdownIt({
@@ -294,10 +291,8 @@ export default function createTabulatorConfig(context) {
           // Add cellEditCancelled callback to normalize height
           const cellEditCancelled = (cell) => {
             if (!cellImEditingRef || !cellImEditingRef.current) {
-              console.log("Normalize, Inside second editcancelled..");
               cell.getRow().normalizeHeight();
             } else {
-              console.log("Skipping normalize, Inside second editcancelled");
             }
           };
           col.cellEditCancelled = cellEditCancelled;
@@ -347,8 +342,6 @@ export default function createTabulatorConfig(context) {
         delete columns[i].frozen;
       }
     }
-
-    console.log('[tabulatorConfig] Returning columns:', columns.length, 'columns');
     return columns;
   }
 

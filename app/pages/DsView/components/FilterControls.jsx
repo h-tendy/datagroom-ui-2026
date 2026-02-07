@@ -35,13 +35,22 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
   const editFilterMutation = useEditFilter(dsName, dsView, viewConfig?.dsUser);
   const deleteFilterMutation = useDeleteFilter(dsName, dsView, viewConfig?.dsUser);
   
-  // When the panel is hidden, clear filter selection via effect
-  // (avoid performing side-effects during render)
+  // When the panel is hidden, reset only the *local UI* state.
+  // IMPORTANT: Do not call onFilterChange(null) here.
+  // Hiding "Show filters" should not mutate the current URL/view.
   useEffect(() => {
-    if (!show && onFilterChange) {
-      onFilterChange(null);
-    }
-  }, [show, onFilterChange]);
+    if (show) return;
+    setSave(false);
+    setSaveName(null);
+    setSaveDescription(null);
+    setSaveErrorMsg('');
+    setSaveAsNew(false);
+    setSaveAsNewName('');
+    setSaveAsNewDescription('');
+    setSaveAsNewErrorMsg('');
+    setDeleteFilter(false);
+    setDeleteFilterErrorMsg('');
+  }, [show]);
 
   if (!show) return null;
   

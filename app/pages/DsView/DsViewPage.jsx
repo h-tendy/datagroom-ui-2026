@@ -76,13 +76,17 @@ function DsViewPage() {
   const auth = useAuth();
   const userId = auth.userId;
 
+  const DEBUG_URL_RESTORE = false;
+  const urlRestoreLog = useCallback((...args) => {
+    if (DEBUG_URL_RESTORE) console.log(...args);
+  }, []);
+
   // Refs
   const tabulatorRef = useRef(null);
   const timersRef = useRef({});
   const cellImEditingRef = useRef(null);
   const reqCount = useRef(0);
   const fetchAllMatchingRecordsRef = useRef(false);
-  const singleIdRef = useRef(null);
   
   // Store edit-related state in refs so cellEditCheck can access current values
   const singleClickEditRef = useRef(false);
@@ -339,8 +343,16 @@ function DsViewPage() {
   useEffect(() => {
     if (!viewConfig) return;
     const searchString = searchParams.toString();
+    urlRestoreLog('[URL RESTORE] processFilterViaUrl: searchString =', searchString);
+    
+    // If searchParams got cleared after being processed, log it but don't process again
+    if (!searchString && lastProcessedSearchRef.current && lastProcessedSearchRef.current !== '') return;
+    
     if (!searchString) return; // nothing to do
-    if (lastProcessedSearchRef.current === searchString) return; // already handled
+    if (lastProcessedSearchRef.current === searchString) {
+      urlRestoreLog('[URL RESTORE] searchParams already processed, skipping');
+      return; // already handled
+    }
 
     const entries = Array.from(searchParams.entries());
     if (!entries.length) {
@@ -356,24 +368,69 @@ function DsViewPage() {
     let chronology = chronologyDescending;
     let fetchAll = fetchAllMatchingRecords;
 
-    // Build column name list from viewConfig (support array or object shape)
+    // Build column name list from viewConfig.
+    // IMPORTANT: this app's Tabulator config is driven by `viewConfig.columnAttrs` (array).
+    // Some backends also provide `viewConfig.columns` as an object keyed by numeric strings;
+    // in that case Object.keys() returns ['1','2',...], which breaks URL field filter restore.
     const columnNames = (() => {
       try {
         if (!viewConfig) return [];
-        if (Array.isArray(viewConfig.columns)) return viewConfig.columns.map(c => (c && (c.field || c.name)) || c).filter(Boolean);
-        if (typeof viewConfig.columns === 'object') return Object.keys(viewConfig.columns);
+
+        // Preferred: columnAttrs array (matches tabulatorConfig.js)
+        if (Array.isArray(viewConfig.columnAttrs)) {
+          return viewConfig.columnAttrs
+            .map((c) => {
+              if (typeof c === 'string') return c;
+              if (typeof c === 'object' && c !== null) return c.field || c.name || c.title;
+              return null;
+            })
+            .filter(Boolean);
+        }
+
+        // Fallback: columns array
+        if (Array.isArray(viewConfig.columns)) {
+          return viewConfig.columns
+            .map((c) => {
+              if (typeof c === 'string') return c;
+              if (typeof c === 'object' && c !== null) return c.field || c.name || c.title;
+              return null;
+            })
+            .filter(Boolean);
+        }
+
+        // Fallback: columns object
+        if (viewConfig.columns && typeof viewConfig.columns === 'object') {
+          const vals = Object.values(viewConfig.columns);
+          const extracted = vals
+            .map((c) => {
+              if (typeof c === 'string') return c;
+              if (typeof c === 'object' && c !== null) return c.field || c.name || c.title;
+              return null;
+            })
+            .filter(Boolean);
+          if (extracted.length) return extracted;
+
+          // Last resort: if it's actually keyed by field name, keys are OK.
+          return Object.keys(viewConfig.columns);
+        }
       } catch (e) {}
       return [];
     })();
+    urlRestoreLog('[URL RESTORE] columnNames from viewConfig:', columnNames);
 
     for (const [k, v] of entries) {
       if (k === '_id') { singleId = v; break; }
       if (k === 'hdrSorters') { try { hdrSorters = JSON.parse(v); } catch (e) { console.error('hdrSorters parse error', e); } continue; }
-      if (k === 'filterColumnAttrs') { try { colAttrs = JSON.parse(v); } catch (e) { console.error('filterColumnAttrs parse error', e); } continue; }
+      if (k === 'filterColumnAttrs') { try { colAttrs = JSON.parse(v); urlRestoreLog('[URL RESTORE] Parsed filterColumnAttrs from URL:', colAttrs); } catch (e) { console.error('filterColumnAttrs parse error', e); } continue; }
       if (k === 'fetchAllMatchingRecords') { fetchAll = String(v).toLowerCase() === 'true'; continue; }
       if (k === 'pageSize') { const p = parseInt(v); if (p > 0) pageSz = p; continue; }
       if (k === 'chronologyDescending') { chronology = String(v).toLowerCase() === 'true'; continue; }
-      if (columnNames.includes(k)) { hdrFilters.push({ field: k, value: v }); }
+      if (columnNames.includes(k)) { 
+        urlRestoreLog('[URL RESTORE] Found field filter:', k, '=', v);
+        hdrFilters.push({ field: k, value: v }); 
+      } else {
+        urlRestoreLog('[URL RESTORE] Skipping URL param (not a column):', k);
+      }
     }
 
     if (singleId) {
@@ -386,10 +443,16 @@ function DsViewPage() {
       setTimeout(() => { try { tabulatorRef.current?.table?.setData(); } catch (e) {} }, 50);
     } else {
       set_id('');
+      urlRestoreLog('[URL RESTORE] Setting state from URL:', { hdrFilters, hdrSorters, colAttrs, pageSz, chronology, fetchAll });
+      urlRestoreLog('[URL RESTORE] hdrFilters.length =', hdrFilters.length, ', will set showAllFilters =', hdrFilters.length > 0);
       setInitialHeaderFilter(hdrFilters);
       setInitialSort(hdrSorters);
       setFilterColumnAttrs(colAttrs);
-      setShowAllFilters(hdrFilters.length > 0);
+      // Only force filters ON when URL includes field filters.
+      // Do not force filters OFF (that can hide FilterControls and inadvertently clear the URL).
+      const shouldShowFilters = hdrFilters.length > 0;
+      urlRestoreLog('[URL RESTORE] Calling setShowAllFilters with:', shouldShowFilters);
+      if (shouldShowFilters) setShowAllFilters(true);
       setPageSize(pageSz);
       setChronologyDescending(chronology);
       setFetchAllMatchingRecords(fetchAll);
@@ -439,6 +502,7 @@ function DsViewPage() {
     }
 
     lastProcessedSearchRef.current = searchString;
+    urlRestoreLog('[URL RESTORE] processFilterViaUrl complete, marked as processed');
   }, [searchParams, viewConfig]);
 
   // (removed premature marking here — we'll set `initialUrlProcessed` once columns are generated)
@@ -452,6 +516,9 @@ function DsViewPage() {
     if (searchParams.toString()) return;
     // If in single-row mode (_id state is set), don't process pathname filters
     if (_id) return;
+    // If searchParams were previously processed (non-empty URL), don't clear that state
+    // This prevents the pathname filter effect from clearing URL-restored filterColumnAttrs
+    if (lastProcessedSearchRef.current && lastProcessedSearchRef.current !== '') return;
     
     // Update filter state based on URL parameter
     if (filterParam) {
@@ -656,7 +723,49 @@ function DsViewPage() {
   // Generate a view URL capturing current header filters, sorters, column attrs and options
   const urlGeneratorFunctionForView = useCallback((e, cell) => {
     try {
-      // If in single-row view (no filters) we could fallback to row URL, but keep view-level URL here
+      // If viewing a single row, generate row URL instead
+      if (_id) {
+        // Generate row URL with canonical base path
+        const basePath = `/ds/${dsName}/${dsView}`;
+        let finalUrl = window.location.origin + basePath;
+        if (_id) finalUrl += '?' + `_id=${encodeURIComponent(_id)}`;
+
+        // Try clipboard helper then navigator.clipboard
+        let copied = false;
+        try {
+          if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
+            copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
+          }
+        } catch (err) {
+          copied = false;
+        }
+
+        if (!copied) {
+          try {
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(finalUrl);
+              copied = true;
+            }
+          } catch (err) {
+            copied = false;
+          }
+        }
+
+        // Provide modal feedback
+        if (copied) {
+          setModalTitle('Copy URL');
+          setModalQuestion('URL copied to clipboard');
+          setModalCallback(null);
+          setShowModal(true);
+        } else {
+          setModalTitle('Copy URL');
+          setModalQuestion(finalUrl);
+          setModalCallback(null);
+          setShowModal(true);
+        }
+        return;
+      }
+      
       const table = tabulatorRef.current?.table;
       if (!table) return;
 
@@ -692,7 +801,9 @@ function DsViewPage() {
       queryParamsObject['chronologyDescending'] = chronologyDescending ? true : false;
 
       const queryParams = new URLSearchParams(Object.entries(queryParamsObject));
-      let finalUrl = window.location.origin + window.location.pathname;
+      // Use canonical base path (without any pathname-based filter)
+      const basePath = `/ds/${dsName}/${dsView}`;
+      let finalUrl = window.location.origin + basePath;
       if (queryParams.toString()) finalUrl += '?' + queryParams.toString();
 
       // Use clipboard helper if available
@@ -731,7 +842,7 @@ function DsViewPage() {
     } catch (e) {
       console.error('urlGeneratorFunctionForView error', e);
     }
-  }, [tabulatorRef, fetchAllMatchingRecords, pageSize, chronologyDescending]);
+  }, [_id, dsName, dsView, fetchAllMatchingRecords, pageSize, chronologyDescending]);
 
   // Wrapper to support both row and view URL generation (used by context menu)
   const urlGeneratorFunction = useCallback((e, cell, forView) => {
@@ -906,15 +1017,6 @@ function DsViewPage() {
     singleClickEditRef.current = checked; // Sync ref
     setSingleClickEdit(checked);
     localStorage.setItem('singleClickEdit', JSON.stringify(checked));
-  }, []);
-
-  // Toggle functions for checkboxes
-  const toggleFilters = useCallback(() => {
-    setShowAllFilters(prev => {
-      const newValue = !prev;
-      localStorage.setItem('showAllFilters', JSON.stringify(newValue));
-      return newValue;
-    });
   }, []);
 
   const toggleEditing = useCallback((shouldDisable) => {
@@ -1312,7 +1414,35 @@ function DsViewPage() {
 
   // Initialize helper modules and generate columns
   useEffect(() => {
+    urlRestoreLog('[URL RESTORE] Column generation effect triggered');
     if (!viewConfig) return;
+    
+    // If there are searchParams that haven't been processed yet, wait before generating columns
+    const searchString = searchParams.toString();
+    urlRestoreLog('[URL RESTORE] Column gen: searchString =', searchString, ', lastProcessed =', lastProcessedSearchRef.current);
+    urlRestoreLog('[URL RESTORE] Column gen: current filterColumnAttrs =', filterColumnAttrs);
+    if (searchString && lastProcessedSearchRef.current !== searchString) {
+      urlRestoreLog('[URL RESTORE] Waiting for searchParams to be processed before generating columns');
+      return; // Don't generate columns yet, URL params need to be processed first
+    }
+    
+    // CRITICAL: Even if searchParams were processed, the state updates may not have applied yet
+    // Check if URL contains filterColumnAttrs but state is still empty - if so, wait for state update
+    if (searchString && lastProcessedSearchRef.current === searchString) {
+      try {
+        const urlFilterColumnAttrs = searchParams.get('filterColumnAttrs');
+        if (urlFilterColumnAttrs) {
+          // URL has filterColumnAttrs, check if state has been updated
+          const currentAttrsStr = JSON.stringify(filterColumnAttrs || {});
+          if (currentAttrsStr === '{}') {
+            urlRestoreLog('[URL RESTORE] ⏳ searchParams processed but filterColumnAttrs state not yet updated, waiting...');
+            return; // State update hasn't applied yet, wait for next render
+          }
+        }
+      } catch (e) {
+        console.error('[URL RESTORE] Error checking filterColumnAttrs state:', e);
+      }
+    }
 
     // Store original columnAttrs for editor restoration when toggling editing
     if (!originalColumnAttrsRef.current && viewConfig.columnAttrs) {
@@ -1353,29 +1483,46 @@ function DsViewPage() {
     
     // Generate columns using tabulatorConfig
     if (tabulatorConfigHelper.current) {
+      urlRestoreLog('[URL RESTORE] Generating columns with filterColumnAttrs:', filterColumnAttrs);
       const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
       setColumns(generatedColumns);
       try {
         lastGeneratedFilterAttrsRef.current = JSON.stringify(filterColumnAttrs || {});
+        urlRestoreLog('[URL RESTORE] Columns generated, stored filterColumnAttrs ref:', lastGeneratedFilterAttrsRef.current);
       } catch (e) {
         lastGeneratedFilterAttrsRef.current = '';
       }
     }
-  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters, filterColumnAttrs]);
+  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters, filterColumnAttrs, searchParams, urlRestoreLog]);
 
   // Once column definitions (including saved filter attrs) are generated, allow table to mount
   useEffect(() => {
     if (!initialUrlProcessed && viewConfig && Array.isArray(columns) && columns.length > 0) {
+      urlRestoreLog('[URL RESTORE] initialUrlProcessed check: columns.length =', columns.length);
+      const searchString = searchParams.toString();
+      
+      // If there are search params, wait until they've been processed
+      if (searchString && lastProcessedSearchRef.current !== searchString) {
+        urlRestoreLog('[URL RESTORE] Blocking table mount - searchParams not yet processed');
+        return; // Don't allow mount yet, URL params haven't been processed
+      }
+      
+      // If no search params OR they've been processed, check if columns match filterColumnAttrs
       try {
         const currentAttrs = JSON.stringify(filterColumnAttrs || {});
+        urlRestoreLog('[URL RESTORE] Comparing filterColumnAttrs: current =', currentAttrs, ', lastGenerated =', lastGeneratedFilterAttrsRef.current);
         if (lastGeneratedFilterAttrsRef.current === currentAttrs) {
+          urlRestoreLog('[URL RESTORE] ✓ All conditions met, setting initialUrlProcessed = true');
           setInitialUrlProcessed(true);
+        } else {
+          urlRestoreLog('[URL RESTORE] ✗ filterColumnAttrs mismatch, waiting...');
         }
       } catch (e) {
+        urlRestoreLog('[URL RESTORE] ✓ Exception in comparison, allowing table mount');
         setInitialUrlProcessed(true);
       }
     }
-  }, [columns, viewConfig, initialUrlProcessed]);
+  }, [columns, viewConfig, initialUrlProcessed, filterColumnAttrs, searchParams, urlRestoreLog]);
 
   // Rebuild Tabulator columns when `showAllFilters` toggles so header filters are applied
   useEffect(() => {
