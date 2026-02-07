@@ -1359,6 +1359,120 @@ function DsViewPage() {
     setShowModal(true);
   }, [dsName, dsView, userId, deleteRowMutation]);
 
+  // Hide column handler - matches reference DsView.js hideCol
+  // Reference: DsView.js lines 1826-1831
+  const hideColumn = useCallback((...args) => {
+    try {
+      // Normalize arguments - can be called as (column) or (e, column)
+      let column = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        // Check if it's a ColumnComponent (has getField method)
+        if (a0 && typeof a0.getField === 'function') {
+          column = a0;
+        }
+      } else if (args.length >= 2) {
+        // (e, column)
+        column = args[1];
+      }
+
+      if (!column || typeof column.getField !== 'function') {
+        console.warn('hideColumn: no valid column argument detected');
+        return;
+      }
+
+      const field = column.getField();
+      
+      // Don't hide key columns (reference guard)
+      if (viewConfig?.keys?.includes(field)) {
+        console.log('Cannot hide key column:', field);
+        return;
+      }
+
+      // Hide the column
+      column.hide();
+
+      // Lightweight redraw and size adjustment (matches reference)
+      if (tabulatorRef.current?.table) {
+        tabulatorRef.current.table.redraw(true);
+      }
+    } catch (err) {
+      console.error('hideColumn error', err);
+    }
+  }, [viewConfig]);
+
+  // Hide column from cell context menu - matches reference DsView.js hideColFromCell
+  // Reference: DsView.js lines 1833-1839
+  const hideColumnFromCell = useCallback((...args) => {
+    try {
+      // Normalize arguments - can be called as (cell) or (e, cell)
+      let cell = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        if (a0 && typeof a0.getRow === 'function') {
+          cell = a0;
+        }
+      } else if (args.length >= 2) {
+        // (e, cell)
+        cell = args[1];
+      }
+
+      if (!cell || typeof cell.getColumn !== 'function') {
+        console.warn('hideColumnFromCell: no valid cell argument detected');
+        return;
+      }
+
+      const column = cell.getColumn();
+      if (!column) {
+        console.warn('hideColumnFromCell: could not get column from cell');
+        return;
+      }
+
+      const field = column.getField();
+      
+      // Don't hide key columns (reference guard)
+      if (viewConfig?.keys?.includes(field)) {
+        console.log('Cannot hide key column:', field);
+        return;
+      }
+
+      // Hide the column
+      column.hide();
+
+      // Lightweight redraw and size adjustment (matches reference)
+      if (tabulatorRef.current?.table) {
+        tabulatorRef.current.table.redraw(true);
+      }
+    } catch (err) {
+      console.error('hideColumnFromCell error', err);
+    }
+  }, [viewConfig]);
+
+  // Show all hidden columns - matches reference DsView.js showAllCols
+  // Reference: DsView.js lines 1841-1848
+  // Only changes visibility; does NOT modify widths
+  const showAllCols = useCallback(() => {
+    try {
+      const table = tabulatorRef.current?.table;
+      if (!table) return;
+
+      const columns = table.getColumns() || [];
+      
+      // Show only currently hidden columns
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        if (!col.isVisible()) {
+          col.show();
+        }
+      }
+
+      // Lightweight redraw (matches reference)
+      table.redraw(true);
+    } catch (err) {
+      console.error('showAllCols error', err);
+    }
+  }, []);
+
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => ({
     cellEditCheck: cellEditCheck,
@@ -1367,9 +1481,9 @@ function DsViewPage() {
     toggleSingleFilter: () => {}, // TODO
     freezeColumn: () => {}, // TODO
     unfreezeColumn: () => {}, // TODO
-    hideColumn: () => {}, // TODO
-    hideColumnFromCell: () => {}, // TODO
-    showAllCols: () => {}, // TODO
+    hideColumn: hideColumn,
+    hideColumnFromCell: hideColumnFromCell,
+    showAllCols: showAllCols,
     copyCellToClipboard: (...args) => {
       try {
         // Tabulator may call context menu actions with different signatures.
@@ -1410,7 +1524,7 @@ function DsViewPage() {
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
-  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger]);
+  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
