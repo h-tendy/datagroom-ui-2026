@@ -119,6 +119,8 @@ function DsViewPage() {
   
   // Column resize tracking ref
   const columnResizedRecentlyRef = useRef(false);
+  // Track last-processed search string so we don't re-apply same URL twice
+  const lastProcessedSearchRef = useRef('');
   
   // Initialize singleClickEdit from localStorage
   const [singleClickEdit, setSingleClickEdit] = useState(() => {
@@ -279,9 +281,115 @@ function DsViewPage() {
     }
   }, []);
 
+  // Process search params (query string) and restore ad-hoc filter state
+  // This mirrors the reference's processFilterViaUrl and takes precedence
+  useEffect(() => {
+    if (!viewConfig) return;
+    const searchString = searchParams.toString();
+    if (!searchString) return; // nothing to do
+    if (lastProcessedSearchRef.current === searchString) return; // already handled
+
+    const entries = Array.from(searchParams.entries());
+    if (!entries.length) {
+      lastProcessedSearchRef.current = searchString;
+      return;
+    }
+
+    let hdrFilters = [];
+    let hdrSorters = [];
+    let colAttrs = {};
+    let singleId = null;
+    let pageSz = pageSize;
+    let chronology = chronologyDescending;
+    let fetchAll = fetchAllMatchingRecords;
+
+    // Build column name list from viewConfig (support array or object shape)
+    const columnNames = (() => {
+      try {
+        if (!viewConfig) return [];
+        if (Array.isArray(viewConfig.columns)) return viewConfig.columns.map(c => (c && (c.field || c.name)) || c).filter(Boolean);
+        if (typeof viewConfig.columns === 'object') return Object.keys(viewConfig.columns);
+      } catch (e) {}
+      return [];
+    })();
+
+    for (const [k, v] of entries) {
+      if (k === '_id') { singleId = v; break; }
+      if (k === 'hdrSorters') { try { hdrSorters = JSON.parse(v); } catch (e) { console.error('hdrSorters parse error', e); } continue; }
+      if (k === 'filterColumnAttrs') { try { colAttrs = JSON.parse(v); } catch (e) { console.error('filterColumnAttrs parse error', e); } continue; }
+      if (k === 'fetchAllMatchingRecords') { fetchAll = String(v).toLowerCase() === 'true'; continue; }
+      if (k === 'pageSize') { const p = parseInt(v); if (p > 0) pageSz = p; continue; }
+      if (k === 'chronologyDescending') { chronology = String(v).toLowerCase() === 'true'; continue; }
+      if (columnNames.includes(k)) { hdrFilters.push({ field: k, value: v }); }
+    }
+
+    if (singleId) {
+      // single-row mode: clear header filters and hide filter UI
+      setFilter('');
+      setInitialHeaderFilter([]);
+      setShowAllFilters(false);
+      // Keep singleId handling minimal here; other logic can read _id from URL when requesting data
+    } else {
+      setInitialHeaderFilter(hdrFilters);
+      setInitialSort(hdrSorters);
+      setFilterColumnAttrs(colAttrs);
+      setShowAllFilters(hdrFilters.length > 0);
+      setPageSize(pageSz);
+      setChronologyDescending(chronology);
+      setFetchAllMatchingRecords(fetchAll);
+      fetchAllMatchingRecordsRef.current = fetchAll;
+
+      // Apply column attrs and header filter values to Tabulator after state update
+      setTimeout(() => {
+        if (tabulatorRef.current?.table) {
+          try {
+            const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+            for (let j = 0; j < existing.length; j++) {
+              const f = existing[j];
+              if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+              }
+            }
+
+            applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+
+            if (Array.isArray(hdrFilters) && hdrFilters.length) {
+              for (let i = 0; i < hdrFilters.length; i++) {
+                const hf = hdrFilters[i];
+                if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                  tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                }
+              }
+            }
+
+            if (Array.isArray(hdrSorters) && hdrSorters.length) {
+              try {
+                tabulatorRef.current.table.setSort(hdrSorters);
+              } catch (e) {
+                console.error('Error applying hdrSorters from URL', e);
+              }
+            } else {
+              try {
+                if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                  tabulatorRef.current.table.clearSort();
+                }
+              } catch (e) {}
+            }
+          } catch (e) {
+            console.error('Error applying URL filters/attrs', e);
+          }
+        }
+      }, 50);
+    }
+
+    lastProcessedSearchRef.current = searchString;
+  }, [searchParams, viewConfig]);
+
   // Process filter from URL - only when filterParam actually changes
   useEffect(() => {
     if (!viewConfig) return;
+    // If a query string is present, it takes precedence over pathname-based saved filters
+    if (searchParams.toString()) return;
     
     // Update filter state based on URL parameter
     if (filterParam) {
@@ -391,7 +499,7 @@ function DsViewPage() {
         }
       }, 100);
     }
-  }, [filterParam]); // ONLY depend on filterParam, NOT viewConfig
+  }, [filterParam, viewConfig, searchParams]); // Respect viewConfig and searchParams for reload handling
 
   // Ajax helper functions (from reference implementation)
   const generateParamsList = useCallback((data, prefix = "") => {
