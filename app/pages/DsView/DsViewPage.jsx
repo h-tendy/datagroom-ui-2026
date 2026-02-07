@@ -1220,22 +1220,22 @@ function DsViewPage() {
           <div className={styles.infoBar}>
             {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 ? (
               fetchAllMatchingRecords ? (
-                <b><i className='fas fa-clone'></i> Total matching records: {totalRecs}</b>
+                <b className={styles.totalCount}><i className={`fas fa-clone ${styles.totalIcon}`}></i> Total matching records: {totalRecs}</b>
               ) : (
                 moreMatchingDocs ? (
-                  <b><i className='fas fa-clone'></i> Top matching records: {totalRecs - 1}+</b>
+                  <b className={styles.totalCount}><i className={`fas fa-clone ${styles.totalIcon}`}></i> Top matching records: {totalRecs - 1}+</b>
                 ) : (
-                  <b><i className='fas fa-clone'></i> Top matching records: {totalRecs}</b>
+                  <b className={styles.totalCount}><i className={`fas fa-clone ${styles.totalIcon}`}></i> Top matching records: {totalRecs}</b>
                 )
               )
             ) : (
-              <b><i className='fas fa-clone'></i> Total records: {totalRecs}</b>
+              <b className={styles.totalCount}><i className={`fas fa-clone ${styles.totalIcon}`}></i> Total records: {totalRecs}</b>
             )}
             
             {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 && (
               <>
                 <span className={styles.separator}>|</span>
-                <button className={styles.btnLink} onClick={toggleFetchAllRecords}>
+                <button className="btn btn-link" onClick={toggleFetchAllRecords}>
                   <i className='fa fa-download'></i>
                   {fetchAllMatchingRecords ? 'Fetch top matches only' : 'Fetch all matches'}
                 </button>
@@ -1243,8 +1243,8 @@ function DsViewPage() {
             )}
             
             <span className={styles.separator}>|</span>
-            <button className={styles.btnLink} onClick={() => tabulatorRef.current?.table?.setData()}>
-              <i className='fas fa-redo'></i> Refresh
+            <button className="btn btn-link" onClick={() => tabulatorRef.current?.table?.setData()}>
+              <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
             </button>
           </div>
 

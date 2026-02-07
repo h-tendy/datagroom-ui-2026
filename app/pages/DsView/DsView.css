@@ -23,7 +23,7 @@
   position: relative;
   border: 1px solid #999;
   background-color: rgb(136, 136, 136);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   overflow: hidden;
   -ms-transform: translatez(0);
@@ -450,7 +450,7 @@
 .tabulator-row {
   position: relative;
   box-sizing: border-box;
-  min-height: 22px;
+  min-height: 20px;
   background-color: #fff;
 }
 
@@ -544,7 +544,7 @@
   display: inline-block;
   position: relative;
   box-sizing: border-box;
-  padding: 4px;
+  padding: 6px 8px;
   border-right: 1px solid #aaa;
   vertical-align: middle;
   white-space: nowrap;
