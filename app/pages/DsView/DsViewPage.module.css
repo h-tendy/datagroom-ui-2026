@@ -17,9 +17,10 @@
 
 .title {
   font-size: 2rem;
-  font-weight: var(--font-weight-bold);
+  font-weight: 800;
   color: var(--color-primary);
   margin: 0 0 8px 0;
+  cursor: pointer;
 }
 
 .connectivityStatus {

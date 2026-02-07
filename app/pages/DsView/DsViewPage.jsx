@@ -266,6 +266,42 @@ function DsViewPage() {
     navigate(newUrl, { replace: true });
     // State will be updated by the useEffect that watches filterParam
   }, [dsName, dsView, navigate]);
+
+  // Clicking the title should clear all filters (path and search params)
+  const handleTitleClick = useCallback(() => {
+    try {
+      // Clear query string params
+      setSearchParams({});
+    } catch (e) {}
+
+    // Navigate to base view path without any filter
+    navigate(`/ds/${dsName}/${dsView}`, { replace: true });
+
+    // Clear local filter state immediately so UI updates fast
+    setFilter('');
+    setInitialHeaderFilter([]);
+    setInitialSort([]);
+    setFilterColumnAttrs({});
+
+    // Clear header filters and restore column attrs on the table shortly after
+    setTimeout(() => {
+      try {
+        if (tabulatorRef.current?.table) {
+          const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+          for (let j = 0; j < existing.length; j++) {
+            const f = existing[j];
+            if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+              tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+            }
+          }
+          // Show all columns and restore widths
+          applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+          // Clear sorters
+          try { if (typeof tabulatorRef.current.table.clearSort === 'function') tabulatorRef.current.table.clearSort(); } catch (e) {}
+        }
+      } catch (e) {}
+    }, 50);
+  }, [dsName, dsView, navigate, setSearchParams]);
   
   // Handle column resize to set the flag
   const handleColumnResized = useCallback((column) => {
@@ -1243,7 +1279,15 @@ function DsViewPage() {
       <Row>
         <Col>
           <div className={styles.header}>
-            <h2 className={styles.title}>{dsName} - {dsView}</h2>
+            <h2
+              className={styles.title}
+              role="button"
+              tabIndex={0}
+              onClick={handleTitleClick}
+              onKeyPress={(e) => { if (e.key === 'Enter' || e.key === ' ') handleTitleClick(); }}
+            >
+              {dsName} - {dsView}
+            </h2>
             <div className={styles.connectivityStatus}>
               <span className={styles.statusIndicator}>Socket: {connectedState ? '🟢' : '🔴'}</span>
               <span className={styles.statusIndicator}>DB: {dbConnectivityState ? '🟢' : '🔴'}</span>
