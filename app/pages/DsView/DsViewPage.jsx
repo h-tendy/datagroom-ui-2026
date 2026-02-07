@@ -1192,7 +1192,32 @@ function DsViewPage() {
     hideColumn: () => {}, // TODO
     hideColumnFromCell: () => {}, // TODO
     showAllCols: () => {}, // TODO
-    copyCellToClipboard: () => {}, // TODO
+    copyCellToClipboard: (...args) => {
+      try {
+        // Tabulator may call context menu actions with different signatures.
+        // Normalize to (e, cell) or (cell)
+        let cell = null;
+        if (args.length === 1) {
+          // Could be (cell) or (e) depending on Tabulator version; detect cell by presence of getRow
+          const a0 = args[0];
+          if (a0 && typeof a0.getRow === 'function') {
+            cell = a0;
+          }
+        } else if (args.length >= 2) {
+          // (e, cell)
+          cell = args[1];
+        }
+        if (!cell) {
+          // Try fallback: if first arg looks like event and has a target, try to find cell element
+          // Not attempting DOM lookup here to avoid brittle code
+          console.warn('copyCellToClipboard: no cell argument detected');
+          return;
+        }
+        clipboardHelpers.current?.copyCellToClipboard(null, cell);
+      } catch (err) {
+        console.error('copyCellToClipboard error', err);
+      }
+    },
     startPreso: () => {}, // Deferred
     urlGeneratorFunction: urlGeneratorFunctionForView,
     duplicateAndAddRowHandler: () => {}, // TODO
@@ -1230,6 +1255,13 @@ function DsViewPage() {
       filterColumnAttrs,
       columnResizedRecently: columnResizedRecentlyRef.current,
       originalColumnAttrs: originalColumnAttrsRef.current,
+      // UI setters so helpers can display notifications/modals
+      setShowNotification,
+      setNotificationMessage,
+      setNotificationType,
+      setModalTitle,
+      setModalQuestion,
+      setShowModal,
       // Editor functions for Tabulator columns
       MyTextArea,
       MyCodeMirror,
