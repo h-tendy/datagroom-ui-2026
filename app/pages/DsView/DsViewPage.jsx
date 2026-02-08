@@ -1293,41 +1293,68 @@ function DsViewPage() {
   // Adds a temporary row to Tabulator (no backend call yet)
   // When user edits a cell in the new row, handleCellEdited will detect
   // the missing _id and trigger the actual insertRow API call
-  // Parameters:
-  //   data: optional row data (for duplicate row functionality)
-  //   cell: optional reference cell (for positioning)
-  //   pos: optional position - true=above, false=below (default: true)
-  const handleAddRow = useCallback(async (data = null, cell = null, pos = null) => {
+  // Add row handler
+  // Accepts multiple call signatures used in the codebase:
+  //   (e, cell, data, pos)  - menu-driven calls
+  //   (data, cell, pos)     - programmatic calls (duplicate handler)
+  const handleAddRow = useCallback(async (...args) => {
     if (!tabulatorRef.current?.table) return;
-    
+
+    // Normalize arguments
+    let e = null;
+    let data = null;
+    let cell = null;
+    let pos = null;
+
+    if (args.length >= 3 && args[0] && typeof args[0] === 'object' && ('preventDefault' in args[0] || 'target' in args[0])) {
+      // (e, cell, data, pos)
+      e = args[0];
+      cell = args[1];
+      data = args[2];
+      pos = args[3];
+    } else if (args.length >= 3) {
+      // (data, cell, pos)
+      data = args[0];
+      cell = args[1];
+      pos = args[2];
+    } else if (args.length === 2) {
+      // could be (e, cell) or (data, cell)
+      if (args[0] && typeof args[0] === 'object' && ('preventDefault' in args[0] || 'target' in args[0])) {
+        e = args[0];
+        cell = args[1];
+      } else {
+        data = args[0];
+        cell = args[1];
+      }
+    } else if (args.length === 1) {
+      data = args[0];
+    }
+
     // If no data provided, create empty row
     if (!data) {
       data = {};
-      // Add user-name if per-row access control is enabled
       try {
         if (viewConfig?.perRowAccessConfig?.enabled && viewConfig?.perRowAccessConfig?.column) {
           data[viewConfig.perRowAccessConfig.column] = auth.user?.user;
         }
-      } catch (e) {
-        console.error('Error setting per-row access:', e);
+      } catch (err) {
+        console.error('Error setting per-row access:', err);
       }
     }
-    
-    // Determine row index from cell if provided
+
+    // Determine row index from cell if provided (pass Row object)
     let rowIdx = null;
     if (cell) {
-      // Pass the Row object directly for positioning
       rowIdx = cell.getRow();
     }
-    
-    // Default position to bottom (true) if not specified
-    if (pos === undefined || pos === null)
-      pos = true;
-    
+
+    // Default position to top (true) if not specified
+    if (pos === undefined || pos === null) pos = true;
+
     // Add row to Tabulator (no _id yet, will be added by backend later)
     try {
       let row = await tabulatorRef.current.table.addRow(data, pos, rowIdx);
-      console.log('Row is: ', row);
+      return row;
     } catch (error) {
       console.error('Error adding row to table:', error);
       setNotificationType('error');
