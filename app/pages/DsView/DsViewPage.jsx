@@ -1289,30 +1289,48 @@ function DsViewPage() {
   }, [dsName, dsView, userId, viewConfig, editCellMutation, insertRowMutation, emitUnlock, auth.user]);
 
   // Add row handler
-  // Reference: DsView.js lines 1971-2001
+  // Reference: DsView.js lines 867-896
   // Adds a temporary row to Tabulator (no backend call yet)
   // When user edits a cell in the new row, handleCellEdited will detect
   // the missing _id and trigger the actual insertRow API call
-  const handleAddRow = useCallback(async () => {
+  // Parameters:
+  //   data: optional row data (for duplicate row functionality)
+  //   cell: optional reference cell (for positioning)
+  //   pos: optional position - true=above, false=below (default: true)
+  const handleAddRow = useCallback(async (data = null, cell = null, pos = null) => {
     if (!tabulatorRef.current?.table) return;
     
-    // Create empty row
-    const newRow = {};
-    
-    // Add user-name if per-row access control is enabled
-    try {
-      if (viewConfig?.perRowAccessConfig?.enabled && viewConfig?.perRowAccessConfig?.column) {
-        newRow[viewConfig.perRowAccessConfig.column] = auth.user?.user;
+    // If no data provided, create empty row
+    if (!data) {
+      data = {};
+      // Add user-name if per-row access control is enabled
+      try {
+        if (viewConfig?.perRowAccessConfig?.enabled && viewConfig?.perRowAccessConfig?.column) {
+          data[viewConfig.perRowAccessConfig.column] = auth.user?.user;
+        }
+      } catch (e) {
+        console.error('Error setting per-row access:', e);
       }
-    } catch (e) {
-      console.error('Error setting per-row access:', e);
     }
     
+    // Determine row index from cell if provided
+    let rowIdx = null;
+    if (cell) {
+      // Try passing the Row object directly instead of just _id
+      rowIdx = cell.getRow();
+      console.log('handleAddRow: using rowIdx from cell.getRow():', rowIdx);
+    }
+    
+    // Default position to bottom (true) if not specified
+    if (pos === undefined || pos === null)
+      pos = true;
+    
+    console.log('handleAddRow: calling table.addRow with pos:', pos, 'rowIdx:', rowIdx);
+    
     // Add row to Tabulator (no _id yet, will be added by backend later)
-    // pos=true means add at bottom of table
     try {
-      await tabulatorRef.current.table.addRow(newRow, true, null);
-      console.log('Temporary row added to table');
+      let row = await tabulatorRef.current.table.addRow(data, pos, rowIdx);
+      console.log('Row is: ', row);
     } catch (error) {
       console.error('Error adding row to table:', error);
       setNotificationType('error');
@@ -1512,7 +1530,26 @@ function DsViewPage() {
     },
     startPreso: () => {}, // Deferred
     urlGeneratorFunction: urlGeneratorFunction,
-    duplicateAndAddRowHandler: () => {}, // TODO
+    duplicateAndAddRowHandler: (e, cell, pos) => {
+      try {
+        // Future: Check if JIRA row (currently deferred)
+        // if (isJiraRow(rowData, jiraConfig, jiraAgileConfig)) { show modal }
+        
+        console.log('Duplicate and add row called.. pos:', pos);
+        
+        // Clone the row data and remove _id (backend will generate new one)
+        let newData = JSON.parse(JSON.stringify(cell.getData()));
+        delete newData._id;
+        
+        console.log('newData: ', newData);
+        console.log('About to call handleAddRow with pos:', pos);
+        
+        // Call handleAddRow with the duplicated data and position
+        handleAddRow(newData, cell, pos);
+      } catch (err) {
+        console.error('duplicateAndAddRowHandler error', err);
+      }
+    },
     addRow: handleAddRow,
     deleteAllRowsInViewQuestion: () => {}, // TODO
     deleteAllRowsInQuery: deleteAllRowsInQuery,
