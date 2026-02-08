@@ -43,7 +43,14 @@ export function AppRoutes() {
 }
 
 export default function App() {
-    const queryClient = React.useMemo(() => new QueryClient(), []);
+    const queryClient = React.useMemo(() => new QueryClient({
+        defaultOptions: {
+            queries: {
+                refetchOnWindowFocus: false,
+                refetchOnReconnect: false,
+            },
+        },
+    }), []);
     return (
         <QueryClientProvider client={queryClient}>
             <AuthProvider>
