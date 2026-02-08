@@ -34,6 +34,7 @@ import FilterControls from './components/FilterControls.jsx';
 import Modal from './components/Modal.jsx';
 import ModalEditor from './components/ModalEditor.jsx';
 import JiraForm from './components/jiraForm.jsx';
+import AddColumnForm from './components/AddColumnForm';
 
 // Editors
 import * as DateEditorModule from '@tabulator/react-tabulator/lib/editors/DateEditor';
@@ -167,6 +168,14 @@ function DsViewPage() {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState('success');
   const [notificationMessage, setNotificationMessage] = useState('');
+  
+  // Add column modal state
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColumnName, setNewColumnName] = useState('');
+  const [addColumnPosition, setAddColumnPosition] = useState('left');
+  const [addColumnReferenceField, setAddColumnReferenceField] = useState('');
+  const [addColumnError, setAddColumnError] = useState('');
+  const [addColumnProcessing, setAddColumnProcessing] = useState(false);
 
   // Memoize user object to prevent socket reconnections
   const socketUser = useMemo(() => ({ user: userId }), [userId]);
@@ -1602,6 +1611,129 @@ function DsViewPage() {
     }
   }, []);
 
+  // Add column question - shows modal with form
+  // Reference: DsView.js lines 1444-1488
+  const addColumnQuestion = useCallback((referenceField) => {
+    console.log('[ADD COLUMN] addColumnQuestion called with referenceField:', referenceField);
+    
+    // Reset modal state
+    setNewColumnName('');
+    setAddColumnPosition('left');
+    setAddColumnReferenceField(referenceField || '');
+    setAddColumnError('');
+    setAddColumnProcessing(false);
+    
+    // Show the add column modal
+    setShowAddColumnModal(true);
+  }, []);
+
+  // Add column handler - validates and calls API
+  // Reference: DsView.js lines 1490-1533
+  const addColumnHandler = useCallback(() => {
+    console.log('[ADD COLUMN] addColumnHandler called');
+    
+    // Validate column name
+    if (!newColumnName || newColumnName.trim() === '') {
+      setAddColumnError('Column name is required');
+      return;
+    }
+    
+    // Validate column name pattern
+    const pattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+    if (!pattern.test(newColumnName)) {
+      setAddColumnError('Column name must start with a letter or underscore and contain only alphanumeric characters and underscores');
+      return;
+    }
+    
+    // Clear any previous errors
+    setAddColumnError('');
+    setAddColumnProcessing(true);
+    
+    // Call add column mutation
+    const payload = {
+      dsName,
+      dsView,
+      dsUser: userId,
+      columnName: newColumnName,
+      position: addColumnPosition,
+      referenceColumn: addColumnReferenceField,
+      columnAttrs: {}, // Empty object - minimal defaults per reference
+    };
+    
+    console.log('[ADD COLUMN] Calling addColumnMutation with payload:', payload);
+    
+    addColumnMutation.mutate(
+      payload,
+      {
+        onSuccess: (result) => {
+          console.log('[ADD COLUMN] Column added successfully:', result);
+          
+          // Close modal
+          setShowAddColumnModal(false);
+          setAddColumnProcessing(false);
+          
+          // Show success notification
+          setNotificationType('success');
+          setNotificationMessage(`Column "${newColumnName}" added successfully`);
+          setShowNotification(true);
+          
+          // Refresh column definitions by forcing helper regeneration
+          // This will trigger the effect that regenerates columns from viewConfig
+          setForceRefresh(prev => prev + 1);
+          
+          // After state updates, dynamically add column to Tabulator
+          // Reference: DsView.js addColumnStatus lines 1547
+          setTimeout(() => {
+            try {
+              const table = tabulatorRef.current?.table;
+              if (table && typeof table.addColumn === 'function') {
+                const newColDef = {
+                  field: newColumnName,
+                  title: newColumnName,
+                };
+                
+                // Find reference column index
+                const columns = table.getColumns() || [];
+                let refColIndex = -1;
+                for (let i = 0; i < columns.length; i++) {
+                  if (columns[i].getField() === addColumnReferenceField) {
+                    refColIndex = i;
+                    break;
+                  }
+                }
+                
+                // Insert at appropriate position
+                if (refColIndex >= 0) {
+                  const insertAfter = addColumnPosition === 'right';
+                  const targetColumn = columns[refColIndex];
+                  table.addColumn(newColDef, insertAfter, targetColumn);
+                } else {
+                  // Fallback: add at end
+                  table.addColumn(newColDef);
+                }
+                
+                console.log('[ADD COLUMN] Dynamically added column to table');
+                table.redraw(true);
+              }
+            } catch (err) {
+              console.error('[ADD COLUMN] Error dynamically adding column:', err);
+            }
+          }, 100);
+        },
+        onError: (error) => {
+          console.error('[ADD COLUMN] addColumn API error:', error);
+          setAddColumnError(error.message || 'Failed to add column');
+          setAddColumnProcessing(false);
+          
+          // Also show notification for visibility
+          setNotificationType('error');
+          setNotificationMessage(`Failed to add column: ${error.message}`);
+          setShowNotification(true);
+        },
+      }
+    );
+  }, [dsName, dsView, userId, newColumnName, addColumnPosition, addColumnReferenceField, addColumnMutation]);
+
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
     console.log('[HANDLERS] Creating handlers object');
@@ -1709,14 +1841,14 @@ function DsViewPage() {
       }
     },
     deleteColumnQuestion: () => {}, // TODO
-    addColumnQuestion: () => {}, // TODO
+    addColumnQuestion: addColumnQuestion,
     downloadXlsx: () => {}, // TODO
     convertToJiraRow: () => {}, // Deferred
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
   };
-  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction]);
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
@@ -2092,6 +2224,32 @@ function DsViewPage() {
               }}
             >
               {modalQuestion}
+            </Modal>
+          )}
+
+          {/* Add Column Modal */}
+          {showAddColumnModal && (
+            <Modal
+              show={true}
+              title="Add Column"
+              ok="Add"
+              cancel="Cancel"
+              okDisabled={addColumnProcessing}
+              onClose={(confirmed) => {
+                if (confirmed) {
+                  addColumnHandler();
+                } else {
+                  setShowAddColumnModal(false);
+                }
+              }}
+            >
+              <AddColumnForm
+                columnName={newColumnName}
+                position={addColumnPosition}
+                error={addColumnError}
+                onColumnNameChange={setNewColumnName}
+                onPositionChange={setAddColumnPosition}
+              />
             </Modal>
           )}
 

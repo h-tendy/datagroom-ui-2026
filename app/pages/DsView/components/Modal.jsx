@@ -46,7 +46,7 @@ class ModalWrapper extends React.Component {
             <Button variant="secondary" disabled={this.props.grayOutModalButtons} onClick={() => this.props.onClose(false, this.props.toggleModalOnClose)}>
                     {this.props.cancel ? this.props.cancel : "Cancel"}
                 </Button>
-            <Button variant="primary" disabled={this.props.grayOutModalButtons} onClick={() => this.props.onClose(true, this.props.toggleModalOnClose)}>
+            <Button variant="primary" disabled={this.props.grayOutModalButtons || this.props.okDisabled} onClick={() => this.props.onClose(true, this.props.toggleModalOnClose)}>
                     {this.props.ok ? this.props.ok: "Do It!"}
                 </Button>
             </Modal.Footer>
