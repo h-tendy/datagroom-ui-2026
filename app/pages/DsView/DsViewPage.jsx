@@ -1316,16 +1316,13 @@ function DsViewPage() {
     // Determine row index from cell if provided
     let rowIdx = null;
     if (cell) {
-      // Try passing the Row object directly instead of just _id
+      // Pass the Row object directly for positioning
       rowIdx = cell.getRow();
-      console.log('handleAddRow: using rowIdx from cell.getRow():', rowIdx);
     }
     
     // Default position to bottom (true) if not specified
     if (pos === undefined || pos === null)
       pos = true;
-    
-    console.log('handleAddRow: calling table.addRow with pos:', pos, 'rowIdx:', rowIdx);
     
     // Add row to Tabulator (no _id yet, will be added by backend later)
     try {
@@ -1535,14 +1532,13 @@ function DsViewPage() {
         // Future: Check if JIRA row (currently deferred)
         // if (isJiraRow(rowData, jiraConfig, jiraAgileConfig)) { show modal }
         
-        console.log('Duplicate and add row called.. pos:', pos);
+        console.log('Duplicate and add row called..');
         
         // Clone the row data and remove _id (backend will generate new one)
         let newData = JSON.parse(JSON.stringify(cell.getData()));
         delete newData._id;
         
         console.log('newData: ', newData);
-        console.log('About to call handleAddRow with pos:', pos);
         
         // Call handleAddRow with the duplicated data and position
         handleAddRow(newData, cell, pos);
