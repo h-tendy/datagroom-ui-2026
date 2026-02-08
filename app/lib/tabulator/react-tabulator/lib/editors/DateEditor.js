@@ -14,7 +14,7 @@ var __extends = (this && this.__extends) || (function () {
 })();
 exports.__esModule = true;
 var React = require("react");
-var react_dom_1 = require("react-dom");
+var react_dom_1 = require("react-dom/client");
 // import { parse, format } from 'date-fns';
 var DateEditorUtils_1 = require("./DateEditorUtils");
 var DEFAULT_DATE_INPUT_FORMAT = 'YYYY-MM-DD'; // date-fns 'yyyy-MM-dd';
@@ -78,11 +78,16 @@ var Editor = /** @class */ (function (_super) {
     }
     Editor.prototype.componentDidMount = function () {
         var _this = this;
-        this.props.onRendered(function () {
-            var value = _this.props.cell.getValue();
-            _this.setState({ value: value });
-            _this.ref.focus();
-        });
+        var value = this.props.cell.getValue();
+        this.setState({ value: value });
+        // Use setTimeout to ensure DOM is ready and focus works
+        setTimeout(function () {
+            if (_this.ref) {
+                _this.ref.focus();
+                //_this.ref.showPicker && _this.ref.showPicker(); // Open the date picker if supported
+            }
+        }, 0);
+        this.props.onRendered(function () { });
     };
     Editor.prototype.render = function () {
         var _this = this;
@@ -109,7 +114,8 @@ var Editor = /** @class */ (function (_super) {
 function default_1(cell, onRendered, success, cancel, editorParams) {
     var container = document.createElement('div');
     container.style.height = '100%';
-    react_dom_1.render(React.createElement(Editor, { cell: cell, onRendered: onRendered, success: success, cancel: cancel, editorParams: editorParams }), container);
+    var root = react_dom_1.createRoot(container);
+    root.render(React.createElement(Editor, { cell: cell, onRendered: onRendered, success: success, cancel: cancel, editorParams: editorParams }));
     return container;
 }
 exports["default"] = default_1;
