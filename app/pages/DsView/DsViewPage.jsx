@@ -133,6 +133,8 @@ function DsViewPage() {
   const columnResizedRecentlyRef = useRef(false);
   // Track last-processed search string so we don't re-apply same URL twice
   const lastProcessedSearchRef = useRef('');
+  // Ref to store handleDeleteRow so handlers can call it without re-creating handlers
+  const handleDeleteRowRef = useRef(null);
   
   // Initialize singleClickEdit from localStorage
   const [singleClickEdit, setSingleClickEdit] = useState(() => {
@@ -159,6 +161,8 @@ function DsViewPage() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalQuestion, setModalQuestion] = useState('');
   const [modalCallback, setModalCallback] = useState(null);
+  const [modalOk, setModalOk] = useState('OK');
+  const [modalCancel, setModalCancel] = useState('Cancel');
   const [showModalEditor, setShowModalEditor] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState('success');
@@ -940,6 +944,8 @@ function DsViewPage() {
       const question = `This will delete ${total} rows${more ? ' (and more matches on server)' : ''}. Please confirm.`;
       setModalTitle('Delete all rows in query?');
       setModalQuestion(question);
+      setModalOk('Delete');
+      setModalCancel('Cancel');
 
       // Set callback for confirm button
       setModalCallback(() => async () => {
@@ -968,6 +974,79 @@ function DsViewPage() {
       console.error('deleteAllRowsInQuery outer error', e);
     }
   }, [tabulatorRef, API_URL, dsName, dsView, userId, ajaxURLGenerator]);
+
+  // Delete all rows in view (visible rows in the table)
+  const deleteAllRowsInView = useCallback(() => {
+    try {
+      const table = tabulatorRef.current?.table;
+      if (!table) {
+        setNotificationType('error');
+        setNotificationMessage('Table not initialized');
+        setShowNotification(true);
+        return;
+      }
+
+      // Get all rows from table
+      const rows = table.getRows() || [];
+      const objects = [];
+      
+      // Collect _id from each row
+      for (let i = 0; i < rows.length; i++) {
+        const _id = rows[i].getData()?._id;
+        if (_id) {
+          objects.push(_id);
+        }
+      }
+
+      if (objects.length === 0) {
+        setNotificationType('info');
+        setNotificationMessage('No rows to delete');
+        setShowNotification(true);
+        return;
+      }
+
+      // Show confirmation modal
+      setModalTitle('Delete all rows in view?');
+      setModalQuestion(`This will delete ${rows.length} rows. Please confirm. Undoing support is not yet available!`);
+      setModalOk('Delete');
+      setModalCancel('Cancel');
+      
+      // Set callback for confirm button
+      setModalCallback(() => () => {
+        deleteManyRowsMutation.mutate(
+          {
+            dsName,
+            dsView,
+            dsUser: userId,
+            objects,
+          },
+          {
+            onSuccess: () => {
+              setNotificationType('success');
+              setNotificationMessage(`Successfully deleted ${objects.length} rows`);
+              setShowNotification(true);
+              setShowModal(false);
+              // Refresh table data
+              try { tabulatorRef.current?.table?.setData(); } catch (e) { console.error(e); }
+            },
+            onError: (error) => {
+              setNotificationType('error');
+              setNotificationMessage(`Failed to delete rows: ${error.message}`);
+              setShowNotification(true);
+              setShowModal(false);
+            },
+          }
+        );
+      });
+
+      setShowModal(true);
+    } catch (e) {
+      console.error('deleteAllRowsInView error', e);
+      setNotificationType('error');
+      setNotificationMessage('Failed to delete rows');
+      setShowNotification(true);
+    }
+  }, [dsName, dsView, userId, deleteManyRowsMutation]);
 
   // Cell edit check - controls single-click editing based on checkbox state
   // Reference: DsView.js lines 1014-1020
@@ -1372,15 +1451,18 @@ function DsViewPage() {
 
   // Delete row handler
   const handleDeleteRow = useCallback((_id) => {
+    console.log('[DELETE ROW] handleDeleteRow called with _id:', _id);
     setModalTitle('Confirm Delete');
     setModalQuestion('Are you sure you want to delete this row?');
+    setModalOk('Delete');
+    setModalCancel('Cancel');
     setModalCallback(() => () => {
       deleteRowMutation.mutate(
         {
           dsName,
           dsView,
           dsUser: userId,
-          _id,
+          selectorObj: { _id },
         },
         {
           onSuccess: () => {
@@ -1400,6 +1482,11 @@ function DsViewPage() {
     });
     setShowModal(true);
   }, [dsName, dsView, userId, deleteRowMutation]);
+
+  // Keep ref in sync
+  useEffect(() => {
+    handleDeleteRowRef.current = handleDeleteRow;
+  }, [handleDeleteRow]);
 
   // Hide column handler - matches reference DsView.js hideCol
   // Reference: DsView.js lines 1826-1831
@@ -1516,7 +1603,9 @@ function DsViewPage() {
   }, []);
 
   // Handlers object for tabulatorConfig (defined after all handler functions)
-  const handlers = useMemo(() => ({
+  const handlers = useMemo(() => {
+    console.log('[HANDLERS] Creating handlers object');
+    return {
     cellEditCheck: cellEditCheck,
     cellForceEditTrigger: cellForceEditTrigger, // Separate function that triggers edit
     isKey: (field) => viewConfig?.keys?.includes(field) || false,
@@ -1574,9 +1663,51 @@ function DsViewPage() {
       }
     },
     addRow: handleAddRow,
-    deleteAllRowsInViewQuestion: () => {}, // TODO
+    deleteAllRowsInViewQuestion: deleteAllRowsInView,
     deleteAllRowsInQuery: deleteAllRowsInQuery,
-    deleteRowQuestion: () => {}, // TODO
+    deleteRowQuestion: (e, cell) => {
+      console.log('[DELETE ROW] deleteRowQuestion called, e:', e, ', cell:', cell);
+      try {
+        // Normalize arguments: Tabulator may call (cell) or (e, cell)
+        let _cell = null;
+        if (cell && typeof cell.getRow === 'function') {
+          _cell = cell;
+        } else if (e && typeof e.getRow === 'function') {
+          _cell = e;
+        }
+
+        if (!_cell) {
+          console.warn('deleteRowQuestion: no cell argument detected');
+          return;
+        }
+
+        const row = _cell.getRow();
+        const data = row?.getData?.() || {};
+        const id = data?._id;
+        console.log('[DELETE ROW] Extracted row data:', data, ', _id:', id);
+
+        // If row has no backend _id yet (new local row), just delete from table
+        if (!id) {
+          try {
+            row.delete();
+          } catch (err) {
+            console.error('deleteRowQuestion: failed to delete local row', err);
+            setNotificationType('error');
+            setNotificationMessage('Failed to remove local row');
+            setShowNotification(true);
+          }
+          return;
+        }
+
+        // Otherwise open confirm modal which will call delete mutation on confirm
+        console.log('[DELETE ROW] About to call handleDeleteRow with id:', id);
+        if (handleDeleteRowRef.current) {
+          handleDeleteRowRef.current(id);
+        }
+      } catch (err) {
+        console.error('deleteRowQuestion error', err);
+      }
+    },
     deleteColumnQuestion: () => {}, // TODO
     addColumnQuestion: () => {}, // TODO
     downloadXlsx: () => {}, // TODO
@@ -1584,7 +1715,8 @@ function DsViewPage() {
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
-  }), [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols]);
+  };
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
@@ -1650,6 +1782,9 @@ function DsViewPage() {
       MySingleAutoCompleter,
     };
 
+    console.log('[HELPERS] Creating helper modules with handlers:', handlers);
+    console.log('[HELPERS] handlers.deleteRowQuestion:', handlers.deleteRowQuestion);
+    
     clipboardHelpers.current = createClipboardHelpers(helperContext);
     domHelpers.current = createDomHelpers(helperContext);
     tabulatorConfigHelper.current = createTabulatorConfig(helperContext);
@@ -1944,13 +2079,20 @@ function DsViewPage() {
           {/* Confirmation Modal */}
           {showModal && (
             <Modal
+              show={true}
               title={modalTitle}
-              message={modalQuestion}
-              onConfirm={() => {
-                if (modalCallback) modalCallback();
+              ok={modalOk}
+              cancel={modalCancel}
+              onClose={(confirmed) => {
+                if (confirmed && modalCallback) {
+                  modalCallback();
+                } else {
+                  setShowModal(false);
+                }
               }}
-              onCancel={() => setShowModal(false)}
-            />
+            >
+              {modalQuestion}
+            </Modal>
           )}
 
           {/* TODO: Add ModalEditor */}
