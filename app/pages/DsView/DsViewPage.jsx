@@ -177,6 +177,10 @@ function DsViewPage() {
   const [addColumnError, setAddColumnError] = useState('');
   const [addColumnProcessing, setAddColumnProcessing] = useState(false);
 
+  // Delete column modal state
+  const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
+  const [columnToDelete, setColumnToDelete] = useState('');
+
   // Memoize user object to prevent socket reconnections
   const socketUser = useMemo(() => ({ user: userId }), [userId]);
 
@@ -1734,6 +1738,117 @@ function DsViewPage() {
     );
   }, [dsName, dsView, userId, newColumnName, addColumnPosition, addColumnReferenceField, addColumnMutation]);
 
+  // Delete column question - shows modal with confirmation or error if key column
+  // Reference: DsView.js lines 1387-1412
+  const deleteColumnQuestion = useCallback((...args) => {
+    try {
+      // Normalize arguments: Tabulator may call (cell) or (e, cell)
+      let cell = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        if (a0 && typeof a0.getColumn === 'function') {
+          cell = a0;
+        }
+      } else if (args.length >= 2) {
+        // (e, cell)
+        cell = args[1];
+      }
+
+      if (!cell || typeof cell.getColumn !== 'function') {
+        console.warn('deleteColumnQuestion: no valid cell argument detected');
+        return;
+      }
+
+      const column = cell.getColumn();
+      const columnField = column.getField();
+
+      console.log('[DELETE COLUMN] deleteColumnQuestion called for column:', columnField);
+
+      // Check if this is a key column (cannot be deleted)
+      // Reference: DsView.js lines 1392-1399
+      if (viewConfig?.keys?.includes(columnField)) {
+        console.log('[DELETE COLUMN] Cannot delete key column:', columnField);
+        
+        // Show error modal for key column
+        setModalTitle('Cannot Delete Column');
+        setModalQuestion('This is a Key Column. This Column cannot be deleted.');
+        setModalOk('Dismiss');
+        setModalCancel(null); // No cancel button, only dismiss
+        setModalCallback(null); // No action on OK, just close
+        setShowModal(true);
+        return;
+      }
+
+      // Not a key column - show confirmation modal
+      // Reference: DsView.js lines 1401-1409
+      setColumnToDelete(columnField);
+      setModalTitle('Delete current column?');
+      setModalQuestion(`This will delete the current column: ${columnField}. Please confirm. Undoing support is not yet available!`);
+      setModalOk('Delete');
+      setModalCancel('Cancel');
+      
+      // Set callback for confirm button
+      setModalCallback(() => () => {
+        deleteColumnHandler(columnField);
+      });
+      
+      setShowModal(true);
+    } catch (err) {
+      console.error('deleteColumnQuestion error', err);
+    }
+  }, [viewConfig]);
+
+  // Delete column handler - calls API to delete column
+  // Reference: DsView.js lines 1369-1385
+  const deleteColumnHandler = useCallback((columnField) => {
+    console.log('[DELETE COLUMN] deleteColumnHandler called for column:', columnField);
+    
+    // Build payload for API
+    // Reference: Redux action expects { dsName, dsView, dsUser, columnName }
+    const payload = {
+      dsName,
+      dsView,
+      dsUser: userId,
+      columnName: columnField,
+    };
+    
+    console.log('[DELETE COLUMN] Calling deleteColumnMutation with payload:', payload);
+    
+    deleteColumnMutation.mutate(
+      payload,
+      {
+        onSuccess: (result) => {
+          console.log('[DELETE COLUMN] Column deleted successfully:', result);
+          
+          // Close modal
+          setShowModal(false);
+          setColumnToDelete('');
+          
+          // Show success notification
+          setNotificationType('success');
+          setNotificationMessage(`Column "${columnField}" deleted successfully`);
+          setShowNotification(true);
+          
+          // Force table refresh to reload column definitions
+          // Reference: DsView.js line 1380
+          setForceRefresh(prev => prev + 1);
+        },
+        onError: (error) => {
+          console.error('[DELETE COLUMN] deleteColumn API error:', error);
+          
+          // Close modal
+          setShowModal(false);
+          setColumnToDelete('');
+          
+          // Show error notification
+          setNotificationType('error');
+          setNotificationMessage(`Failed to delete column: ${error.message}`);
+          setShowNotification(true);
+        },
+      }
+    );
+  }, [dsName, dsView, userId, deleteColumnMutation]);
+
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
     console.log('[HANDLERS] Creating handlers object');
@@ -1840,7 +1955,7 @@ function DsViewPage() {
         console.error('deleteRowQuestion error', err);
       }
     },
-    deleteColumnQuestion: () => {}, // TODO
+    deleteColumnQuestion: deleteColumnQuestion,
     addColumnQuestion: addColumnQuestion,
     downloadXlsx: () => {}, // TODO
     convertToJiraRow: () => {}, // Deferred
@@ -1848,7 +1963,7 @@ function DsViewPage() {
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
   };
-  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion]);
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
