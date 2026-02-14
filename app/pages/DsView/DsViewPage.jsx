@@ -61,8 +61,9 @@ import './DsViewSimple.css';
 //import "reveal.js/dist/reveal.css";
 //import './rjs_white.css';
 //import '@tabulator/styles/tabulator-custom.css';
+//import 'highlight.js/styles/base16/solarized-light.css'
+import './solarized-light.css';
 import './simpleStyles.css';
-import 'highlight.js/styles/base16/solarized-light.css'
 
 // API
 const API_URL = import.meta.env.VITE_API_BASE || '';

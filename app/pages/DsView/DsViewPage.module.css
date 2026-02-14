@@ -5,11 +5,6 @@
   font-size: 14px;
 }
 
-/* Don't override table fonts - let Tabulator handle its own styling */
-.container :global(.tabulator),
-.container :global(.tabulator *) {
-  font-family: inherit !important;
-}
 
 .header {
   margin-bottom: 20px;
