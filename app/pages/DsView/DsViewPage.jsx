@@ -56,16 +56,13 @@ import { applyFilterColumnAttrs } from './helpers/filterHelpers';
 import { editReducer, initialEditState, EDIT_ACTION_TYPES } from './reducers/editReducer';
 
 // Styles
-import './DsView.css';
+//import './DsView.css';
 import './DsViewSimple.css';
-// Local fallback for highlight.js theme to avoid Vite resolution errors when
-// node_modules are not installed. Restore original package import after
-// running `npm install` if you prefer the package-provided theme.
-import './solarized-light.css';
-import "reveal.js/dist/reveal.css";
-import './rjs_white.css';
+//import "reveal.js/dist/reveal.css";
+//import './rjs_white.css';
+//import '@tabulator/styles/tabulator-custom.css';
 import './simpleStyles.css';
-import '@tabulator/styles/tabulator-custom.css';
+import 'highlight.js/styles/base16/solarized-light.css'
 
 // API
 const API_URL = import.meta.env.VITE_API_BASE || '';

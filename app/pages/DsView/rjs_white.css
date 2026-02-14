@@ -28,9 +28,3 @@
 .reveal ol {
   list-style-type: decimal;
 }
-
-/* Ensure list markers are visible inside table cells containing markdown */
-.tabulator .tabulator-cell ul,
-.tabulator .tabulator-cell ol {
-  margin: 0 0 0 1.2em;
-}

@@ -43,6 +43,8 @@ md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
 };
 
 // Custom fence renderer for plotly graphs
+// CRITICAL: Save the default fence renderer that markdown-it-highlightjs set up
+const defaultFence = md.renderer.rules.fence;
 md.renderer.rules.fence = function(tokens, idx, options, env, self) {
   const token = tokens[idx];
   const info = token.info ? token.info.trim() : '';
@@ -53,7 +55,8 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
     return `<div class="plotly-graph-div" data-plotly="${encoded}"></div>`;
   }
   
-  return `<pre class="hljs"><code>${md.utils.escapeHtml(token.content)}</code></pre>`;
+  // Call the default fence renderer to apply syntax highlighting
+  return defaultFence(tokens, idx, options, env, self);
 };
 
 /**
