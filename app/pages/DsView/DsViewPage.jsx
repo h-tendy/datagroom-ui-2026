@@ -16,7 +16,7 @@
  */
 
 import React, { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Row, Col } from 'react-bootstrap';
 import styles from './DsViewPage.module.css';
 import { useAuth } from '../../auth/AuthProvider';
@@ -2238,6 +2238,10 @@ function DsViewPage() {
               </>
             )}
             
+            <span className={styles.separator}>|</span>
+            <Link to={`/dsEditLog/${dsName}`} target="_blank" className="btn btn-link">
+              <i className='fas fa-file-alt'></i> <b>Edit-log</b>
+            </Link>
             <span className={styles.separator}>|</span>
             <button className="btn btn-link" onClick={() => tabulatorRef.current?.table?.setData()}>
               <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
