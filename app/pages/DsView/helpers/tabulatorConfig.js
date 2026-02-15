@@ -12,8 +12,6 @@ import { parseExpr, evalExpr } from '../../../components/editors/QueryParsers';
 const md = new MarkdownIt({
   html: true,
   linkify: true,
-  typographer: false,
-  breaks: true,
 })
   .use(mditBracketedSpans)
   .use(mditAttrs)

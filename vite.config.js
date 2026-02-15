@@ -46,6 +46,11 @@ export default defineConfig({
         secure: false,
         ws: true,
       },
+      '/attachments': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

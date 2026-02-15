@@ -75,8 +75,11 @@ export default function createDomHelpers(context) {
     if (timers) {
       timers["normalizeAllImgRows"] = setInterval(function () {
         if (document.readyState === 'complete') {
-          let imgList = document.querySelectorAll("img");
+          // Look for images specifically within the tabulator container
+          const tabulatorEl = document.getElementById("tabulator");
+          let imgList = tabulatorEl ? tabulatorEl.querySelectorAll("img") : document.querySelectorAll("img");
           let allImgsRead = true;
+          
           for (let i = 0; i < imgList.length; i++) {
             if (!(imgList[i].complete)) {
               allImgsRead = false;

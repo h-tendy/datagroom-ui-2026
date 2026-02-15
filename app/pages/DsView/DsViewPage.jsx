@@ -1178,6 +1178,23 @@ function DsViewPage() {
     });
   }, []);
 
+  // Render complete handler - called when table finishes rendering
+  // Reference: DsView.js lines 432-444
+  const handleRenderComplete = useCallback(() => {
+    // Request active locks from server
+    if (dsName && emitLock) {
+      // Note: In reference implementation, socket.emit('getActiveLocks', dsName) is called
+      // This functionality is handled by the useDatasetSocket hook on mount
+    }
+
+    // Normalize image rows for proper rendering
+    if (domHelpers.current) {
+      domHelpers.current.normalizeAllImgRows();
+      domHelpers.current.applyHighlightJsBadge();
+      domHelpers.current.renderPlotlyInCells();
+    }
+  }, [dsName, emitLock]);
+
   // Cell editing handler
   const handleCellEditing = useCallback((cell) => {
     const _id = cell.getRow().getData()._id;
@@ -1213,6 +1230,30 @@ function DsViewPage() {
       emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
     }
     cellImEditingRef.current = null;
+    
+    // Reference: DsView.js lines 641-649
+    // Adjust table size and normalize images after edit cancellation
+    if (timersRef.current['post-cell-edited']) {
+      clearTimeout(timersRef.current['post-cell-edited']);
+    }
+    timersRef.current['post-cell-edited'] = setTimeout(() => {
+      if (!cellImEditingRef.current && tabulatorRef.current?.table) {
+        console.log('Adjusting table size (cellEditCancelled)...');
+        tabulatorRef.current.table.rowManager.adjustTableSize(false);
+        if (domHelpers.current) {
+          domHelpers.current.normalizeAllImgRows();
+          domHelpers.current.applyHighlightJsBadge();
+          domHelpers.current.renderPlotlyInCells();
+        }
+      } else {
+        console.log('Skipping table adjustment (cellEditCancelled)...');
+      }
+    }, 500);
+    
+    // Return focus to table
+    if (tabulatorRef.current?.table?.element) {
+      tabulatorRef.current.table.element.focus({ preventScroll: false });
+    }
   }, [dsName, emitUnlock, auth.user]);
 
   // Cell edited handler
@@ -1224,7 +1265,24 @@ function DsViewPage() {
     const oldVal = cell.getOldValue();
 
     // Normalize row height immediately (synchronously)
+    // Reference: DsView.js line 1119
     cell.getRow().normalizeHeight();
+    
+    // Schedule delayed table adjustments and image normalization
+    // Reference: DsView.js lines 1122-1130
+    if (timersRef.current['post-cell-edited']) {
+      clearTimeout(timersRef.current['post-cell-edited']);
+    }
+    timersRef.current['post-cell-edited'] = setTimeout(() => {
+      if (tabulatorRef.current?.table) {
+        tabulatorRef.current.table.rowManager.adjustTableSize(false);
+        if (domHelpers.current) {
+          domHelpers.current.normalizeAllImgRows();
+          domHelpers.current.applyHighlightJsBadge();
+          domHelpers.current.renderPlotlyInCells();
+        }
+      }
+    }, 500);
 
     // Check if this is a new row (no _id) - Reference: DsView.js lines 1111-1180
     if (!_id) {
@@ -2012,6 +2070,10 @@ function DsViewPage() {
       filterColumnAttrs,
       columnResizedRecently: columnResizedRecentlyRef.current,
       originalColumnAttrs: originalColumnAttrsRef.current,
+      // Properties needed by domHelpers
+      component: { cellImEditing: cellImEditingRef.current },
+      ref: () => tabulatorRef.current,
+      timers: timersRef.current,
       // UI setters so helpers can display notifications/modals
       setShowNotification,
       setNotificationMessage,
@@ -2312,6 +2374,9 @@ function DsViewPage() {
               },
               // Track manual column resizes to prevent conflicts with filter column widths
               columnResized: handleColumnResized,
+              // Render complete callback for post-render processing
+              // Reference: DsView.js line 1982 (renderComplete: this.renderComplete)
+              renderComplete: handleRenderComplete,
               // TODO: Add more options from original
             }}
             cellEditing={handleCellEditing}
