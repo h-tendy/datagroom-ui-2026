@@ -156,11 +156,24 @@ export default function createClipboardHelpers(context) {
         const val = cell.getValue ? cell.getValue() : '';
         html = escapeHtml(val);
       }
-      // Try to copy formatted HTML first
-      const ok = copyFormatted(el, html);
+      
+      // Reference: clipboardHelpers.js lines 96-97
+      // Remove highlightjs badge wrapper and set white background for code blocks
+      html = html.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
+      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="background-color:white; font-size:12px">');
+      // Also set white background on pre tags to remove theme colors
+      html = html.replace(/<pre>/gi, '<pre style="background-color:white">');
+      html = html.replace(/<pre /gi, '<pre style="background-color:white" ');
+      
+      // Reference: clipboardHelpers.js lines 153-156
+      // Wrap with white background to remove theme colors, but preserve specific element colors
+      html = `<div style="font-family:verdana; font-size:12px; background-color: white">${html}</div>`;
+      
+      // Try to copy formatted HTML
+      const ok = copyFormatted(null, html);
       if (!ok) {
         // Fallback to plain text
-        const text = cell.getValue ? String(cell.getValue()) : html;
+        const text = cell.getValue ? String(cell.getValue()) : '';
         copyTextToClipboard(text);
       }
       return true;

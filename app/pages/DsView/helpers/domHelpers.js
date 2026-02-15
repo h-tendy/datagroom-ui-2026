@@ -93,14 +93,20 @@ export default function createDomHelpers(context) {
     }
     if (timers) {
       timers["applyHighlightJsBadge"] = setTimeout(() => {
-        if (window.highlightJsBadge) window.highlightJsBadge();
+        // Call without contentSelector - it will search entire document and skip already-badged elements
+        // The library's built-in skip logic (line 157: if badge already exists, continue) handles virtual DOM
+        if (window.highlightJsBadge) {
+          window.highlightJsBadge();
+        }
         applyHtmlLinkAndBadgeClickHandlers();
-      }, 1000);
+      }, 300);
     } else {
       setTimeout(() => {
-        if (window.highlightJsBadge) window.highlightJsBadge();
+        if (window.highlightJsBadge) {
+          window.highlightJsBadge();
+        }
         applyHtmlLinkAndBadgeClickHandlers();
-      }, 1000);
+      }, 300);
     }
   }
 

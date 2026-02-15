@@ -1201,6 +1201,31 @@ function DsViewPage() {
     }
   }, [dsName, emitLock]);
 
+  // Page loaded handler - called when pagination changes
+  const handlePageLoaded = useCallback((pageno) => {
+    // Preserve page size when page changes
+    const table = tabulatorRef.current;
+    if (table && table.getPageSize) {
+      const currentSize = table.getPageSize();
+      if (currentSize !== pageSize) {
+        setPageSize(currentSize);
+      }
+    }
+    // Apply full processing including badges and images for new page
+    handleRenderComplete();
+    // Additionally apply badges again after a longer delay to catch any late-rendered elements
+    setTimeout(() => {
+      if (domHelpers.current) {
+        domHelpers.current.applyHighlightJsBadge();
+      }
+    }, 1500);
+  }, [pageSize, handleRenderComplete]);
+
+  // Page size changed handler - called when user changes page size via selector
+  const handlePaginationPageSizeChanged = useCallback((newSize) => {
+    setPageSize(newSize);
+  }, []);
+
   // Cell editing handler
   const handleCellEditing = useCallback((cell) => {
     const _id = cell.getRow().getData()._id;
@@ -2337,6 +2362,7 @@ function DsViewPage() {
               layout: 'fitDataStretch',
               pagination: 'remote',
               paginationSize: pageSize,
+              paginationSizeSelector: [5, 10, 25, 30, 50, 100, 500, 1000, 2000, 5000, true],
               chronology: chronologyDescending ? 'desc' : 'asc', // Triggers shouldComponentUpdate
               cellClick: cellClickEvents,
               cellDblClick: cellClickEvents,
@@ -2390,6 +2416,10 @@ function DsViewPage() {
               // Render complete callback for post-render processing
               // Reference: DsView.js line 1982 (renderComplete: this.renderComplete)
               renderComplete: handleRenderComplete,
+              // Page loaded callback to reapply badges when pagination changes
+              pageLoaded: handlePageLoaded,
+              // Page size changed callback to track user changes
+              pageSizeChanged: handlePaginationPageSizeChanged,
               // TODO: Add more options from original
             }}
             cellEditing={handleCellEditing}
