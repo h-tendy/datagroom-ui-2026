@@ -747,39 +747,8 @@ function DsViewPage() {
         let finalUrl = window.location.origin + basePath;
         if (_id) finalUrl += '?' + `_id=${encodeURIComponent(_id)}`;
 
-        // Try clipboard helper then navigator.clipboard
-        let copied = false;
-        try {
-          if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
-            copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
-          }
-        } catch (err) {
-          copied = false;
-        }
-
-        if (!copied) {
-          try {
-            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(finalUrl);
-              copied = true;
-            }
-          } catch (err) {
-            copied = false;
-          }
-        }
-
-        // Provide modal feedback
-        if (copied) {
-          setModalTitle('Copy URL');
-          setModalQuestion('URL copied to clipboard');
-          setModalCallback(null);
-          setShowModal(true);
-        } else {
-          setModalTitle('Copy URL');
-          setModalQuestion(finalUrl);
-          setModalCallback(null);
-          setShowModal(true);
-        }
+        console.log('Url copied for row:', finalUrl);
+        clipboardHelpers.current.copyTextToClipboard(finalUrl);
         return;
       }
       
@@ -823,39 +792,8 @@ function DsViewPage() {
       let finalUrl = window.location.origin + basePath;
       if (queryParams.toString()) finalUrl += '?' + queryParams.toString();
 
-      // Use clipboard helper if available
-      let copied = false;
-      try {
-        if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
-          copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
-        }
-      } catch (e) {
-        copied = false;
-      }
-
-      if (!copied) {
-        try {
-          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(finalUrl);
-            copied = true;
-          }
-        } catch (e) {
-          copied = false;
-        }
-      }
-
-      // Provide user feedback via modal
-      if (copied) {
-        setModalTitle('Copy URL');
-        setModalQuestion('URL copied to clipboard');
-        setModalCallback(null);
-        setShowModal(true);
-      } else {
-        setModalTitle('Copy URL');
-        setModalQuestion(finalUrl);
-        setModalCallback(null);
-        setShowModal(true);
-      }
+      console.log('Url copied for view:', finalUrl);
+      clipboardHelpers.current.copyTextToClipboard(finalUrl);
     } catch (e) {
       console.error('urlGeneratorFunctionForView error', e);
     }
@@ -884,39 +822,8 @@ function DsViewPage() {
       let finalUrl = window.location.origin + basePath;
       if (_id) finalUrl += '?' + `_id=${encodeURIComponent(_id)}`;
 
-      // Try clipboard helper then navigator.clipboard
-      let copied = false;
-      try {
-        if (clipboardHelpers.current && typeof clipboardHelpers.current.copyTextToClipboard === 'function') {
-          copied = clipboardHelpers.current.copyTextToClipboard(finalUrl);
-        }
-      } catch (err) {
-        copied = false;
-      }
-
-      if (!copied) {
-        try {
-          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(finalUrl);
-            copied = true;
-          }
-        } catch (err) {
-          copied = false;
-        }
-      }
-
-      // Provide same modal feedback as view generator
-      if (copied) {
-        setModalTitle('Copy URL');
-        setModalQuestion('URL copied to clipboard');
-        setModalCallback(null);
-        setShowModal(true);
-      } else {
-        setModalTitle('Copy URL');
-        setModalQuestion(finalUrl);
-        setModalCallback(null);
-        setShowModal(true);
-      }
+      console.log('Url copied for row:', finalUrl);
+      clipboardHelpers.current.copyTextToClipboard(finalUrl);
     } catch (e) {
       console.error('urlGeneratorFunction error', e);
     }
