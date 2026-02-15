@@ -91,6 +91,8 @@ function DsViewPage() {
   const singleClickEditRef = useRef(false);
   const disableEditingRef = useRef(false);
   const originalColumnAttrsRef = useRef(null);
+  const mouseDownOnHtmlLinkRef = useRef(false);
+  const mouseDownOnBadgeCopyIconRef = useRef(false);
 
   // Fetch view configuration
   const { data: viewConfig, isLoading, isError, error } = useDsView(dsName, dsView, userId);
@@ -1067,8 +1069,9 @@ function DsViewPage() {
     if (disableEditingRef.current) return false;
     if (!connectedState) return false;      // Not connected to socket
     if (!dbConnectivityState) return false; // No DB connectivity
+    // Don't allow editing when clicking HTML links or badge copy icons
+    if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return false;
     // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
-    // TODO: Check for mouseDownOnHtmlLink, mouseDownOnBadgeCopyIcon
     return true;
   }, [connectedState, dbConnectivityState]);
 
@@ -1081,8 +1084,9 @@ function DsViewPage() {
     if (!connectedState) return;      // Not connected to socket
     if (!dbConnectivityState) return; // No DB connectivity
     if (cellImEditingRef.current === cell) return;
+    // Don't allow editing when clicking HTML links or badge copy icons
+    if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return;
     // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
-    // TODO: Check for mouseDownOnHtmlLink, mouseDownOnBadgeCopyIcon
     // Force the edit by calling cell.edit(true)
     cell.edit(true, e);
   }, [connectedState, dbConnectivityState]);
@@ -1095,6 +1099,8 @@ function DsViewPage() {
     // Double-click editing when single-click edit is OFF
     if (e.type === 'dblclick' && !singleClickEditRef.current && !disableEditingRef.current) {
       if (cellImEditingRef.current === cell) return;
+      // Don't allow editing when clicking HTML links or badge copy icons
+      if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return;
       // TODO: Add cellEditCheckForConflicts check
       // Force edit on double-click bypassing cellEditCheck
       cell.edit(true, e);
@@ -2071,9 +2077,16 @@ function DsViewPage() {
       columnResizedRecently: columnResizedRecentlyRef.current,
       originalColumnAttrs: originalColumnAttrsRef.current,
       // Properties needed by domHelpers
-      component: { cellImEditing: cellImEditingRef.current },
+      component: { 
+        cellImEditing: cellImEditingRef.current,
+        mouseDownOnHtmlLink: mouseDownOnHtmlLinkRef.current,
+        mouseDownOnBadgeCopyIcon: mouseDownOnBadgeCopyIconRef.current,
+      },
       ref: () => tabulatorRef.current,
       timers: timersRef.current,
+      // Refs that domHelpers can update
+      mouseDownOnHtmlLinkRef,
+      mouseDownOnBadgeCopyIconRef,
       // UI setters so helpers can display notifications/modals
       setShowNotification,
       setNotificationMessage,

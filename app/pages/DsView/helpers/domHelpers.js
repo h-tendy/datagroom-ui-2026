@@ -1,6 +1,6 @@
 // DOM helpers extracted from DsView to keep component smaller
 export default function createDomHelpers(context) {
-  const { component, ref, timers } = context;
+  const { component, ref, timers, mouseDownOnHtmlLinkRef, mouseDownOnBadgeCopyIconRef } = context;
   // Since we generate html after editing, we need to attach
   // the handlers again. Preserved from `DsView.js` fallback implementation.
   // The original implementation attached click/focus handlers to links and
@@ -16,14 +16,49 @@ export default function createDomHelpers(context) {
     }
     for (var i = 0, len = splElements.length; i < len; i++) {
       splElements[i].onclick = function (e) {
-        me.mouseDownOnHtmlLink = true;
+        if (mouseDownOnHtmlLinkRef) mouseDownOnHtmlLinkRef.current = true;
         // Caution: This is a must, otherwise you are getting the click after returning to the tab!
         e.stopPropagation();
         // Caution: To clear this out after a second to ensure that the next click is honored properly.
-        setTimeout(() => me.mouseDownOnHtmlLink = false, 1000);
+        setTimeout(() => {
+          if (mouseDownOnHtmlLinkRef) mouseDownOnHtmlLinkRef.current = false;
+        }, 1000);
         return true;
       }
     }
+
+    // Add a document-level mousedown handler to catch badge clicks as early as possible
+    // Remove previous handler if exists
+    if (document._badgeMousedownHandler) {
+      document.removeEventListener("mousedown", document._badgeMousedownHandler, true);
+    }
+    
+    // Create new handler
+    const badgeMousedownHandler = function(e) {
+      const target = e.target;
+      // Check if click is on badge copy icon or its parent elements
+      if (target) {
+        const isBadgeIcon = target.classList && target.classList.contains("code-badge-copy-icon");
+        const parentBadgeIcon = target.closest && target.closest(".code-badge-copy-icon");
+        
+        if (isBadgeIcon || parentBadgeIcon) {
+          // Set flag immediately
+          if (mouseDownOnBadgeCopyIconRef) {
+            mouseDownOnBadgeCopyIconRef.current = true;
+          }
+          // Clear flag after a second
+          setTimeout(() => {
+            if (mouseDownOnBadgeCopyIconRef) mouseDownOnBadgeCopyIconRef.current = false;
+          }, 1000);
+        }
+      }
+    };
+    
+    // Store handler reference for cleanup
+    document._badgeMousedownHandler = badgeMousedownHandler;
+    
+    // Add handler in capture phase at document level to catch it as early as possible
+    document.addEventListener("mousedown", badgeMousedownHandler, true);
 
     // This querySelectorAll is borrowed from highlightjs-badge.js code
     if (document.getElementById("tabulator")) {
@@ -33,13 +68,17 @@ export default function createDomHelpers(context) {
       // Have to setup for 'focus' event because that fires first! And
       // tabulator already has this setup on the cell.
       splElements[i].setAttribute("tabindex", 0);
+      
+      // Add focus handler as fallback
       splElements[i].addEventListener("focus",
         function(e) {
-          let clickedEl = e.srcElement;
-          if (clickedEl.classList.contains("code-badge-copy-icon")) {
-            me.mouseDownOnBadgeCopyIcon = true;
+          let clickedEl = e.srcElement || e.target;
+          if (clickedEl && clickedEl.classList && clickedEl.classList.contains("code-badge-copy-icon")) {
+            if (mouseDownOnBadgeCopyIconRef) mouseDownOnBadgeCopyIconRef.current = true;
             // Caution: To clear this out after a second to ensure that the next click is honored properly.
-            setTimeout(() => me.mouseDownOnBadgeCopyIcon = false, 1000);
+            setTimeout(() => {
+              if (mouseDownOnBadgeCopyIconRef) mouseDownOnBadgeCopyIconRef.current = false;
+            }, 1000);
             return true;
           }
         });
