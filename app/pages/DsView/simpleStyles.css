@@ -191,7 +191,8 @@ pre {
 }
 
 pre > code {
-  font-size: 90%;
+  font-size: 120%;
+  font-family: 'Courier New', Courier, monospace;
 }
 
 /* This is also needed, tweaks the code tag */
