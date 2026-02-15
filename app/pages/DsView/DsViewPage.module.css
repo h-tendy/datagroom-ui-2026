@@ -232,6 +232,8 @@
 
 .container :global(.tabulator-tableHolder) {
   background: var(--color-bg);
+  max-height: var(--table-max-height, none);
+  overflow-y: auto;
 }
 
 .container :global(.tabulator-footer) {

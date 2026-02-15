@@ -198,7 +198,7 @@ function DsViewPage() {
         return `${vh - 50}px`;
       }
     }
-    return undefined; // Let Tabulator auto-size
+    return undefined;
   }, [viewConfig]);
 
   // Handle cell unlock callback from socket (defined early to be used in socket hook)
@@ -1094,7 +1094,6 @@ function DsViewPage() {
   // Render complete handler - called when table finishes rendering
   // Reference: DsView.js lines 432-444
   const handleRenderComplete = useCallback(() => {
-    console.log('[DEBUG REFRESH] handleRenderComplete called', { timestamp: new Date().toISOString() });
     // Request active locks from server
     if (dsName && emitLock) {
       // Note: In reference implementation, socket.emit('getActiveLocks', dsName) is called
@@ -1111,7 +1110,6 @@ function DsViewPage() {
 
   // Page loaded handler - called when pagination changes
   const handlePageLoaded = useCallback((pageno) => {
-    console.log('[DEBUG REFRESH] handlePageLoaded called', { pageno, timestamp: new Date().toISOString() });
     // Preserve page size when page changes
     const table = tabulatorRef.current;
     if (table && table.getPageSize) {
@@ -2145,7 +2143,7 @@ function DsViewPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={tableHeight ? { '--table-max-height': tableHeight } : {}}>
       <Row>
         <Col>
           <div className={styles.header}>
@@ -2284,11 +2282,11 @@ function DsViewPage() {
             columns={columns}
             data={[]}
             options={{
-              height: tableHeight,
               layout: 'fitDataStretch',
               pagination: 'remote',
               paginationSize: pageSize,
               paginationSizeSelector: [5, 10, 25, 30, 50, 100, 500, 1000, 2000, 5000, true],
+              virtualDom: false,
               chronology: chronologyDescending ? 'desc' : 'asc', // Triggers shouldComponentUpdate
               cellClick: cellClickEvents,
               cellDblClick: cellClickEvents,
@@ -2346,7 +2344,6 @@ function DsViewPage() {
               pageLoaded: handlePageLoaded,
               // Page size changed callback to track user changes
               pageSizeChanged: handlePaginationPageSizeChanged,
-              // TODO: Add more options from original
             }}
             cellEditing={handleCellEditing}
             cellEdited={handleCellEdited}
