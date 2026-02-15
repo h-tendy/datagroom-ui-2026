@@ -230,7 +230,8 @@ function DsViewPage() {
     lockedCells, 
     emitLock, 
     emitUnlock,
-    isCellLocked 
+    isCellLocked,
+    requestActiveLocks
   } = useDatasetSocket(dsName, dsView, socketUser, tabulatorRef, {
     apiUrl: '', // Connect to same origin, Vite proxy will forward WebSocket
     onCellUnlocked: handleCellUnlocked,
@@ -998,6 +999,26 @@ function DsViewPage() {
     }
   }, [dsName, dsView, userId, deleteManyRowsMutation]);
 
+  // Check for concurrent edit conflicts - prevents editing cells locked by other users
+  // Reference: DsView.js lines 567-577 (cellEditCheckForConflicts)
+  const cellEditCheckForConflicts = useCallback((cell) => {
+    try {
+      const _id = cell.getRow().getData()._id;
+      const field = cell.getField();
+      // Check if cell is locked by another user
+      if (isCellLocked(_id, field)) {
+        return false; // Block editing - cell is locked
+      }
+    } catch (e) {
+      // Cell might not have _id or field yet (e.g., new row)
+    }
+    // Don't allow editing when clicking HTML links or badge copy icons
+    if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) {
+      return false;
+    }
+    return true;
+  }, [isCellLocked]);
+
   // Cell edit check - controls single-click editing based on checkbox state
   // Reference: DsView.js lines 1014-1020
   // Uses refs to always check current state, not captured closure values
@@ -1006,14 +1027,13 @@ function DsViewPage() {
     if (disableEditingRef.current) return false;
     if (!connectedState) return false;      // Not connected to socket
     if (!dbConnectivityState) return false; // No DB connectivity
-    // Don't allow editing when clicking HTML links or badge copy icons
-    if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return false;
-    // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
-    return true;
-  }, [connectedState, dbConnectivityState]);
+    // Check for concurrent edit conflicts (locked cells)
+    return cellEditCheckForConflicts(cell);
+  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
 
   // Cell force edit trigger - called when user clicks/focuses a cell
   // This should check if editing is allowed and then force the edit
+  // Reference: DsView.js lines 588-617
   const cellForceEditTrigger = useCallback((cell, e) => {
     // Check all conditions using same logic as cellEditCheck
     if (!singleClickEditRef.current) return;  // Checkbox unchecked = no single-click edit
@@ -1021,28 +1041,27 @@ function DsViewPage() {
     if (!connectedState) return;      // Not connected to socket
     if (!dbConnectivityState) return; // No DB connectivity
     if (cellImEditingRef.current === cell) return;
-    // Don't allow editing when clicking HTML links or badge copy icons
-    if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return;
-    // TODO: Add concurrent edit conflict checks (cellEditCheckForConflicts)
-    // Force the edit by calling cell.edit(true)
-    cell.edit(true, e);
-  }, [connectedState, dbConnectivityState]);
-
-  // Handle cell click/double-click events
-  // Reference: DsView.js lines 906-912
+    // Check for concurrent edit conflicts (locked cells)
+    const noConcurrentEdits = cellEditCheckForConflicts(cell);
+    if (noConcurrentEdits) {
+      // Force the edit by calling cell.edit(true)
+      cell.edit(true, e);
+    }
+  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
+559-566
   const cellClickEvents = useCallback((e, cell) => {
     if (!connectedState || !dbConnectivityState) return;
 
     // Double-click editing when single-click edit is OFF
     if (e.type === 'dblclick' && !singleClickEditRef.current && !disableEditingRef.current) {
       if (cellImEditingRef.current === cell) return;
-      // Don't allow editing when clicking HTML links or badge copy icons
-      if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) return;
-      // TODO: Add cellEditCheckForConflicts check
-      // Force edit on double-click bypassing cellEditCheck
-      cell.edit(true, e);
+      // Check for concurrent edit conflicts before allowing double-click edit
+      if (cellEditCheckForConflicts(cell)) {
+        // Force edit on double-click bypassing cellEditCheck
+        cell.edit(true, e);
+      }
     }
-  }, [connectedState, dbConnectivityState]);
+  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
 
   // Handler for checkbox change
   const handleSingleClickEditToggle = useCallback((event) => {
@@ -1163,7 +1182,10 @@ function DsViewPage() {
     setPageSize(newSize);
   }, []);
 
-  // Cell editing handler
+  // Cell editing handler - called when editing actually starts
+  // Reference: DsView.js lines 656-671
+  // Note: cellEditCheck/cellClickEvents already prevented locked cells from being edited
+  // This is called after Tabulator opens the editor
   const handleCellEditing = useCallback((cell) => {
     const _id = cell.getRow().getData()._id;
     const field = cell.getField();
@@ -1174,12 +1196,13 @@ function DsViewPage() {
       return true; // Allow edit
     }
 
-    // Check if cell is locked by another user
+    // Double-check lock status as safety measure (race condition protection)
+    // Normally prevented earlier by cellEditCheck/cellClickEvents
     if (isCellLocked(_id, field)) {
       return false; // Cancel edit
     }
 
-    // Emit lock event
+    // Emit lock event to notify other users
     emitLock({ dsName, _id, field, user: auth.user?.user });
     cellImEditingRef.current = cell;
 
@@ -2371,6 +2394,12 @@ function DsViewPage() {
               pageLoaded: handlePageLoaded,
               // Page size changed callback to track user changes
               pageSizeChanged: handlePaginationPageSizeChanged,
+              // Data loaded callback - re-request active locks after data loads
+              // This ensures locked cells are styled even on fresh reload
+              dataLoaded: (data) => {
+                console.log('[Tabulator] Data loaded, re-requesting active locks');
+                requestActiveLocks();
+              },
             }}
             cellEditing={handleCellEditing}
             cellEdited={handleCellEdited}

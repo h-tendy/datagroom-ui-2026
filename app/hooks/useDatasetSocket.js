@@ -19,6 +19,7 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
   const [connectedState, setConnectedState] = useState(false);
   const [dbConnectivityState, setDbConnectivityState] = useState(false);
   const [lockedCells, setLockedCells] = useState({}); // { [_id]: { [field]: cell } }
+  const lockedCellsRef = useRef({}); // Synchronous access to locked cells for immediate checking
 
   // Initialize socket connection
   useEffect(() => {
@@ -80,25 +81,41 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
 
     // Handle active locks from server
     socket.on('activeLocks', (activeLocksJson) => {
-      if (!tabulatorRef.current) return;
+      console.log('[Socket] Received activeLocks:', activeLocksJson);
+      if (!tabulatorRef.current) {
+        console.warn('[Socket] tabulatorRef.current not available yet');
+        return;
+      }
+      if (!tabulatorRef.current.table) {
+        console.warn('[Socket] tabulatorRef.current.table not available yet');
+        return;
+      }
       
       const activeLocks = JSON.parse(activeLocksJson);
+      console.log('[Socket] Parsed activeLocks:', activeLocks);
       const newLockedCells = {};
       
       Object.keys(activeLocks).forEach(_id => {
         const rows = tabulatorRef.current.table.searchRows("_id", "=", _id);
+        console.log(`[Socket] Searching for _id=${_id}, found ${rows.length} rows`);
         if (!rows.length) return;
         
         newLockedCells[_id] = {};
         Object.keys(activeLocks[_id]).forEach(field => {
           const cell = rows[0].getCell(field);
-          if (!cell) return;
+          if (!cell) {
+            console.warn(`[Socket] Cell not found for field=${field}`);
+            return;
+          }
           
           newLockedCells[_id][field] = cell;
           cell.getElement().style.backgroundColor = 'lightGray';
+          console.log(`[Socket] Locked cell: _id=${_id}, field=${field}`);
         });
       });
       
+      console.log('[Socket] Total locked cells:', Object.keys(newLockedCells).length);
+      lockedCellsRef.current = newLockedCells; // Update ref synchronously
       setLockedCells(newLockedCells);
     });
 
@@ -111,6 +128,12 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
       
       const cell = rows[0].getCell(lockedObj.field);
       if (!cell) return;
+      
+      // Update ref synchronously for immediate checking
+      if (!lockedCellsRef.current[lockedObj._id]) {
+        lockedCellsRef.current[lockedObj._id] = {};
+      }
+      lockedCellsRef.current[lockedObj._id][lockedObj.field] = cell;
       
       setLockedCells(prev => ({
         ...prev,
@@ -133,19 +156,23 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
           const cell = newLocked[unlockedObj._id][unlockedObj.field];
           delete newLocked[unlockedObj._id][unlockedObj.field];
           
-          // Update cell value if provided
-          if (unlockedObj.newVal !== undefined && unlockedObj.newVal !== null) {
-            const update = { _id: unlockedObj._id, [unlockedObj.field]: unlockedObj.newVal };
-            tabulatorRef.current.table.updateData([update]);
+          // Also delete from ref synchronously
+          if (lockedCellsRef.current[unlockedObj._id]) {
+            delete lockedCellsRef.current[unlockedObj._id][unlockedObj.field];
           }
           
-          // Reset background color
+          // Clear background and re-apply formatter BEFORE updateData
+          // (updateData will recreate the cell, making current reference stale)
           cell.getElement().style.backgroundColor = '';
-          
-          // Re-apply formatter
           const colDef = cell.getColumn().getDefinition();
           if (colDef.formatter) {
             colDef.formatter(cell, colDef.formatterParams);
+          }
+          
+          // Update cell value if provided (after clearing styling)
+          if (unlockedObj.newVal !== undefined && unlockedObj.newVal !== null) {
+            const update = { _id: unlockedObj._id, [unlockedObj.field]: unlockedObj.newVal };
+            tabulatorRef.current.table.updateData([update]);
           }
           
           // Callback for additional processing
@@ -171,21 +198,30 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
   // Helper to emit lock event
   const emitLock = useCallback((lockData) => {
     if (socketRef.current) {
-      socketRef.current.emit('lock', lockData);
+      socketRef.current.emit('lockReq', lockData);
     }
   }, []);
 
   // Helper to emit unlock event
   const emitUnlock = useCallback((unlockData) => {
     if (socketRef.current) {
-      socketRef.current.emit('unlock', unlockData);
+      socketRef.current.emit('unlockReq', unlockData);
     }
   }, []);
 
   // Helper to check if cell is locked by another user
+  // Use ref for synchronous checking (state updates are async)
   const isCellLocked = useCallback((_id, field) => {
-    return !!(lockedCells[_id] && lockedCells[_id][field]);
-  }, [lockedCells]);
+    return !!(lockedCellsRef.current[_id] && lockedCellsRef.current[_id][field]);
+  }, []);
+
+  // Helper to request active locks from server
+  const requestActiveLocks = useCallback(() => {
+    if (socketRef.current && dsName) {
+      console.log('[Socket] Requesting active locks for:', dsName);
+      socketRef.current.emit('getActiveLocks', dsName);
+    }
+  }, [dsName]);
 
   return {
     socket: socketRef.current,
@@ -195,6 +231,7 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
     emitLock,
     emitUnlock,
     isCellLocked,
+    requestActiveLocks,
   };
 }
 
