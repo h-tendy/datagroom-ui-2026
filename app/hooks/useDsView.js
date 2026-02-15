@@ -15,6 +15,9 @@ export function useDsView(dsName, dsView, userId) {
     enabled: !!(dsName && dsView && userId),
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnReconnect: false,   // Don't refetch when network reconnects
+    refetchOnMount: false,       // Don't refetch on component remount if data exists
   });
 }
 
