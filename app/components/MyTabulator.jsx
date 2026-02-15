@@ -12,14 +12,28 @@ class MyTabulator extends Component {
     // Without this, an edit of a cell used to lose the
     // scroll position of the ReactTabulator. Paging is not an issue
     shouldComponentUpdate(nextProps, nextState) {
-        if (this.props.options.paginationSize !== nextProps.options.paginationSize || 
-            this.props.options.chronology !== nextProps.options.chronology || 
-            this.props.options.forceRefresh !== nextProps.options.forceRefresh ||
-            this.props.options.height !== nextProps.options.height ||
-            this.props.columns !== nextProps.columns) {
-            return true;
+        const pageSizeChanged = this.props.options.paginationSize !== nextProps.options.paginationSize;
+        const chronologyChanged = this.props.options.chronology !== nextProps.options.chronology;
+        const forceRefreshChanged = this.props.options.forceRefresh !== nextProps.options.forceRefresh;
+        const heightChanged = this.props.options.height !== nextProps.options.height;
+        const columnsChanged = this.props.columns !== nextProps.columns;
+        
+        const shouldUpdate = pageSizeChanged || chronologyChanged || forceRefreshChanged || heightChanged || columnsChanged;
+        
+        if (shouldUpdate) {
+            console.log('[DEBUG REFRESH] \u26a0\ufe0f MyTabulator shouldComponentUpdate = TRUE - Table will re-render!', {
+                pageSizeChanged,
+                chronologyChanged,
+                forceRefreshChanged,
+                heightChanged,
+                columnsChanged,
+                oldColumns: this.props.columns?.length,
+                newColumns: nextProps.columns?.length,
+                timestamp: new Date().toISOString()
+            });
         }
-        return false;
+        
+        return shouldUpdate;
     }
 
     componentWillUnmount() {

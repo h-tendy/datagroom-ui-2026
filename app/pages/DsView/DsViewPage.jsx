@@ -1094,6 +1094,7 @@ function DsViewPage() {
   // Render complete handler - called when table finishes rendering
   // Reference: DsView.js lines 432-444
   const handleRenderComplete = useCallback(() => {
+    console.log('[DEBUG REFRESH] handleRenderComplete called', { timestamp: new Date().toISOString() });
     // Request active locks from server
     if (dsName && emitLock) {
       // Note: In reference implementation, socket.emit('getActiveLocks', dsName) is called
@@ -1110,6 +1111,7 @@ function DsViewPage() {
 
   // Page loaded handler - called when pagination changes
   const handlePageLoaded = useCallback((pageno) => {
+    console.log('[DEBUG REFRESH] handlePageLoaded called', { pageno, timestamp: new Date().toISOString() });
     // Preserve page size when page changes
     const table = tabulatorRef.current;
     if (table && table.getPageSize) {
@@ -1961,8 +1963,21 @@ function DsViewPage() {
 
   // Initialize helper modules and generate columns
   useEffect(() => {
+    console.log('[DEBUG REFRESH] Column generation effect triggered', {
+      viewConfig: !!viewConfig,
+      dsName,
+      dsView,
+      userId,
+      showAllFilters,
+      filterColumnAttrsKeys: Object.keys(filterColumnAttrs || {}),
+      searchParams: searchParams.toString(),
+      timestamp: new Date().toISOString()
+    });
     urlRestoreLog('[URL RESTORE] Column generation effect triggered');
-    if (!viewConfig) return;
+    if (!viewConfig) {
+      console.log('[DEBUG REFRESH] Skipping - no viewConfig');
+      return;
+    }
     
     // If there are searchParams that haven't been processed yet, wait before generating columns
     const searchString = searchParams.toString();
@@ -2044,6 +2059,10 @@ function DsViewPage() {
     
     // Generate columns using tabulatorConfig
     if (tabulatorConfigHelper.current) {
+      console.log('[DEBUG REFRESH] ⚠️ GENERATING NEW COLUMNS - This will cause table remount!', {
+        filterColumnAttrs,
+        timestamp: new Date().toISOString()
+      });
       urlRestoreLog('[URL RESTORE] Generating columns with filterColumnAttrs:', filterColumnAttrs);
       const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
       setColumns(generatedColumns);

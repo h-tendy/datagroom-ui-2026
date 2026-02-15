@@ -54,20 +54,26 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
 
     // Connection events
     socket.on('connect', () => {
+      console.log('[DEBUG REFRESH] [Socket] Connected successfully', { timestamp: new Date().toISOString() });
       console.log('[Socket] Connected successfully');
       console.log('[Socket] Sending Hello with user:', user);
       socket.emit('Hello', { user: user.user });
       socket.emit('getActiveLocks', dsName);
       setConnectedState(true);
+      console.log('[DEBUG REFRESH] [Socket] setConnectedState(true) called - this should NOT trigger table refresh');
     });
 
     socket.on('disconnect', (reason) => {
+      console.log('[DEBUG REFRESH] [Socket] Disconnected', { reason, timestamp: new Date().toISOString() });
       console.log('[Socket] Disconnected, reason:', reason);
       setConnectedState(false);
+      console.log('[DEBUG REFRESH] [Socket] setConnectedState(false) called - this should NOT trigger table refresh');
     });
 
     socket.on('dbConnectivityState', (isDbConnected) => {
+      console.log('[DEBUG REFRESH] [Socket] dbConnectivityState changed', { dbState: isDbConnected.dbState, timestamp: new Date().toISOString() });
       setDbConnectivityState(isDbConnected.dbState);
+      console.log('[DEBUG REFRESH] [Socket] setDbConnectivityState called - this should NOT trigger table refresh');
     });
 
     socket.on('Hello', () => {});
