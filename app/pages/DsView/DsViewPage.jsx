@@ -238,6 +238,36 @@ function DsViewPage() {
 
   const clipboardHelpers = useRef(null);
   const domHelpers = useRef(null);
+
+  // Display connection status indicator (matches reference implementation style)
+  const displayConnectedStatus = () => {
+    if (connectedState) {
+      if (dbConnectivityState) {
+        return (
+          <span>
+            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+            <b style={{ color: 'darkgreen' }}>Connected</b>&nbsp;|
+          </span>
+        );
+      } else {
+        return (
+          <span>
+            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+            <b style={{ color: 'red' }}>Disconnected</b>{' '}
+            <i>(Database connectivity is down)</i>&nbsp;|
+          </span>
+        );
+      }
+    } else {
+      return (
+        <span>
+          <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+          <b style={{ color: 'red' }}>Disconnected</b>
+          <i>(Server connectivity is down)</i>&nbsp;|
+        </span>
+      );
+    }
+  };
   const tabulatorConfigHelper = useRef(null);
   const jiraHelpers = useRef(null);
   const [columns, setColumns] = useState([]);
@@ -2156,10 +2186,6 @@ function DsViewPage() {
             >
               {dsName} - {dsView}
             </h2>
-            <div className={styles.connectivityStatus}>
-              <span className={styles.statusIndicator}>Socket: {connectedState ? '🟢' : '🔴'}</span>
-              <span className={styles.statusIndicator}>DB: {dbConnectivityState ? '🟢' : '🔴'}</span>
-            </div>
           </div>
 
           {/* Action buttons */}
@@ -2271,6 +2297,7 @@ function DsViewPage() {
               <i className='fas fa-edit'></i> <b>Edit-view</b>
             </Link>
             <span className={styles.separator}>|</span>
+            {displayConnectedStatus()}
             <button className="btn btn-link" onClick={() => tabulatorRef.current?.table?.setData()}>
               <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
             </button>
