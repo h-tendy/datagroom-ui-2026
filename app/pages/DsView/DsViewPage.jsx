@@ -2054,7 +2054,7 @@ function DsViewPage() {
         lastGeneratedFilterAttrsRef.current = '';
       }
     }
-  }, [viewConfig, dsName, dsView, userId, connectedState, dbConnectivityState, showAllFilters, filterColumnAttrs, searchParams, urlRestoreLog]);
+  }, [viewConfig, dsName, dsView, userId, showAllFilters, filterColumnAttrs, searchParams, urlRestoreLog]);
 
   // Once column definitions (including saved filter attrs) are generated, allow table to mount
   useEffect(() => {
