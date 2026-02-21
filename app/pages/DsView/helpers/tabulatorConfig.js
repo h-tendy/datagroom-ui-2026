@@ -57,6 +57,9 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
   return defaultFence(tokens, idx, options, env, self);
 };
 
+// Export markdown renderer for reuse
+export { md };
+
 /**
  * Create Tabulator configuration with all formatters, editors, and callbacks
  * @param {Object} context - { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol }

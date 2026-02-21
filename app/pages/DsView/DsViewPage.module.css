@@ -18,6 +18,42 @@
   cursor: pointer;
 }
 
+/* Dataset Description */
+.dsDescription {
+  margin: 1rem 0;
+  padding: 0;
+  font-size: 1.5rem;
+  line-height: 1.6;
+}
+
+.dsDescription p {
+  margin-bottom: 0.5rem;
+}
+
+.dsDescription p:last-child {
+  margin-bottom: 0;
+}
+
+.dsDescription code {
+  background: var(--color-bg-secondary, #f5f5f5);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.dsDescription pre {
+  background: var(--color-bg-secondary, #f5f5f5);
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.dsDescription pre code {
+  background: transparent;
+  padding: 0;
+}
+
 .btnLink {
   background: none;
   border: none;

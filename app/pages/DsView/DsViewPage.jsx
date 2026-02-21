@@ -52,6 +52,7 @@ import createDomHelpers from './helpers/domHelpers';
 import createTabulatorConfig from './helpers/tabulatorConfig';
 import createJiraHelpers from './helpers/jiraHelpers.jsx';
 import { applyFilterColumnAttrs } from './helpers/filterHelpers';
+import { md } from './helpers/tabulatorConfig';
 
 // Reducer
 import { editReducer, initialEditState, EDIT_ACTION_TYPES } from './reducers/editReducer';
@@ -2324,6 +2325,22 @@ function DsViewPage() {
               {dsName} - {dsView}
             </h2>
           </div>
+
+          {/* Dataset Description - Reference: DsView.js lines 276-287 */}
+          {(() => {
+            try {
+              const descriptionText = viewConfig?.dsDescription?.dsDescription;
+              if (descriptionText) {
+                const renderedHtml = md.render(descriptionText);
+                return (
+                  <div className={styles.dsDescription} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                );
+              }
+            } catch (e) {
+              // Silently fail - no error display per reference implementation
+            }
+            return null;
+          })()}
 
           {/* Action buttons */}
           <div className={styles.actionBar}>
