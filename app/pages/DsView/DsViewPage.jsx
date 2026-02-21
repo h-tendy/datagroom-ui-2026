@@ -91,6 +91,8 @@ function DsViewPage() {
   // Store edit-related state in refs so cellEditCheck can access current values
   const singleClickEditRef = useRef(false);
   const disableEditingRef = useRef(false);
+  const connectedStateRef = useRef(false);
+  const dbConnectivityStateRef = useRef(false);
   const originalColumnAttrsRef = useRef(null);
   const mouseDownOnHtmlLinkRef = useRef(false);
   const mouseDownOnBadgeCopyIconRef = useRef(false);
@@ -237,6 +239,17 @@ function DsViewPage() {
     apiUrl: '', // Connect to same origin, Vite proxy will forward WebSocket
     onCellUnlocked: handleCellUnlocked,
   });
+
+  // Sync socket state to refs so callbacks always have current values (fixes stale closure bug)
+  useEffect(() => {
+    connectedStateRef.current = connectedState;
+    console.log('[SOCKET STATE] connectedState changed to:', connectedState);
+  }, [connectedState]);
+  
+  useEffect(() => {
+    dbConnectivityStateRef.current = dbConnectivityState;
+    console.log('[DB STATE] dbConnectivityState changed to:', dbConnectivityState);
+  }, [dbConnectivityState]);
 
   const clipboardHelpers = useRef(null);
   const domHelpers = useRef(null);
@@ -1003,20 +1016,31 @@ function DsViewPage() {
   // Check for concurrent edit conflicts - prevents editing cells locked by other users
   // Reference: DsView.js lines 567-577 (cellEditCheckForConflicts)
   const cellEditCheckForConflicts = useCallback((cell) => {
+    console.log('[cellEditCheckForConflicts] Checking cell', {
+      mouseDownOnHtmlLink: mouseDownOnHtmlLinkRef.current,
+      mouseDownOnBadgeCopyIcon: mouseDownOnBadgeCopyIconRef.current,
+    });
+    
     try {
       const _id = cell.getRow().getData()._id;
       const field = cell.getField();
+      console.log('[cellEditCheckForConflicts] Cell info:', { _id, field });
+      
       // Check if cell is locked by another user
       if (isCellLocked(_id, field)) {
+        console.log('[cellEditCheckForConflicts] ❌ Cell is locked by another user');
         return false; // Block editing - cell is locked
       }
     } catch (e) {
+      console.log('[cellEditCheckForConflicts] ⚠️ Could not get cell info (might be new row):', e.message);
       // Cell might not have _id or field yet (e.g., new row)
     }
     // Don't allow editing when clicking HTML links or badge copy icons
     if (mouseDownOnHtmlLinkRef.current || mouseDownOnBadgeCopyIconRef.current) {
+      console.log('[cellEditCheckForConflicts] ❌ Blocked: clicked on HTML link or badge copy icon');
       return false;
     }
+    console.log('[cellEditCheckForConflicts] ✅ No conflicts detected');
     return true;
   }, [isCellLocked]);
 
@@ -1024,34 +1048,92 @@ function DsViewPage() {
   // Reference: DsView.js lines 1014-1020
   // Uses refs to always check current state, not captured closure values
   const cellEditCheck = useCallback((cell) => {
-    if (!singleClickEditRef.current) return false;  // Checkbox unchecked = no single-click edit
-    if (disableEditingRef.current) return false;
-    if (!connectedState) return false;      // Not connected to socket
-    if (!dbConnectivityState) return false; // No DB connectivity
+    console.log('[cellEditCheck] Called', {
+      singleClickEdit: singleClickEditRef.current,
+      disableEditing: disableEditingRef.current,
+      connectedState: connectedStateRef.current,
+      dbConnectivityState: dbConnectivityStateRef.current,
+      cellField: cell?.getField?.(),
+      cellValue: cell?.getValue?.(),
+    });
+    
+    if (!singleClickEditRef.current) {
+      console.log('[cellEditCheck] ❌ Blocked: singleClickEdit is OFF');
+      return false;  // Checkbox unchecked = no single-click edit
+    }
+    if (disableEditingRef.current) {
+      console.log('[cellEditCheck] ❌ Blocked: editing is disabled');
+      return false;
+    }
+    if (!connectedStateRef.current) {
+      console.log('[cellEditCheck] ❌ Blocked: not connected to socket');
+      return false;      // Not connected to socket
+    }
+    if (!dbConnectivityStateRef.current) {
+      console.log('[cellEditCheck] ❌ Blocked: no DB connectivity');
+      return false; // No DB connectivity
+    }
     // Check for concurrent edit conflicts (locked cells)
-    return cellEditCheckForConflicts(cell);
-  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
+    const canEdit = cellEditCheckForConflicts(cell);
+    console.log('[cellEditCheck] cellEditCheckForConflicts returned:', canEdit);
+    return canEdit;
+  }, [cellEditCheckForConflicts]);
 
   // Cell force edit trigger - called when user clicks/focuses a cell
   // This should check if editing is allowed and then force the edit
   // Reference: DsView.js lines 588-617
   const cellForceEditTrigger = useCallback((cell, e) => {
+    console.log('[cellForceEditTrigger] 🎯 Called', {
+      singleClickEdit: singleClickEditRef.current,
+      disableEditing: disableEditingRef.current,
+      connectedState: connectedStateRef.current,
+      dbConnectivityState: dbConnectivityStateRef.current,
+      cellField: cell?.getField?.(),
+      cellValue: cell?.getValue?.(),
+      isCurrentlyEditing: cellImEditingRef.current === cell,
+      event: e?.type,
+    });
+    
     // Check all conditions using same logic as cellEditCheck
-    if (!singleClickEditRef.current) return;  // Checkbox unchecked = no single-click edit
-    if (disableEditingRef.current) return;
-    if (!connectedState) return;      // Not connected to socket
-    if (!dbConnectivityState) return; // No DB connectivity
-    if (cellImEditingRef.current === cell) return;
+    if (!singleClickEditRef.current) {
+      console.log('[cellForceEditTrigger] ❌ Aborted: singleClickEdit is OFF');
+      return;  // Checkbox unchecked = no single-click edit
+    }
+    if (disableEditingRef.current) {
+      console.log('[cellForceEditTrigger] ❌ Aborted: editing is disabled');
+      return;
+    }
+    if (!connectedStateRef.current) {
+      console.log('[cellForceEditTrigger] ❌ Aborted: not connected to socket');
+      return;      // Not connected to socket
+    }
+    if (!dbConnectivityStateRef.current) {
+      console.log('[cellForceEditTrigger] ❌ Aborted: no DB connectivity');
+      return; // No DB connectivity
+    }
+    if (cellImEditingRef.current === cell) {
+      console.log('[cellForceEditTrigger] ❌ Aborted: this cell is already being edited');
+      return;
+    }
     // Check for concurrent edit conflicts (locked cells)
     const noConcurrentEdits = cellEditCheckForConflicts(cell);
+    console.log('[cellForceEditTrigger] cellEditCheckForConflicts returned:', noConcurrentEdits);
     if (noConcurrentEdits) {
+      console.log('[cellForceEditTrigger] ✅ Forcing edit with cell.edit(true)');
       // Force the edit by calling cell.edit(true)
-      cell.edit(true, e);
+      try {
+        cell.edit(true, e);
+        console.log('[cellForceEditTrigger] ✅ cell.edit(true) called successfully');
+      } catch (error) {
+        console.error('[cellForceEditTrigger] ❌ Error calling cell.edit():', error);
+      }
+    } else {
+      console.log('[cellForceEditTrigger] ❌ Aborted: concurrent edit conflict detected');
     }
-  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
+  }, [cellEditCheckForConflicts]);
 559-566
   const cellClickEvents = useCallback((e, cell) => {
-    if (!connectedState || !dbConnectivityState) return;
+    if (!connectedStateRef.current || !dbConnectivityStateRef.current) return;
 
     // Double-click editing when single-click edit is OFF
     if (e.type === 'dblclick' && !singleClickEditRef.current && !disableEditingRef.current) {
@@ -1062,7 +1144,7 @@ function DsViewPage() {
         cell.edit(true, e);
       }
     }
-  }, [connectedState, dbConnectivityState, cellEditCheckForConflicts]);
+  }, [cellEditCheckForConflicts]);
 
   // Handler for checkbox change
   const handleSingleClickEditToggle = useCallback((event) => {
@@ -1188,11 +1270,17 @@ function DsViewPage() {
   // Note: cellEditCheck/cellClickEvents already prevented locked cells from being edited
   // This is called after Tabulator opens the editor
   const handleCellEditing = useCallback((cell) => {
+    console.log('[handleCellEditing] 🎉 Editor opened! Cell entered editing mode', {
+      cellField: cell?.getField?.(),
+      cellValue: cell?.getValue?.(),
+    });
+    
     const _id = cell.getRow().getData()._id;
     const field = cell.getField();
 
     // Skip locking for new rows (no _id yet)
     if (!_id) {
+      console.log('[handleCellEditing] New row (no _id), allowing edit without lock');
       cellImEditingRef.current = cell;
       return true; // Allow edit
     }
@@ -1200,9 +1288,11 @@ function DsViewPage() {
     // Double-check lock status as safety measure (race condition protection)
     // Normally prevented earlier by cellEditCheck/cellClickEvents
     if (isCellLocked(_id, field)) {
+      console.log('[handleCellEditing] ❌ Cell is locked, canceling edit');
       return false; // Cancel edit
     }
 
+    console.log('[handleCellEditing] ✅ Emitting lock and allowing edit', { _id, field });
     // Emit lock event to notify other users
     emitLock({ dsName, _id, field, user: auth.user?.user });
     cellImEditingRef.current = cell;
@@ -1899,7 +1989,10 @@ function DsViewPage() {
 
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
-    console.log('[HANDLERS] Creating handlers object');
+    console.log('[HANDLERS] Creating handlers object', {
+      cellEditCheckType: typeof cellEditCheck,
+      cellForceEditTriggerType: typeof cellForceEditTrigger,
+    });
     return {
     cellEditCheck: cellEditCheck,
     cellForceEditTrigger: cellForceEditTrigger, // Separate function that triggers edit

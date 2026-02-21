@@ -22,6 +22,13 @@ Edit.prototype.initializeColumn = function(column){
 		params:column.definition.editorParams || {}
 	};
 
+	console.log("[Tabulator edit.js initializeColumn]", {
+		field: column.field,
+		hasEditor: !!column.definition.editor,
+		hasCellForceEditTrigger: typeof column.definition.cellForceEditTrigger === 'function',
+		cellForceEditTriggerType: typeof column.definition.cellForceEditTrigger,
+	});
+
 	//set column editor
 	switch(typeof column.definition.editor){
 		case "string":
@@ -128,8 +135,16 @@ Edit.prototype.bindEditor = function(cell){
 	element.setAttribute("tabindex", 0);
 
 	element.addEventListener("click", function(e){
+		console.log("[Tabulator edit.js bindEditor] 🖱️ Cell clicked", { 
+			isEditing: element.classList.contains("tabulator-editing"),
+			cellField: cell.column.getField(),
+			target: e.target.tagName 
+		});
 		if(!element.classList.contains("tabulator-editing")){
+			console.log("[Tabulator edit.js bindEditor] Cell not editing, focusing element...");
 			element.focus({preventScroll: true});
+		} else {
+			console.log("[Tabulator edit.js bindEditor] Cell already editing, ignoring click");
 		}
 	});
 
@@ -146,9 +161,16 @@ Edit.prototype.bindEditor = function(cell){
 	});
 
 	element.addEventListener("focus", function(e){
+		console.log("[Tabulator edit.js bindEditor] 🎯 Cell focused!", {
+			recursionBlock: self.recursionBlock,
+			cellField: cell.column.getField(),
+			eventType: e.type,
+		});
 		if(!self.recursionBlock){
-			console.log("Focus invocation of self.edit");
+			console.log("[Tabulator edit.js bindEditor] ✅ Calling self.edit(cell, e, false)...");
 			self.edit(cell, e, false);
+		} else {
+			console.log("[Tabulator edit.js bindEditor] ❌ Blocked by recursionBlock");
 		}
 	});
 };
@@ -214,11 +236,17 @@ Edit.prototype.edit = function(cell, e, forceEdit){
 	if (e === false) {
 		// J: When e is false, edit was triggered forcefully. This is the only mode
 		// we will need in this fork. 
+		console.log("[Tabulator edit.js] Edit triggered with e=false (force mode), proceeding to actual edit");
 	} else {
 		// J: Just call the trigger function for editing. The application will 
 		// figure out if it wants to do the editing and trigger it forcefully. 
+		console.log("[Tabulator edit.js] Edit triggered by user interaction, calling cellForceEditTrigger");
 		if (typeof cell.column.modules.edit.cellForceEditTrigger === "function") {
-			cell.column.modules.edit.cellForceEditTrigger(cell.getComponent());
+			console.log("[Tabulator edit.js] ✅ cellForceEditTrigger function exists, calling it...");
+			cell.column.modules.edit.cellForceEditTrigger(cell.getComponent(), e);
+			console.log("[Tabulator edit.js] cellForceEditTrigger returned (app should call cell.edit(true) to force edit)");
+		} else {
+			console.warn("[Tabulator edit.js] ❌ cellForceEditTrigger is NOT a function, type:", typeof cell.column.modules.edit.cellForceEditTrigger);
 		}
 		// J: returning here ensures that none of events get trapped or 
 		// 'stopPropagation' called on them. Otherwise, we were losing copy-paste! 
