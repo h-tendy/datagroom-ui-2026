@@ -247,14 +247,14 @@ function DsViewPage() {
       if (dbConnectivityState) {
         return (
           <span>
-            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:&nbsp;</b>{' '}
             <b style={{ color: 'darkgreen' }}>Connected</b>&nbsp;|
           </span>
         );
       } else {
         return (
           <span>
-            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+            <i className='fas fa-server'></i>&nbsp;<b>Connection Status:&nbsp;</b>{' '}
             <b style={{ color: 'red' }}>Disconnected</b>{' '}
             <i>(Database connectivity is down)</i>&nbsp;|
           </span>
@@ -263,7 +263,7 @@ function DsViewPage() {
     } else {
       return (
         <span>
-          <i className='fas fa-server'></i>&nbsp;<b>Connection Status:</b>{' '}
+          <i className='fas fa-server'></i>&nbsp;<b>Connection Status:&nbsp;</b>{' '}
           <b style={{ color: 'red' }}>Disconnected</b>
           <i>(Server connectivity is down)</i>&nbsp;|
         </span>
@@ -2324,7 +2324,7 @@ function DsViewPage() {
             
             {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 && (
               <>
-                <span className={styles.separator}>|</span>
+                <span>|</span>
                 <button className="btn btn-link" onClick={toggleFetchAllRecords}>
                   <i className='fa fa-download'></i>
                   {fetchAllMatchingRecords ? 'Fetch top matches only' : 'Fetch all matches'}
@@ -2332,23 +2332,23 @@ function DsViewPage() {
               </>
             )}
             
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <Link to={`/dsEditLog/${dsName}`} target="_blank" className="btn btn-link">
               <i className='fas fa-file-alt'></i> <b>Edit-log</b>
             </Link>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <Link to={`/dsViewEdit/${dsName}/${dsView}`} target="_blank" className="btn btn-link">
               <i className='fas fa-edit'></i> <b>Edit-view</b>
             </Link>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <Link to={`/dsBulkEdit/${dsName}`} target="_blank" className="btn btn-link">
               <i className='fas fa-edit'></i> <b>Bulk-edit</b>
             </Link>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <Link to={`/dsAttachments/${dsName}`} target="_blank" className="btn btn-link">
               <i className='fas fa-file-alt'></i> <b>Attachments</b>
             </Link>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             {displayConnectedStatus()}
             <button className="btn btn-link" onClick={() => tabulatorRef.current?.table?.setData()}>
               <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
