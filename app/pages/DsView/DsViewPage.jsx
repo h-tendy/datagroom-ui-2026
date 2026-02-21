@@ -2320,6 +2320,10 @@ function DsViewPage() {
               <i className='fas fa-edit'></i> <b>Edit-view</b>
             </Link>
             <span className={styles.separator}>|</span>
+            <Link to={`/dsAttachments/${dsName}`} target="_blank" className="btn btn-link">
+              <i className='fas fa-file-alt'></i> <b>Attachments</b>
+            </Link>
+            <span className={styles.separator}>|</span>
             {displayConnectedStatus()}
             <button className="btn btn-link" onClick={() => tabulatorRef.current?.table?.setData()}>
               <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
