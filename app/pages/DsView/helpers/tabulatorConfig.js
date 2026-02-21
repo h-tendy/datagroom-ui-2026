@@ -151,8 +151,8 @@ export default function createTabulatorConfig(context) {
       { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { deleteColumnQuestion(e, cell); } } ] },
       { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { addColumnQuestion(cell.getColumn().getField()); } } ] },
       { label: "Get xlsx....", menu: [
-        { label: "Get xlsx for whole DS...", action: function () { downloadXlsx('whole'); } },
-        { label: "Get xlsx in query...", action: function () { downloadXlsx('query'); } }
+        { label: "Get xlsx for whole DS...", action: function () { downloadXlsx(false); } },
+        { label: "Get xlsx in query...", action: function () { downloadXlsx(true); } }
       ] },
       // JIRA integration - deferred
       // { label: "JIRA Menu....", menu: [...] }

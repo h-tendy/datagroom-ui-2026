@@ -20,6 +20,7 @@ import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { Row, Col } from 'react-bootstrap';
 import styles from './DsViewPage.module.css';
 import { useAuth } from '../../auth/AuthProvider';
+import { downloadXlsx } from '../../api/ds';
 
 // Hooks
 import useDsView from '../../hooks/useDsView';
@@ -2004,13 +2005,33 @@ function DsViewPage() {
     },
     deleteColumnQuestion: deleteColumnQuestion,
     addColumnQuestion: addColumnQuestion,
-    downloadXlsx: () => {}, // TODO
+    downloadXlsx: (useQuery) => {
+      let query = [];
+      if (useQuery) {
+        /**
+         * This is special case where there in frontend we are viewing just the single row.
+         * In such case, whatever the query might be in the header, we need to download only the single row.
+         */
+        if (_id) {
+          query.push({
+            field: "_id",
+            value: _id
+          });
+        } else {
+          query = tabulatorRef.current?.table?.getHeaderFilters() || [];
+        }
+      }
+      // XXX: Doesn't work from the front end.
+      // tabulatorRef.current.table.download("xlsx", "data.xlsx", { sheetName: "export" })
+
+      downloadXlsx({ dsName, dsView, dsUser: userId, query });
+    },
     convertToJiraRow: () => {}, // Deferred
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
   };
-  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion]);
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion, dsName, dsView, userId, _id]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
