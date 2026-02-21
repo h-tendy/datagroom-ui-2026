@@ -2345,11 +2345,11 @@ function DsViewPage() {
           {/* Action buttons */}
           <div className={styles.actionBar}>
             <button className={styles.btnLink} onClick={handleCopyToClipboard}>
-              Copy-to-clipboard <i className='fas fa-clipboard'></i>
+              <i className='fas fa-clipboard'></i> Copy-to-clipboard
             </button>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <button className={styles.btnLink} onClick={handleAddRow}>
-              Add Row <i className='fas fa-plus'></i>
+              <i className='fas fa-plus'></i> Add Row
             </button>
           </div>
 
@@ -2367,7 +2367,7 @@ function DsViewPage() {
               />
               Desc order <i className='fas fa-level-down-alt'></i>
             </label>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
@@ -2379,7 +2379,7 @@ function DsViewPage() {
               />
               Show filters <i className='fas fa-filter'></i>
             </label>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <label className={styles.checkboxLabel}>
               <input 
                 type="checkbox" 
@@ -2388,7 +2388,7 @@ function DsViewPage() {
               />
               &nbsp;1-click editing <i className='fas fa-bolt'></i>
             </label>
-            <span className={styles.separator}>|</span>
+            <span>|</span>
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
