@@ -74,6 +74,11 @@ export async function createDsFromCsv(body) {
   return api('/uploadCsv/createDs', { method: 'POST', body, headers });
 }
 
+export async function bulkEditFromXls(body) {
+  const headers = getAuthHeaders();
+  return api('/ds/bulkEditFromXls', { method: 'POST', body, headers });
+}
+
 /**
  * Load column definitions, keys, JIRA config, filters for a dataset view
  */

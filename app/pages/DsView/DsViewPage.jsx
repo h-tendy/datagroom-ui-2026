@@ -2320,6 +2320,10 @@ function DsViewPage() {
               <i className='fas fa-edit'></i> <b>Edit-view</b>
             </Link>
             <span className={styles.separator}>|</span>
+            <Link to={`/dsBulkEdit/${dsName}`} target="_blank" className="btn btn-link">
+              <i className='fas fa-edit'></i> <b>Bulk-edit</b>
+            </Link>
+            <span className={styles.separator}>|</span>
             <Link to={`/dsAttachments/${dsName}`} target="_blank" className="btn btn-link">
               <i className='fas fa-file-alt'></i> <b>Attachments</b>
             </Link>

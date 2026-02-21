@@ -15,6 +15,7 @@ import DsViewPage from './pages/DsView/DsViewPage';
 import DsEditLogPage from './pages/DsEditLog/DsEditLogPage';
 import DsViewEditPage from './pages/DsViewEdit/DsViewEditPage';
 import DsAttachmentsPage from './pages/DsAttachments/DsAttachmentsPage';
+import DsBulkEditPage from './pages/DsBulkEdit/DsBulkEditPage';
 import SidebarLayout from './SidebarLayout';
 import { useAuth } from './auth/AuthProvider';
 
@@ -59,6 +60,7 @@ export function AppRoutes() {
             <Route path="/dsViewEdit/:dsName/:dsView" element={<RequireAuth><DsViewEditWithLayout /></RequireAuth>} />
             <Route path="/dsEditLog/:dsName" element={<RequireAuth><DsEditLogWithLayout /></RequireAuth>} />
             <Route path="/dsAttachments/:dsName" element={<RequireAuth><DsAttachmentsPage /></RequireAuth>} />
+            <Route path="/dsBulkEdit/:dsName" element={<RequireAuth><DsBulkEditPage /></RequireAuth>} />
             <Route path="/ds/:dsName/:dsView/:filter" element={<RequireAuth><DsViewWithLayout /></RequireAuth>} />
             <Route path="/ds/:dsName/:dsView" element={<RequireAuth><DsViewWithLayout /></RequireAuth>} />
             <Route path="/ds/new-from-ds" element={<RequireAuth><NewDsFromDsPage /></RequireAuth>} />
