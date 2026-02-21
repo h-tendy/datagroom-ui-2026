@@ -76,7 +76,7 @@ export async function createDsFromCsv(body) {
 
 export async function bulkEditFromXls(body) {
   const headers = getAuthHeaders();
-  return api('/ds/bulkEditFromXls', { method: 'POST', body, headers });
+  return api('/ds/doBulkEdit', { method: 'POST', body, headers });
 }
 
 /**

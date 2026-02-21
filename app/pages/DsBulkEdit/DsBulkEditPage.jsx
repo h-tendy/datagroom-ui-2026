@@ -40,10 +40,16 @@ function DsBulkEditForm() {
   const uploadMutation = useMutation({
     mutationFn: uploadXlsFile,
     onSuccess: (data) => {
+      console.log('[Upload Success] Received data:', data);
       if (data && Array.isArray(data)) {
+        console.log('[Upload Success] Sheet info count:', data.length);
+        data.forEach((sheet, idx) => {
+          console.log(`[Upload Success] Sheet ${idx}:`, sheet);
+        });
         setSheetInfo(data);
         setUploadError('');
       } else {
+        console.error('[Upload Success] Data is not an array:', typeof data, data);
         setSheetInfo([]);
         setUploadError('Invalid response from server');
       }
@@ -58,10 +64,13 @@ function DsBulkEditForm() {
   const validateMutation = useMutation({
     mutationFn: bulkEditFromXls,
     onSuccess: (data) => {
+      console.log('[Validation Success] Received data:', data);
+      console.log('[Validation Success] Data keys:', Object.keys(data || {}));
       setLoadStatus(data);
       setIsValidated(true);
     },
     onError: (error) => {
+      console.error('[Validation Error]:', error);
       setLoadStatus({ loadStatus: false, error: error.message || 'Validation failed' });
       setIsValidated(false);
     }
@@ -121,16 +130,19 @@ function DsBulkEditForm() {
       return;
     }
     
-    validateMutation.mutate({
+    const payload = {
       dsName,
       dsUser: userId,
       fileName,
-      selectedSheet,
+      sheetName: selectedSheet,
       selectedRange,
-      setDataRows,
-      setDataColumns,
-      doit: 0  // Validation only
-    });
+      setRowsFrmSheet: setDataRows,
+      setColsFrmSheet: setDataColumns,
+      doIt: false  // Validation only
+    };
+    
+    console.log('[Validate] Sending payload:', payload);
+    validateMutation.mutate(payload);
   };
   
   // Execute handler
@@ -148,11 +160,11 @@ function DsBulkEditForm() {
       dsName,
       dsUser: userId,
       fileName,
-      selectedSheet,
+      sheetName: selectedSheet,
       selectedRange,
-      setDataRows,
-      setDataColumns,
-      doit: 1  // Execute
+      setRowsFrmSheet: setDataRows,
+      setColsFrmSheet: setDataColumns,
+      doIt: true  // Execute
     });
   };
   
@@ -210,7 +222,7 @@ function DsBulkEditForm() {
             <Form.Select value={selectedSheet} onChange={onSheetChange}>
               <option value="">-- Select Sheet --</option>
               {sheetInfo.map((sheet, idx) => (
-                <option key={idx} value={sheet.name}>{sheet.name}</option>
+                <option key={idx} value={sheet}>{sheet}</option>
               ))}
             </Form.Select>
           </Col>
@@ -308,7 +320,7 @@ function DsBulkEditForm() {
               <div style={{ color: 'green', padding: '10px', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', marginTop: '10px' }}>
                 <strong>✓ Bulk edit completed successfully!</strong>
                 <br/>
-                <Link to={`/ds/${dsName}/MAIN`} style={{ marginTop: '10px', display: 'inline-block' }}>
+                <Link to={`/ds/${dsName}/default`} style={{ marginTop: '10px', display: 'inline-block' }}>
                   View updated dataset →
                 </Link>
               </div>
