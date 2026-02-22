@@ -16,13 +16,7 @@ export default defineConfig({
     include: [
       '@tabulator/react-tabulator/lib/ReactTabulator',
       '@tabulator/react-tabulator/lib/editors/DateEditor',
-      '@tabulator/tabulator-tables/dist/js/tabulator',
     ],
-    force: true, // Force re-optimization on every start
-    esbuildOptions: {
-      // Ensure CommonJS modules are properly transformed
-      mainFields: ['module', 'main'],
-    },
   },
   build: {
     commonjsOptions: {

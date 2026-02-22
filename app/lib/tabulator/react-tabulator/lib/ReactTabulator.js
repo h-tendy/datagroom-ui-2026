@@ -73,9 +73,7 @@ var pick_react_known_prop_1 = require("pick-react-known-prop");
 var ConfigUtils_1 = require("./ConfigUtils");
 var Utils_1 = require("./Utils");
 /* tslint:disable-next-line */
-var TabulatorFull = require("../../tabulator-tables/dist/js/tabulator");
-// Handle both CommonJS and ESM exports
-var Tabulator = TabulatorFull.default || TabulatorFull;
+var Tabulator = require("../../tabulator-tables/dist/js/tabulator");
 var default_1 = /** @class */ (function (_super) {
     __extends(default_1, _super);
     function default_1() {
