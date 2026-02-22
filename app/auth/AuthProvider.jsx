@@ -24,10 +24,17 @@ export function AuthProvider({ children }) {
         if (!valid && mounted) {
           // sessionCheck in reference returned non-ok to indicate invalid session
           logout();
+          // Redirect to login after logout
+          window.location.href = '/login';
         }
       } catch (e) {
-        // treat errors as invalid session
-        logout();
+        // treat errors (like 401) as invalid session
+        console.log('Session check failed, logging out:', e.message);
+        if (mounted && isAuthenticated) {
+          logout();
+          // Redirect to login after logout
+          window.location.href = '/login';
+        }
       }
     })();
     return () => { mounted = false; };

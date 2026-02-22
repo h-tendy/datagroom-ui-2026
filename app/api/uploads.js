@@ -1,12 +1,14 @@
 import { api } from './client';
 
 function getAuthHeaders() {
-  const accessToken = localStorage.getItem('accessToken');
-  const sessionToken = localStorage.getItem('sessionToken');
-  return {
-    'x-access-token': accessToken || '',
-    'x-session-token': sessionToken || '',
-  };
+  // Match reference implementation: use Bearer token from user.token
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return {};
+    const u = JSON.parse(raw);
+    if (u && u.token) return { authorization: 'Bearer ' + u.token };
+  } catch (e) {}
+  return {};
 }
 
 /**

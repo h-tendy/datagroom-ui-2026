@@ -48,9 +48,24 @@ export async function logoutApi() {
 }
 
 export async function sessionCheckApi(user) {
-  // user param is optional; reference used a header 'user'
-  const headers = user ? { user: user.user } : {};
+  // Reference: user.service.js sessionCheck - includes authHeader() and user header
+  const authHeaders = getAuthHeaders();
+  const headers = {
+    ...authHeaders,
+    'Content-Type': 'application/json',
+    ...(user ? { user: user.user } : {})
+  };
   return rawFetch('/sessionCheck', { method: 'GET', headers });
+}
+
+function getAuthHeaders() {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return {};
+    const u = JSON.parse(raw);
+    if (u && u.token) return { authorization: 'Bearer ' + u.token };
+  } catch (e) {}
+  return {};
 }
 
 export async function getAllUsers() { return rawFetch('/users', { method: 'GET' }); }
