@@ -11,9 +11,9 @@ const THEMES = [
 export default function ThemeSwitcher() {
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem(THEME_KEY) || 'dark';
+      return localStorage.getItem(THEME_KEY) || 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
   useEffect(() => {
