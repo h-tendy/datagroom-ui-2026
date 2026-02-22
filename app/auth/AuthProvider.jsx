@@ -43,18 +43,28 @@ export function AuthProvider({ children }) {
   async function login(username, password) {
     try {
       const obj = await loginApi(username, password);
-      // reference handleResponse returned { user: JSON.parse(data.user), redirectUrl }
-      // backend returned obj.user and maybe obj.redirectUrl
-      const savedUser = obj.user || obj;
-      const savedUserId = savedUser?.id || savedUser?.username || username;
-      if (savedUser?.token) {
-        // keep full user object like reference did
-        localStorage.setItem('user', JSON.stringify(savedUser));
+      // loginApi now returns { user: parsedUserObject, redirectUrl }
+      if (!obj || !obj.user) {
+        console.error('Login response missing user data');
+        return false;
       }
+      const savedUser = obj.user;
+      const savedUserId = savedUser.id || savedUser.username || username;
+      
+      // Store user object with token (critical for Bearer auth)
+      if (savedUser.token) {
+        localStorage.setItem('user', JSON.stringify(savedUser));
+        console.log('Login successful, token stored:', savedUser.token.substring(0, 20) + '...');
+      } else {
+        console.warn('Login response missing token!');
+        return false;
+      }
+      
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userId', savedUserId);
       setIsAuthenticated(true);
       setUserId(savedUserId);
+      
       // handle redirectUrl if provided by backend
       if (obj.redirectUrl) {
         try { window.location.href = obj.redirectUrl; } catch (e) { /* ignore */ }

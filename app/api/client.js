@@ -37,10 +37,22 @@ export async function api(path, opts = {}) {
 
 // Specific helpers matching reference/user.service.js
 export async function loginApi(username, password) {
-  return rawFetch('/login', {
+  const data = await rawFetch('/login', {
     method: 'POST',
     body: { username, password },
   });
+  // Reference: handleResponse does { user: JSON.parse(data.user), redirectUrl }
+  // Backend returns data.user as a JSON STRING that needs to be parsed
+  if (data && data.user) {
+    try {
+      const parsedUser = typeof data.user === 'string' ? JSON.parse(data.user) : data.user;
+      return { user: parsedUser, redirectUrl: data.redirectUrl };
+    } catch (e) {
+      console.error('Failed to parse user data:', e);
+      return data; // Fallback to original data if parsing fails
+    }
+  }
+  return data;
 }
 
 export async function logoutApi() {
