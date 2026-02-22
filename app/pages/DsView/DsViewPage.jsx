@@ -27,6 +27,7 @@ import useDsView from '../../hooks/useDsView';
 import useEditCell from '../../hooks/useEditCell';
 import { useInsertRow, useDeleteRow, useDeleteManyRows, useAddColumn, useDeleteColumn } from '../../hooks/useDsOperations';
 import useDatasetSocket from '../../hooks/useDatasetSocket';
+import useRefreshJira from '../../hooks/useRefreshJira';
 
 // Components
 import MyTabulator from '../../components/MyTabulator';
@@ -108,6 +109,7 @@ function DsViewPage() {
   const deleteManyRowsMutation = useDeleteManyRows(dsName, dsView, userId);
   const addColumnMutation = useAddColumn(dsName, dsView, userId);
   const deleteColumnMutation = useDeleteColumn(dsName, dsView, userId);
+  const refreshJiraMutation = useRefreshJira(dsName, dsView, userId);
 
   // Edit state
   const [editState, dispatchEdit] = useReducer(editReducer, initialEditState);
@@ -1013,6 +1015,48 @@ function DsViewPage() {
       setShowNotification(true);
     }
   }, [dsName, dsView, userId, deleteManyRowsMutation]);
+
+  // Refresh Jira handler - refreshes JIRA data for current view
+  // Reference: DsView.js lines 1625-1642
+  const handleRefreshJira = useCallback(() => {
+    const table = tabulatorRef.current?.table;
+    if (!table) return;
+
+    // Capture current header filters (matching reference implementation)
+    let initialHeaderFilter = table.getHeaderFilters();
+    
+    // Call refresh mutation
+    refreshJiraMutation.mutate(
+      {
+        dsName,
+        dsView,
+        dsUser: userId,
+      },
+      {
+        onSuccess: (result) => {
+          console.log('JIRA refresh successful:', result);
+          
+          setNotificationType('success');
+          setNotificationMessage('JIRA refresh successful');
+          setShowNotification(true);
+          
+          // Refresh table data (Tabulator preserves filter state automatically)
+          try { 
+            tabulatorRef.current?.table?.setData(); 
+          } catch (e) { 
+            console.error('Error refreshing table after JIRA refresh:', e); 
+          }
+        },
+        onError: (error) => {
+          console.error('refreshJira API error:', error);
+          
+          setNotificationType('error');
+          setNotificationMessage('JIRA refresh failed');
+          setShowNotification(true);
+        },
+      }
+    );
+  }, [dsName, dsView, userId, refreshJiraMutation]);
 
   // Check for concurrent edit conflicts - prevents editing cells locked by other users
   // Reference: DsView.js lines 567-577 (cellEditCheckForConflicts)
@@ -2351,6 +2395,26 @@ function DsViewPage() {
             <button className={styles.btnLink} onClick={handleAddRow}>
               <i className='fas fa-plus'></i> Add Row
             </button>
+            {/* Refresh Jira button - Reference: DsView.js lines 2150-2161 */}
+            {(() => {
+              try {
+                if ((viewConfig?.jiraConfig?.jira) || (viewConfig?.jiraAgileConfig?.jira)) {
+                  return (
+                    <>
+                      <span>|</span>
+                      <button 
+                        className={styles.btnLink} 
+                        onClick={handleRefreshJira}
+                        disabled={refreshJiraMutation.isPending}
+                      >
+                        <i className='fas fa-redo'></i> Refresh Jira
+                      </button>
+                    </>
+                  );
+                }
+              } catch (e) {}
+              return null;
+            })()}
           </div>
 
           {/* Settings checkboxes */}
