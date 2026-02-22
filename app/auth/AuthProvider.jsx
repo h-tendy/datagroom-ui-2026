@@ -52,6 +52,21 @@ export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(init);
   const [userId, setUserId] = useState(initUserId);
   
+  // Log previous login attempt result on mount (survives page reload)
+  useEffect(() => {
+    try {
+      const lastAttempt = sessionStorage.getItem('lastLoginAttempt');
+      const lastResult = sessionStorage.getItem('lastLoginResult');
+      if (lastAttempt || lastResult) {
+        console.log('=== Previous Login Info (from sessionStorage) ===');
+        if (lastAttempt) console.log('Last attempt:', JSON.parse(lastAttempt));
+        if (lastResult) console.log('Last result:', JSON.parse(lastResult));
+        console.log('Current localStorage.user exists:', !!localStorage.getItem('user'));
+        console.log('Current isAuthenticated:', isAuthenticated);
+      }
+    } catch (e) {}
+  }, []);
+  
   useEffect(() => {
     // Only validate session if we're authenticated AND have a valid token
     if (!isAuthenticated) return;
@@ -101,9 +116,11 @@ export function AuthProvider({ children }) {
 
   async function login(username, password) {
     console.log('[AuthProvider] Login attempt for user:', username);
+    sessionStorage.setItem('lastLoginAttempt', JSON.stringify({ username, time: new Date().toISOString() }));
     try {
       const obj = await loginApi(username, password);
       console.log('[AuthProvider] loginApi returned:', obj);
+      sessionStorage.setItem('lastLoginResult', JSON.stringify({ success: true, hasUser: !!obj?.user, hasToken: !!obj?.user?.token }));
       
       // loginApi now returns { user: parsedUserObject, redirectUrl }
       if (!obj || !obj.user) {
@@ -148,6 +165,7 @@ export function AuthProvider({ children }) {
       return true;
     } catch (err) {
       console.error('[AuthProvider] Login error:', err.message, err);
+      sessionStorage.setItem('lastLoginResult', JSON.stringify({ success: false, error: err.message }));
       return false;
     }
   }

@@ -73,22 +73,43 @@ export async function logoutApi() {
 
 export async function sessionCheckApi(user) {
   // Reference: user.service.js sessionCheck - includes authHeader() and user header
+  console.log('[sessionCheckApi] Called with user:', user);
   const authHeaders = getAuthHeaders();
+  console.log('[sessionCheckApi] Auth headers:', authHeaders);
   const headers = {
     ...authHeaders,
     'Content-Type': 'application/json',
     ...(user ? { user: user.user } : {})
   };
-  return rawFetch('/sessionCheck', { method: 'GET', headers });
+  console.log('[sessionCheckApi] Final headers to send:', headers);
+  console.log('[sessionCheckApi] localStorage.user exists:', !!localStorage.getItem('user'));
+  try {
+    const result = await rawFetch('/sessionCheck', { method: 'GET', headers });
+    console.log('[sessionCheckApi] Success:', result);
+    return result;
+  } catch (error) {
+    console.error('[sessionCheckApi] Failed:', error.message, 'Status:', error.status);
+    throw error;
+  }
 }
 
 function getAuthHeaders() {
+  console.log('[getAuthHeaders] Called');
   try {
     const raw = localStorage.getItem('user');
+    console.log('[getAuthHeaders] localStorage.user raw value:', raw ? raw.substring(0, 100) + '...' : 'NULL');
     if (!raw) return {};
     const u = JSON.parse(raw);
-    if (u && u.token) return { authorization: 'Bearer ' + u.token };
-  } catch (e) {}
+    console.log('[getAuthHeaders] Parsed user:', { hasToken: !!u.token, user: u.user });
+    if (u && u.token) {
+      const authHeader = { authorization: 'Bearer ' + u.token };
+      console.log('[getAuthHeaders] Returning auth header with token:', u.token.substring(0, 20) + '...');
+      return authHeader;
+    }
+  } catch (e) {
+    console.error('[getAuthHeaders] Error:', e);
+  }
+  console.log('[getAuthHeaders] Returning empty object (no token)');
   return {};
 }
 
