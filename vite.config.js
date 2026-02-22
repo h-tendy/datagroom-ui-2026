@@ -26,6 +26,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: [
+      'datagroom.infinera.com',
+      'localhost',
+      '.localhost',
+    ],
     proxy: {
       '/api': {
         target: API_TARGET,
