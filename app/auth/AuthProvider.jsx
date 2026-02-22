@@ -6,16 +6,75 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   let init = false;
   let initUserId = '';
+  let hasValidToken = false;
+  
   try {
     init = localStorage.getItem('isAuthenticated') === 'true';
     initUserId = localStorage.getItem('userId') || '';
+    
+    // Verify we have a valid token in localStorage
+    if (init) {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          hasValidToken = !!(user && user.token);
+          if (!hasValidToken) {
+            console.warn('No token found in localStorage, clearing auth state');
+            // Clear invalid auth state
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('userId');
+            init = false;
+            initUserId = '';
+          }
+        } catch (e) {
+          console.error('Failed to parse user from localStorage:', e);
+          // Clear corrupted data
+          localStorage.removeItem('user');
+          localStorage.removeItem('isAuthenticated');
+          localStorage.removeItem('userId');
+          init = false;
+          initUserId = '';
+        }
+      } else {
+        console.warn('isAuthenticated=true but no user in localStorage, clearing auth state');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('userId');
+        init = false;
+        initUserId = '';
+      }
+    }
   } catch (e) {
     init = false;
     initUserId = '';
   }
+  
   const [isAuthenticated, setIsAuthenticated] = useState(init);
   const [userId, setUserId] = useState(initUserId);
+  
   useEffect(() => {
+    // Only validate session if we're authenticated AND have a valid token
+    if (!isAuthenticated) return;
+    
+    // Double-check token exists before calling sessionCheck
+    let userToken = null;
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        userToken = user?.token;
+      }
+    } catch (e) {
+      console.error('Failed to get token from localStorage:', e);
+    }
+    
+    if (!userToken) {
+      console.warn('No token available for sessionCheck, logging out');
+      logout();
+      window.location.href = '/login';
+      return;
+    }
+    
     // validate session with backend on mount
     let mounted = true;
     (async function check() {
