@@ -18,7 +18,7 @@ function getAuthHeaders() {
 export async function uploadAttachment(formData) {
   const headers = getAuthHeaders();
   try {
-    const BASE = import.meta.env.VITE_API_BASE || '/api';
+    const BASE = import.meta.env.VITE_API_BASE || '';
     const res = await fetch(`${BASE}/uploadAttachments`, {
       method: 'POST',
       body: formData,

@@ -11,7 +11,7 @@ import { uploadXlsFile, bulkEditFromXls } from '../../api/ds';
 import '../DsView/DsViewSimple.css';
 import '../DsView/simpleStyles.css';
 
-const API_URL = import.meta.env.VITE_API_BASE || '/api';
+const API_URL = import.meta.env.VITE_API_BASE || '';
 
 function DsBulkEditForm() {
   const { dsName } = useParams();

@@ -42,7 +42,7 @@ md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
   return defaultLinkOpen(tokens, idx, options, env, self);
 };
 
-const API_URL = import.meta.env.VITE_API_BASE || '/api';
+const API_URL = import.meta.env.VITE_API_BASE || '';
 
 function DsAttachmentsForm() {
   const { dsName } = useParams();

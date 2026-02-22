@@ -28,7 +28,7 @@ export async function createDsFromDs(body) {
 export async function uploadXlsFile(formData) {
   const headers = getAuthHeaders();
   try {
-    const BASE = import.meta.env.VITE_API_BASE || '/api';
+    const BASE = import.meta.env.VITE_API_BASE || '';
     const res = await fetch(`${BASE}/upload`, {
       method: 'POST',
       body: formData,
@@ -55,7 +55,7 @@ export async function createDsFromXls(body) {
 export async function uploadCsvFile(formData) {
   const headers = getAuthHeaders();
   try {
-    const BASE = import.meta.env.VITE_API_BASE || '/api';
+    const BASE = import.meta.env.VITE_API_BASE || '';
     const res = await fetch(`${BASE}/uploadCsv`, {
       method: 'POST',
       body: formData,

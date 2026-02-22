@@ -31,6 +31,10 @@ export default defineConfig({
       'localhost',
       '.localhost',
     ],
+    // Development-only proxy: intercepts /api/* requests and forwards to backend
+    // The rewrite rule strips /api prefix since backend routes don't expect it
+    // In production builds, no proxy exists - requests go directly to backend routes
+    // Set VITE_API_BASE= (empty) in .env.production to avoid /api prefix
     proxy: {
       '/api': {
         target: API_TARGET,

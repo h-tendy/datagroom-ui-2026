@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_BASE || '/api';
+const BASE = import.meta.env.VITE_API_BASE || '';
 
 async function rawFetch(path, opts = {}) {
   const url = `${BASE}${path}`;
