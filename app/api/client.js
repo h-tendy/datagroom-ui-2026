@@ -37,22 +37,34 @@ export async function api(path, opts = {}) {
 
 // Specific helpers matching reference/user.service.js
 export async function loginApi(username, password) {
-  const data = await rawFetch('/login', {
-    method: 'POST',
-    body: { username, password },
-  });
-  // Reference: handleResponse does { user: JSON.parse(data.user), redirectUrl }
-  // Backend returns data.user as a JSON STRING that needs to be parsed
-  if (data && data.user) {
-    try {
-      const parsedUser = typeof data.user === 'string' ? JSON.parse(data.user) : data.user;
-      return { user: parsedUser, redirectUrl: data.redirectUrl };
-    } catch (e) {
-      console.error('Failed to parse user data:', e);
-      return data; // Fallback to original data if parsing fails
+  try {
+    console.log('[loginApi] Attempting login for user:', username);
+    const data = await rawFetch('/login', {
+      method: 'POST',
+      body: { username, password },
+    });
+    console.log('[loginApi] Login response received:', data);
+    
+    // Reference: handleResponse does { user: JSON.parse(data.user), redirectUrl }
+    // Backend returns data.user as a JSON STRING that needs to be parsed
+    if (data && data.user) {
+      try {
+        console.log('[loginApi] Parsing user data, type:', typeof data.user);
+        const parsedUser = typeof data.user === 'string' ? JSON.parse(data.user) : data.user;
+        console.log('[loginApi] User parsed successfully, has token:', !!parsedUser.token);
+        return { user: parsedUser, redirectUrl: data.redirectUrl };
+      } catch (e) {
+        console.error('[loginApi] Failed to parse user data:', e, 'Raw data.user:', data.user);
+        throw new Error('Failed to parse user data from server');
+      }
+    } else {
+      console.error('[loginApi] Response missing user field:', data);
+      throw new Error('Invalid login response from server');
     }
+  } catch (error) {
+    console.error('[loginApi] Login failed:', error.message);
+    throw error; // Re-throw so AuthProvider can handle it
   }
-  return data;
 }
 
 export async function logoutApi() {

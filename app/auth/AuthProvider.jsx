@@ -100,37 +100,54 @@ export function AuthProvider({ children }) {
   }, [isAuthenticated]);
 
   async function login(username, password) {
+    console.log('[AuthProvider] Login attempt for user:', username);
     try {
       const obj = await loginApi(username, password);
+      console.log('[AuthProvider] loginApi returned:', obj);
+      
       // loginApi now returns { user: parsedUserObject, redirectUrl }
       if (!obj || !obj.user) {
-        console.error('Login response missing user data');
+        console.error('[AuthProvider] Login response missing user data:', obj);
         return false;
       }
       const savedUser = obj.user;
       const savedUserId = savedUser.id || savedUser.username || username;
+      console.log('[AuthProvider] Extracted userId:', savedUserId, 'Has token:', !!savedUser.token);
       
       // Store user object with token (critical for Bearer auth)
       if (savedUser.token) {
-        localStorage.setItem('user', JSON.stringify(savedUser));
-        console.log('Login successful, token stored:', savedUser.token.substring(0, 20) + '...');
+        const userStr = JSON.stringify(savedUser);
+        localStorage.setItem('user', userStr);
+        console.log('[AuthProvider] Token stored in localStorage. Token preview:', savedUser.token.substring(0, 20) + '...');
+        
+        // Verify storage immediately
+        const verified = localStorage.getItem('user');
+        if (!verified) {
+          console.error('[AuthProvider] CRITICAL: Failed to store user in localStorage!');
+          return false;
+        }
+        console.log('[AuthProvider] localStorage verification passed');
       } else {
-        console.warn('Login response missing token!');
+        console.error('[AuthProvider] Login response missing token! User object:', savedUser);
         return false;
       }
       
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userId', savedUserId);
+      console.log('[AuthProvider] Auth state saved to localStorage');
+      
       setIsAuthenticated(true);
       setUserId(savedUserId);
+      console.log('[AuthProvider] Login successful!');
       
       // handle redirectUrl if provided by backend
       if (obj.redirectUrl) {
-        try { window.location.href = obj.redirectUrl; } catch (e) { /* ignore */ }
+        console.log('[AuthProvider] Redirecting to:', obj.redirectUrl);
+        try { window.location.href = obj.redirectUrl; } catch (e) { console.error('Redirect failed:', e); }
       }
       return true;
     } catch (err) {
-      console.error('Login failed', err);
+      console.error('[AuthProvider] Login error:', err.message, err);
       return false;
     }
   }
