@@ -15364,6 +15364,7 @@ _Tabulator.prototype.registerModule("keybindings", Keybindings);
 var Menu = function Menu(table) {
   this.table = table; //hold Tabulator object
   this.menuEl = false;
+  this.submenuEl = null;
   this.blurEvent = this.hideMenu.bind(this);
   this.escEvent = this.escMenu.bind(this);
   this.nestedMenuBlock = false;
@@ -15484,6 +15485,11 @@ Menu.prototype.loadMenu = function (e, component, menu) {
       itemEl.classList.add("tabulator-menu-separator");
     } else {
       itemEl.classList.add("tabulator-menu-item");
+
+      // Check if this item has a submenu
+      if (item.menu && item.menu.length) {
+        itemEl.classList.add("tabulator-menu-item-submenu");
+      }
       if (typeof label == "function") {
         label = label(component.getComponent());
       }
@@ -15501,10 +15507,20 @@ Menu.prototype.loadMenu = function (e, component, menu) {
           e.stopPropagation();
         });
       } else {
-        itemEl.addEventListener("click", e => {
-          this.hideMenu();
-          item.action(e, component.getComponent());
-        });
+        // If item has submenu, show it on mouseenter
+        if (item.menu && item.menu.length) {
+          itemEl.addEventListener("mouseenter", e => {
+            this.showSubmenu(e, itemEl, item.menu, component);
+          });
+          itemEl.addEventListener("click", e => {
+            e.stopPropagation();
+          });
+        } else {
+          itemEl.addEventListener("click", e => {
+            this.hideMenu();
+            item.action(e, component.getComponent());
+          });
+        }
       }
     }
     this.menuEl.appendChild(itemEl);
@@ -15531,6 +15547,73 @@ Menu.prototype.loadMenu = function (e, component, menu) {
     this.menuEl.style.bottom = docHeight - e.pageY + "px";
   }
 };
+Menu.prototype.showSubmenu = function (e, parentItem, submenu, component) {
+  // Remove any existing submenu
+  this.hideSubmenu();
+
+  // Create submenu element
+  var submenuEl = document.createElement("div");
+  submenuEl.classList.add("tabulator-menu");
+  submenuEl.classList.add("tabulator-menu-submenu");
+  submenu.forEach(item => {
+    var itemEl = document.createElement("div");
+    var label = item.label;
+    var disabled = item.disabled;
+    if (item.separator) {
+      itemEl.classList.add("tabulator-menu-separator");
+    } else {
+      itemEl.classList.add("tabulator-menu-item");
+      if (typeof label == "function") {
+        label = label(component.getComponent());
+      }
+      if (label instanceof Node) {
+        itemEl.appendChild(label);
+      } else {
+        itemEl.innerHTML = label;
+      }
+      if (typeof disabled == "function") {
+        disabled = disabled(component.getComponent());
+      }
+      if (disabled) {
+        itemEl.classList.add("tabulator-menu-item-disabled");
+        itemEl.addEventListener("click", e => {
+          e.stopPropagation();
+        });
+      } else {
+        itemEl.addEventListener("click", e => {
+          this.hideMenu();
+          item.action(e, component.getComponent());
+        });
+      }
+    }
+    submenuEl.appendChild(itemEl);
+  });
+
+  // Position submenu to the right of parent item
+  var parentRect = parentItem.getBoundingClientRect();
+  var docHeight = Math.max(document.body.offsetHeight, window.innerHeight);
+  submenuEl.style.position = "absolute";
+  submenuEl.style.left = parentRect.right + "px";
+  submenuEl.style.top = parentRect.top + "px";
+  document.body.appendChild(submenuEl);
+
+  // Adjust position if submenu goes off screen
+  if (parentRect.right + submenuEl.offsetWidth >= document.body.offsetWidth) {
+    submenuEl.style.left = parentRect.left - submenuEl.offsetWidth + "px";
+  }
+  if (parentRect.top + submenuEl.offsetHeight >= docHeight) {
+    submenuEl.style.top = docHeight - submenuEl.offsetHeight + "px";
+  }
+
+  // Store reference to submenu for cleanup
+  this.submenuEl = submenuEl;
+};
+Menu.prototype.hideSubmenu = function () {
+  if (this.submenuEl && this.submenuEl.parentNode) {
+    this.submenuEl.parentNode.removeChild(this.submenuEl);
+    this.submenuEl = null;
+  }
+};
 Menu.prototype.isOpen = function () {
   return !!this.menuEl.parentNode;
 };
@@ -15540,6 +15623,7 @@ Menu.prototype.escMenu = function (e) {
   }
 };
 Menu.prototype.hideMenu = function () {
+  this.hideSubmenu();
   if (this.menuEl.parentNode) {
     this.menuEl.parentNode.removeChild(this.menuEl);
   }

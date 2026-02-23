@@ -15464,6 +15464,7 @@
     var Menu = function Menu(table) {
       this.table = table; //hold Tabulator object
       this.menuEl = false;
+      this.submenuEl = null;
       this.blurEvent = this.hideMenu.bind(this);
       this.escEvent = this.escMenu.bind(this);
       this.nestedMenuBlock = false;
@@ -15587,6 +15588,11 @@
           itemEl.classList.add("tabulator-menu-separator");
         } else {
           itemEl.classList.add("tabulator-menu-item");
+
+          // Check if this item has a submenu
+          if (item.menu && item.menu.length) {
+            itemEl.classList.add("tabulator-menu-item-submenu");
+          }
           if (typeof label == "function") {
             label = label(component.getComponent());
           }
@@ -15604,10 +15610,20 @@
               e.stopPropagation();
             });
           } else {
-            itemEl.addEventListener("click", function (e) {
-              _this71.hideMenu();
-              item.action(e, component.getComponent());
-            });
+            // If item has submenu, show it on mouseenter
+            if (item.menu && item.menu.length) {
+              itemEl.addEventListener("mouseenter", function (e) {
+                _this71.showSubmenu(e, itemEl, item.menu, component);
+              });
+              itemEl.addEventListener("click", function (e) {
+                e.stopPropagation();
+              });
+            } else {
+              itemEl.addEventListener("click", function (e) {
+                _this71.hideMenu();
+                item.action(e, component.getComponent());
+              });
+            }
           }
         }
         _this71.menuEl.appendChild(itemEl);
@@ -15634,6 +15650,74 @@
         this.menuEl.style.bottom = docHeight - e.pageY + "px";
       }
     };
+    Menu.prototype.showSubmenu = function (e, parentItem, submenu, component) {
+      var _this72 = this;
+      // Remove any existing submenu
+      this.hideSubmenu();
+
+      // Create submenu element
+      var submenuEl = document.createElement("div");
+      submenuEl.classList.add("tabulator-menu");
+      submenuEl.classList.add("tabulator-menu-submenu");
+      submenu.forEach(function (item) {
+        var itemEl = document.createElement("div");
+        var label = item.label;
+        var disabled = item.disabled;
+        if (item.separator) {
+          itemEl.classList.add("tabulator-menu-separator");
+        } else {
+          itemEl.classList.add("tabulator-menu-item");
+          if (typeof label == "function") {
+            label = label(component.getComponent());
+          }
+          if (label instanceof Node) {
+            itemEl.appendChild(label);
+          } else {
+            itemEl.innerHTML = label;
+          }
+          if (typeof disabled == "function") {
+            disabled = disabled(component.getComponent());
+          }
+          if (disabled) {
+            itemEl.classList.add("tabulator-menu-item-disabled");
+            itemEl.addEventListener("click", function (e) {
+              e.stopPropagation();
+            });
+          } else {
+            itemEl.addEventListener("click", function (e) {
+              _this72.hideMenu();
+              item.action(e, component.getComponent());
+            });
+          }
+        }
+        submenuEl.appendChild(itemEl);
+      });
+
+      // Position submenu to the right of parent item
+      var parentRect = parentItem.getBoundingClientRect();
+      var docHeight = Math.max(document.body.offsetHeight, window.innerHeight);
+      submenuEl.style.position = "absolute";
+      submenuEl.style.left = parentRect.right + "px";
+      submenuEl.style.top = parentRect.top + "px";
+      document.body.appendChild(submenuEl);
+
+      // Adjust position if submenu goes off screen
+      if (parentRect.right + submenuEl.offsetWidth >= document.body.offsetWidth) {
+        submenuEl.style.left = parentRect.left - submenuEl.offsetWidth + "px";
+      }
+      if (parentRect.top + submenuEl.offsetHeight >= docHeight) {
+        submenuEl.style.top = docHeight - submenuEl.offsetHeight + "px";
+      }
+
+      // Store reference to submenu for cleanup
+      this.submenuEl = submenuEl;
+    };
+    Menu.prototype.hideSubmenu = function () {
+      if (this.submenuEl && this.submenuEl.parentNode) {
+        this.submenuEl.parentNode.removeChild(this.submenuEl);
+        this.submenuEl = null;
+      }
+    };
     Menu.prototype.isOpen = function () {
       return !!this.menuEl.parentNode;
     };
@@ -15643,6 +15727,7 @@
       }
     };
     Menu.prototype.hideMenu = function () {
+      this.hideSubmenu();
       if (this.menuEl.parentNode) {
         this.menuEl.parentNode.removeChild(this.menuEl);
       }
@@ -16241,7 +16326,7 @@
 
     //establish connection with other tables
     MoveRows.prototype.connectToTables = function (row) {
-      var _this72 = this;
+      var _this73 = this;
       var connectionTables;
       if (this.connectionSelectorsTables) {
         connectionTables = this.table.modules.comms.getConnections(this.connectionSelectorsTables);
@@ -16257,14 +16342,14 @@
         }
         this.connectionSelectorsElements.forEach(function (query) {
           if (typeof query === "string") {
-            _this72.connectionElements = _this72.connectionElements.concat(Array.prototype.slice.call(document.querySelectorAll(query)));
+            _this73.connectionElements = _this73.connectionElements.concat(Array.prototype.slice.call(document.querySelectorAll(query)));
           } else {
-            _this72.connectionElements.push(query);
+            _this73.connectionElements.push(query);
           }
         });
         this.connectionElements.forEach(function (element) {
           var dropEvent = function dropEvent(e) {
-            _this72.elementRowDrop(e, element, _this72.moving);
+            _this73.elementRowDrop(e, element, _this73.moving);
           };
           element.addEventListener("mouseup", dropEvent);
           element.tabulatorElementDropEvent = dropEvent;
@@ -16567,7 +16652,7 @@
       }
     };
     Page.prototype.generatePageSizeSelectList = function () {
-      var _this73 = this;
+      var _this74 = this;
       var pageSizes = [];
       if (this.pageSizeSelect) {
         if (Array.isArray(this.table.options.paginationSizeSelector)) {
@@ -16592,13 +16677,13 @@
           var itemEl = document.createElement("option");
           itemEl.value = item;
           if (item === true) {
-            _this73.table.modules.localize.bind("pagination|all", function (value) {
+            _this74.table.modules.localize.bind("pagination|all", function (value) {
               itemEl.innerHTML = value;
             });
           } else {
             itemEl.innerHTML = item;
           }
-          _this73.pageSizeSelect.appendChild(itemEl);
+          _this74.pageSizeSelect.appendChild(itemEl);
         });
         this.pageSizeSelect.value = this.size;
       }
@@ -16758,7 +16843,7 @@
 
     //set current page number
     Page.prototype.setPage = function (page) {
-      var _this74 = this;
+      var _this75 = this;
       var self = this;
       switch (page) {
         case "first":
@@ -16776,9 +16861,9 @@
       }
       return new Promise(function (resolve, reject) {
         page = parseInt(page);
-        if (page > 0 && page <= _this74.max) {
-          _this74.page = page;
-          _this74.trigger().then(function () {
+        if (page > 0 && page <= _this75.max) {
+          _this75.page = page;
+          _this75.trigger().then(function () {
             resolve();
           }).catch(function () {
             reject();
@@ -16787,19 +16872,19 @@
             self.table.modules.persistence.save("page");
           }
         } else {
-          console.warn("Pagination Error - Requested page is out of range of 1 - " + _this74.max + ":", page);
+          console.warn("Pagination Error - Requested page is out of range of 1 - " + _this75.max + ":", page);
           reject();
         }
       });
     };
     Page.prototype.setPageToRow = function (row) {
-      var _this75 = this;
+      var _this76 = this;
       return new Promise(function (resolve, reject) {
-        var rows = _this75.table.rowManager.getDisplayRows(_this75.displayIndex - 1);
+        var rows = _this76.table.rowManager.getDisplayRows(_this76.displayIndex - 1);
         var index = rows.indexOf(row);
         if (index > -1) {
-          var page = _this75.size === true ? 1 : Math.ceil((index + 1) / _this75.size);
-          _this75.setPage(page).then(function () {
+          var page = _this76.size === true ? 1 : Math.ceil((index + 1) / _this76.size);
+          _this76.setPage(page).then(function () {
             resolve();
           }).catch(function () {
             reject();
@@ -16878,17 +16963,17 @@
 
     //previous page
     Page.prototype.previousPage = function () {
-      var _this76 = this;
+      var _this77 = this;
       return new Promise(function (resolve, reject) {
-        if (_this76.page > 1) {
-          _this76.page--;
-          _this76.trigger().then(function () {
+        if (_this77.page > 1) {
+          _this77.page--;
+          _this77.trigger().then(function () {
             resolve();
           }).catch(function () {
             reject();
           });
-          if (_this76.table.options.persistence && _this76.table.modExists("persistence", true) && _this76.table.modules.persistence.config.page) {
-            _this76.table.modules.persistence.save("page");
+          if (_this77.table.options.persistence && _this77.table.modExists("persistence", true) && _this77.table.modules.persistence.config.page) {
+            _this77.table.modules.persistence.save("page");
           }
         } else {
           console.warn("Pagination Error - Previous page would be less than page 1:", 0);
@@ -16899,21 +16984,21 @@
 
     //next page
     Page.prototype.nextPage = function () {
-      var _this77 = this;
+      var _this78 = this;
       return new Promise(function (resolve, reject) {
-        if (_this77.page < _this77.max) {
-          _this77.page++;
-          _this77.trigger().then(function () {
+        if (_this78.page < _this78.max) {
+          _this78.page++;
+          _this78.trigger().then(function () {
             resolve();
           }).catch(function () {
             reject();
           });
-          if (_this77.table.options.persistence && _this77.table.modExists("persistence", true) && _this77.table.modules.persistence.config.page) {
-            _this77.table.modules.persistence.save("page");
+          if (_this78.table.options.persistence && _this78.table.modExists("persistence", true) && _this78.table.modules.persistence.config.page) {
+            _this78.table.modules.persistence.save("page");
           }
         } else {
-          if (!_this77.progressiveLoad) {
-            console.warn("Pagination Error - Next page would be greater than maximum page of " + _this77.max + ":", _this77.max + 1);
+          if (!_this78.progressiveLoad) {
+            console.warn("Pagination Error - Next page would be greater than maximum page of " + _this78.max + ":", _this78.max + 1);
           }
           reject();
         }
@@ -16961,35 +17046,35 @@
       }
     };
     Page.prototype.trigger = function () {
-      var _this78 = this;
+      var _this79 = this;
       var left;
       return new Promise(function (resolve, reject) {
-        switch (_this78.mode) {
+        switch (_this79.mode) {
           case "local":
-            left = _this78.table.rowManager.scrollLeft;
-            _this78.table.rowManager.refreshActiveData("page");
-            _this78.table.rowManager.scrollHorizontal(left);
-            _this78.table.options.pageLoaded.call(_this78.table, _this78.getPage());
+            left = _this79.table.rowManager.scrollLeft;
+            _this79.table.rowManager.refreshActiveData("page");
+            _this79.table.rowManager.scrollHorizontal(left);
+            _this79.table.options.pageLoaded.call(_this79.table, _this79.getPage());
             resolve();
             break;
           case "remote":
           case "progressive_load":
           case "progressive_scroll":
-            _this78.table.modules.ajax.blockActiveRequest();
-            _this78._getRemotePage().then(function () {
+            _this79.table.modules.ajax.blockActiveRequest();
+            _this79._getRemotePage().then(function () {
               resolve();
             }).catch(function () {
               reject();
             });
             break;
           default:
-            console.warn("Pagination Error - no such pagination mode:", _this78.mode);
+            console.warn("Pagination Error - no such pagination mode:", _this79.mode);
             reject();
         }
       });
     };
     Page.prototype._getRemotePage = function () {
-      var _this79 = this;
+      var _this80 = this;
       var self = this,
         oldParams,
         pageParams;
@@ -17003,29 +17088,29 @@
         pageParams = self.table.modules.ajax.getParams();
 
         //configure request params
-        pageParams[_this79.dataSentNames.page] = self.page;
+        pageParams[_this80.dataSentNames.page] = self.page;
 
         //set page size if defined
-        if (_this79.size) {
-          pageParams[_this79.dataSentNames.size] = _this79.size;
+        if (_this80.size) {
+          pageParams[_this80.dataSentNames.size] = _this80.size;
         }
 
         //set sort data if defined
-        if (_this79.table.options.ajaxSorting && _this79.table.modExists("sort")) {
+        if (_this80.table.options.ajaxSorting && _this80.table.modExists("sort")) {
           var sorters = self.table.modules.sort.getSort();
           sorters.forEach(function (item) {
             delete item.column;
           });
-          pageParams[_this79.dataSentNames.sorters] = sorters;
+          pageParams[_this80.dataSentNames.sorters] = sorters;
         }
 
         //set filter data if defined
-        if (_this79.table.options.ajaxFiltering && _this79.table.modExists("filter")) {
+        if (_this80.table.options.ajaxFiltering && _this80.table.modExists("filter")) {
           var filters = self.table.modules.filter.getFilters(true, true);
-          pageParams[_this79.dataSentNames.filters] = filters;
+          pageParams[_this80.dataSentNames.filters] = filters;
         }
         self.table.modules.ajax.setParams(pageParams);
-        self.table.modules.ajax.sendRequest(_this79.progressiveLoad).then(function (data) {
+        self.table.modules.ajax.sendRequest(_this80.progressiveLoad).then(function (data) {
           self._parseRemoteData(data);
           resolve();
         }).catch(function (e) {
@@ -18039,7 +18124,7 @@
       this.autoResize = false;
     };
     ResizeTable.prototype.initialize = function (row) {
-      var _this80 = this;
+      var _this81 = this;
       var table = this.table,
         tableStyle;
       this.tableHeight = table.element.clientHeight;
@@ -18054,12 +18139,12 @@
           if (!table.browserMobile || table.browserMobile && !table.modules.edit.currentCell) {
             var nodeHeight = Math.floor(entry[0].contentRect.height);
             var nodeWidth = Math.floor(entry[0].contentRect.width);
-            if (_this80.tableHeight != nodeHeight || _this80.tableWidth != nodeWidth) {
-              _this80.tableHeight = nodeHeight;
-              _this80.tableWidth = nodeWidth;
+            if (_this81.tableHeight != nodeHeight || _this81.tableWidth != nodeWidth) {
+              _this81.tableHeight = nodeHeight;
+              _this81.tableWidth = nodeWidth;
               if (table.element.parentNode) {
-                _this80.containerHeight = table.element.parentNode.clientHeight;
-                _this80.containerWidth = table.element.parentNode.clientWidth;
+                _this81.containerHeight = table.element.parentNode.clientHeight;
+                _this81.containerWidth = table.element.parentNode.clientWidth;
               }
               if (table.options.virtualDomHoz) {
                 table.vdomHoz.reinitialize(true);
@@ -18075,11 +18160,11 @@
             if (!table.browserMobile || table.browserMobile && !table.modules.edit.currentCell) {
               var nodeHeight = Math.floor(entry[0].contentRect.height);
               var nodeWidth = Math.floor(entry[0].contentRect.width);
-              if (_this80.containerHeight != nodeHeight || _this80.containerWidth != nodeWidth) {
-                _this80.containerHeight = nodeHeight;
-                _this80.containerWidth = nodeWidth;
-                _this80.tableHeight = table.element.clientHeight;
-                _this80.tableWidth = table.element.clientWidth;
+              if (_this81.containerHeight != nodeHeight || _this81.containerWidth != nodeWidth) {
+                _this81.containerHeight = nodeHeight;
+                _this81.containerWidth = nodeWidth;
+                _this81.tableHeight = table.element.clientHeight;
+                _this81.tableWidth = table.element.clientWidth;
               }
               if (table.options.virtualDomHoz) {
                 table.vdomHoz.reinitialize(true);
@@ -18505,12 +18590,12 @@
 
     //select a number of rows
     SelectRow.prototype.selectRows = function (rows) {
-      var _this81 = this;
+      var _this82 = this;
       var rowMatch;
       switch (_typeof(rows)) {
         case "undefined":
           this.table.rowManager.rows.forEach(function (row) {
-            _this81._selectRow(row, true, true);
+            _this82._selectRow(row, true, true);
           });
           this._rowSelectionChanged();
           break;
@@ -18520,7 +18605,7 @@
             this._selectRow(rowMatch, true, true);
           } else {
             this.table.rowManager.getRows(rows).forEach(function (row) {
-              _this81._selectRow(row, true, true);
+              _this82._selectRow(row, true, true);
             });
           }
           this._rowSelectionChanged();
@@ -18528,7 +18613,7 @@
         default:
           if (Array.isArray(rows)) {
             rows.forEach(function (row) {
-              _this81._selectRow(row, true, true);
+              _this82._selectRow(row, true, true);
             });
             this._rowSelectionChanged();
           } else {
@@ -18973,13 +19058,13 @@
 
     //sort each item in sort list
     Sort.prototype._sortItems = function (data, sortList) {
-      var _this82 = this;
+      var _this83 = this;
       var sorterCount = sortList.length - 1;
       data.sort(function (a, b) {
         var result;
         for (var i = sorterCount; i >= 0; i--) {
           var sortItem = sortList[i];
-          result = _this82._sortRow(a, b, sortItem.column, sortItem.dir, sortItem.params);
+          result = _this83._sortRow(a, b, sortItem.column, sortItem.dir, sortItem.params);
           if (result !== 0) {
             break;
           }
