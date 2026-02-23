@@ -108,8 +108,17 @@ export function collectCurrentFilterState(tabulatorRef) {
     };
   }
   
-  // Collect header filters
-  const hdrFilters = tabulatorRef.table.getHeaderFilters();
+  // Collect header filters - sanitize to remove circular references
+  const hdrFiltersTmp = tabulatorRef.table.getHeaderFilters();
+  const hdrFilters = [];
+  for (let i = 0; i < hdrFiltersTmp.length; i++) {
+    const hf = hdrFiltersTmp[i];
+    hdrFilters.push({
+      field: hf.field,
+      value: hf.value,
+      type: hf.type
+    });
+  }
   
   // Collect sorters
   const hdrSortersTmp = tabulatorRef.table.getSorters();

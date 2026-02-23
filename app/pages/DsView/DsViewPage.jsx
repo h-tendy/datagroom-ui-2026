@@ -629,27 +629,33 @@ function DsViewPage() {
       console.log('[FILTER-EFFECT] Filter data for', filterParam, ':', filterData ? 'FOUND' : 'NOT FOUND');
       
       if (filterData) {
-        // Deep clone filter data
+        // Sanitize and deep clone filter data
         try {
-          const hdrFilters = JSON.parse(JSON.stringify(filterData.hdrFilters || []));
-          const hdrSorters = JSON.parse(JSON.stringify(filterData.hdrSorters || []));
+          // Sanitize hdrFilters to remove any circular references from Tabulator objects
+          const rawHdrFilters = filterData.hdrFilters || [];
+          const hdrFilters = Array.isArray(rawHdrFilters) 
+            ? rawHdrFilters.map(hf => ({
+                field: hf.field,
+                value: hf.value,
+                type: hf.type
+              }))
+            : [];
+          
+          // Sanitize hdrSorters to remove any circular references from Tabulator objects
+          const rawHdrSorters = filterData.hdrSorters || [];
+          const hdrSorters = Array.isArray(rawHdrSorters)
+            ? rawHdrSorters.map(hs => ({
+                column: typeof hs.column === 'string' ? hs.column : hs.field,
+                dir: hs.dir
+              }))
+            : [];
+          
+          // Column attributes should be safe, but deep clone anyway
           const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
           
-          // Only update state if the filter data has actually changed
-          const currentFilterState = JSON.stringify({
-            filter: filter,
-            hdrFilters: initialHeaderFilter,
-            hdrSorters: initialSort,
-            colAttrs: filterColumnAttrs
-          });
-          const newFilterState = JSON.stringify({
-            filter: filterParam,
-            hdrFilters,
-            hdrSorters,
-            colAttrs
-          });
-          
-          if (currentFilterState !== newFilterState) {
+          // Only update state if the filter name has changed
+          // (Avoid deep comparison to prevent circular reference issues)
+          if (filter !== filterParam) {
             console.log('[FILTER] Applying filter from URL:', filterParam);
             setFilter(filterParam);
             setInitialHeaderFilter(hdrFilters);
