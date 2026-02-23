@@ -14,6 +14,64 @@ export default function createDomHelpers(context) {
     if (document.getElementById("tabulator")) {
       splElements = document.getElementById("tabulator").getElementsByTagName('a');
     }
+    
+    // Add a document-level mousedown handler to catch link clicks as early as possible
+    // Remove previous handler if exists
+    if (document._linkMousedownHandler) {
+      document.removeEventListener("mousedown", document._linkMousedownHandler, true);
+    }
+    
+    // Create new handler for links
+    const linkMousedownHandler = function(e) {
+      const target = e.target;
+      // Check if click is on an anchor tag or its child elements
+      if (target) {
+        const isLink = target.tagName && target.tagName.toLowerCase() === 'a';
+        const parentLink = target.closest && target.closest('a');
+        
+        const linkElement = isLink ? target : parentLink;
+        
+        if (linkElement) {
+          // Check if the link is inside the tabulator table
+          // Try multiple selectors since the React version may use different IDs
+          const tabulatorEl = document.getElementById("tabulator") || 
+                              document.querySelector(".tabulator") ||
+                              document.querySelector("[role='grid']");
+          const isInsideTabulator = tabulatorEl && tabulatorEl.contains(linkElement);
+          
+          if (isInsideTabulator) {
+            // Set flag immediately
+            if (mouseDownOnHtmlLinkRef) {
+              mouseDownOnHtmlLinkRef.current = true;
+            }
+            // Prevent the event from bubbling to prevent cell from getting focus
+            e.stopPropagation();
+            // Also prevent default to stop the focus shift that happens after link navigation
+            e.preventDefault();
+            
+            // Manually open the link in a new tab since we prevented default
+            const href = linkElement.getAttribute('href');
+            if (href) {
+              window.open(href, linkElement.getAttribute('target') || '_blank');
+            }
+            
+            // Clear flag after a second
+            setTimeout(() => {
+              if (mouseDownOnHtmlLinkRef) {
+                mouseDownOnHtmlLinkRef.current = false;
+              }
+            }, 1000);
+          }
+        }
+      }
+    };
+    
+    // Store handler reference for cleanup
+    document._linkMousedownHandler = linkMousedownHandler;
+    
+    // Add handler in capture phase at document level to catch it as early as possible
+    document.addEventListener("mousedown", linkMousedownHandler, true);
+    
     for (var i = 0, len = splElements.length; i < len; i++) {
       splElements[i].onclick = function (e) {
         if (mouseDownOnHtmlLinkRef) mouseDownOnHtmlLinkRef.current = true;
