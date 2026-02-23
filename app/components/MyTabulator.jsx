@@ -17,8 +17,9 @@ class MyTabulator extends Component {
         const forceRefreshChanged = this.props.options.forceRefresh !== nextProps.options.forceRefresh;
         const heightChanged = this.props.options.height !== nextProps.options.height;
         const columnsChanged = this.props.columns !== nextProps.columns;
+        const themeChanged = this.props.options.currentTheme !== nextProps.options.currentTheme;
         
-        const shouldUpdate = pageSizeChanged || chronologyChanged || forceRefreshChanged || heightChanged || columnsChanged;
+        const shouldUpdate = pageSizeChanged || chronologyChanged || forceRefreshChanged || heightChanged || columnsChanged || themeChanged;
         
         if (shouldUpdate) {
             console.log('[DEBUG REFRESH] \u26a0\ufe0f MyTabulator shouldComponentUpdate = TRUE - Table will re-render!', {
@@ -27,6 +28,7 @@ class MyTabulator extends Component {
                 forceRefreshChanged,
                 heightChanged,
                 columnsChanged,
+                themeChanged,
                 oldColumns: this.props.columns?.length,
                 newColumns: nextProps.columns?.length,
                 timestamp: new Date().toISOString()

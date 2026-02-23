@@ -135,6 +135,10 @@ function DsViewPage() {
   const [totalRecs, setTotalRecs] = useState(0);
   const [moreMatchingDocs, setMoreMatchingDocs] = useState(false);
   const [_id, set_id] = useState('');
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    // Detect initial theme from localStorage
+    return localStorage.getItem('theme') || 'light';
+  });
   
   // Column resize tracking ref
   const columnResizedRecentlyRef = useRef(false);
@@ -325,6 +329,27 @@ function DsViewPage() {
   useEffect(() => { fetchAllMatchingRecordsRef.current = fetchAllMatchingRecords; }, [fetchAllMatchingRecords]);
   const chronologyDescendingRef = useRef(chronologyDescending);
   useEffect(() => { chronologyDescendingRef.current = chronologyDescending; }, [chronologyDescending]);
+
+  // Listen for theme changes to re-render table with new colors
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const newTheme = localStorage.getItem('theme') || 'light';
+      if (newTheme !== currentTheme) {
+        setCurrentTheme(newTheme);
+      }
+    };
+    
+    // Poll for theme changes (fallback if storage event doesn't fire)
+    const interval = setInterval(handleThemeChange, 500);
+    
+    // Listen for storage events (works across tabs)
+    window.addEventListener('storage', handleThemeChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleThemeChange);
+    };
+  }, [currentTheme]);
 
   // Process URL parameters for chronologyDescending
   // Reference: DsView.js lines 343-345, 439
@@ -2544,6 +2569,7 @@ function DsViewPage() {
               cellClick: cellClickEvents,
               cellDblClick: cellClickEvents,
               forceRefresh: forceRefresh, // Triggers shouldComponentUpdate
+              currentTheme: currentTheme, // Triggers shouldComponentUpdate on theme change
               _id: _id, // Triggers shouldComponentUpdate when single-row mode changes
               ajaxURL: `${API_URL}/ds/view/${dsName}/${dsView}/${userId}${_id ? `/${_id}` : ''}`,
               ajaxURLGenerator: ajaxURLGenerator,
