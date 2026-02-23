@@ -1184,6 +1184,18 @@ function DsViewPage() {
       // Check if cell is locked by another user
       if (isCellLocked(_id, field)) {
         console.log('[cellEditCheckForConflicts] ❌ Cell is locked by another user');
+        // CRITICAL FIX: Blur the cell element to prevent it from retaining focus
+        // This ensures that when the cell is unlocked later, it won't automatically
+        // enter edit mode due to having focus
+        try {
+          const cellElement = cell.getElement();
+          if (cellElement && document.activeElement === cellElement) {
+            cellElement.blur();
+            console.log('[cellEditCheckForConflicts] 🔓 Blurred locked cell to prevent auto-edit on unlock');
+          }
+        } catch (blurError) {
+          console.warn('[cellEditCheckForConflicts] Could not blur cell:', blurError);
+        }
         return false; // Block editing - cell is locked
       }
     } catch (e) {

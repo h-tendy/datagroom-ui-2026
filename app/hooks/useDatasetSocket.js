@@ -161,6 +161,17 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
             delete lockedCellsRef.current[unlockedObj._id][unlockedObj.field];
           }
           
+          // CRITICAL FIX: Blur the cell if it has focus to prevent auto-edit on unlock
+          try {
+            const cellElement = cell.getElement();
+            if (cellElement && document.activeElement === cellElement) {
+              cellElement.blur();
+              console.log('[Socket unlocked] Blurred cell to prevent auto-edit after unlock');
+            }
+          } catch (blurError) {
+            console.warn('[Socket unlocked] Could not blur cell:', blurError);
+          }
+          
           // Clear background and re-apply formatter BEFORE updateData
           // (updateData will recreate the cell, making current reference stale)
           cell.getElement().style.backgroundColor = '';
@@ -172,7 +183,19 @@ export function useDatasetSocket(dsName, dsView, user, tabulatorRef, options = {
           // Update cell value if provided (after clearing styling)
           if (unlockedObj.newVal !== undefined && unlockedObj.newVal !== null) {
             const update = { _id: unlockedObj._id, [unlockedObj.field]: unlockedObj.newVal };
+            
+            // CRITICAL FIX: Temporarily disable cell editor before updateData to prevent
+            // automatic entry into edit mode when cell is unlocked
+            const originalEditor = colDef.editor;
+            colDef.editor = false;
+            
             tabulatorRef.current.table.updateData([update]);
+            
+            // Restore editor after updateData completes
+            // Use setTimeout to ensure updateData has fully processed
+            setTimeout(() => {
+              colDef.editor = originalEditor;
+            }, 0);
           }
           
           // Callback for additional processing
