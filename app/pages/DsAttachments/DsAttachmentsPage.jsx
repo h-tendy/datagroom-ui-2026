@@ -11,11 +11,13 @@ import mditHighlightjs from 'markdown-it-highlightjs';
 import { useAuth } from '../../auth/AuthProvider';
 import SidebarLayout from '../../SidebarLayout';
 import MyTabulator from '../../components/MyTabulator';
+import styles from '../DsView/DsViewPage.module.css';
 import Modal from '../DsView/components/Modal';
 import { uploadAttachment, deleteOneAttachment } from '../../api/uploads';
 
 // Import existing styles from DsView
 import '../DsView/DsViewSimple.css';
+import '../DsView/solarized-light.css';
 import '../DsView/simpleStyles.css';
 
 // Initialize markdown-it with plugins (matching reference DsAttachments.js lines 12-34)
@@ -67,6 +69,9 @@ function DsAttachmentsForm() {
     }
   });
   const [columns, setColumns] = useState([]);
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
   
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -114,6 +119,27 @@ function DsAttachmentsForm() {
       alert('Delete failed: ' + error.message);
     }
   });
+  
+  // Listen for theme changes
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'theme') {
+        setCurrentTheme(e.newValue || 'light');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check for theme changes via polling (for same-window changes)
+    const interval = setInterval(() => {
+      const theme = localStorage.getItem('theme') || 'light';
+      setCurrentTheme(prev => prev !== theme ? theme : prev);
+    }, 500);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
   
   // File select handler - Reference: DsAttachments.js lines 102-138
   const onFileSelect = useCallback(async (event) => {
@@ -299,7 +325,7 @@ function DsAttachmentsForm() {
   }, [showAllFilters]); // Only when showAllFilters changes
   
   return (
-    <div>
+    <div className={styles.container}>
       <Row>
         <Col md={12} sm={12} xs={12}> 
           <h3 style={{ float: 'center' }}>
@@ -357,6 +383,7 @@ function DsAttachmentsForm() {
             columns={columns}
             data={[]}
             options={{
+              currentTheme: currentTheme, // Triggers shouldComponentUpdate on theme change
               ajaxURL: `${API_URL}/ds/view/attachments/${dsName}/${dsView}/${userId}`,
               ajaxConfig: {
                 headers: {

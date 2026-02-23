@@ -3,11 +3,14 @@ import { useParams } from 'react-router-dom';
 import { Row, Col, Form, Button } from 'react-bootstrap';
 import { useAuth } from '../../auth/AuthProvider';
 import MyTabulator from '../../components/MyTabulator';
+import styles from '../DsView/DsViewPage.module.css';
 import Select from 'react-select';
 import { validateExpr } from '../../components/editors/QueryParsers';
 import AccessCtrl from './components/AccessCtrl';
 import PerRowAccessCtrl from './components/PerRowAccessCtrl';
 
+import '../DsView/DsViewSimple.css';
+import '../DsView/solarized-light.css';
 import '../DsView/simpleStyles.css';
 
 // API base URL configuration
@@ -58,6 +61,9 @@ function DsViewEditPage() {
   const [forceRender, setForceRender] = useState(0);
   const [widths, setWidths] = useState({});
   const [tableColumns, setTableColumns] = useState([]);
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
   
   const tabulatorRef = useRef(null);
   const editorsRef = useRef({});
@@ -68,6 +74,27 @@ function DsViewEditPage() {
   useEffect(() => {
     document.title = `Edit-view: ${dsName}`;
   }, [dsName]);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'theme') {
+        setCurrentTheme(e.newValue || 'light');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check for theme changes via polling (for same-window changes)
+    const interval = setInterval(() => {
+      const theme = localStorage.getItem('theme') || 'light';
+      setCurrentTheme(prev => prev !== theme ? theme : prev);
+    }, 500);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Load column definitions on mount
   useEffect(() => {
@@ -1023,7 +1050,7 @@ function DsViewEditPage() {
   }
 
   return (
-    <div>
+    <div className={styles.container}>
       <Row>
         <Col md={12} sm={12} xs={12}>
           <h3 style={{ float: 'center' }}>Dataset view: {dsName} | {dsView}</h3>
@@ -1300,11 +1327,18 @@ function DsViewEditPage() {
                 index: "_id",
                 ajaxSorting: true,
                 ajaxFiltering: true,
+                currentTheme: currentTheme, // Triggers shouldComponentUpdate on theme change
                 rowFormatter: (row) => {
+                  const rootStyles = getComputedStyle(document.documentElement);
+                  const rowElement = row.getElement();
+                  
                   if (!row.getData()._id) {
-                    row.getElement().style.backgroundColor = "lightGray";
+                    // New unsaved row - use text-muted color with transparency
+                    const mutedColor = rootStyles.getPropertyValue('--color-text-muted').trim();
+                    rowElement.style.backgroundColor = `${mutedColor}33`; // 33 = ~20% opacity in hex
                   } else {
-                    row.getElement().style.backgroundColor = "white";
+                    // Saved row - use normal background color from theme
+                    rowElement.style.backgroundColor = rootStyles.getPropertyValue('--color-bg').trim();
                   }
                 },
                 renderComplete: renderComplete,

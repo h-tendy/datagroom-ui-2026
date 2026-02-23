@@ -55,6 +55,9 @@ function DsEditLogPage() {
   const [totalRecs, setTotalRecs] = useState(0);
   const [showAllFilters, setShowAllFilters] = useState(false);
   const [columns, setColumns] = useState([]);
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
 
   // Ref to Tabulator instance
   const tabulatorRef = useRef(null);
@@ -63,6 +66,27 @@ function DsEditLogPage() {
   React.useEffect(() => {
     document.title = `Edit-log: ${dsName}`;
   }, [dsName]);
+
+  // Listen for theme changes
+  React.useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'theme') {
+        setCurrentTheme(e.newValue || 'light');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check for theme changes via polling (for same-window changes)
+    const interval = setInterval(() => {
+      const theme = localStorage.getItem('theme') || 'light';
+      setCurrentTheme(prev => prev !== theme ? theme : prev);
+    }, 500);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   /**
    * ajaxResponse callback - captures total record count from server response
@@ -277,6 +301,7 @@ function DsEditLogPage() {
             columns={columns}
             data={[]}
             options={{
+              currentTheme: currentTheme, // Triggers shouldComponentUpdate on theme change
               ajaxURL: `${API_URL}/ds/view/editLog/${dsName}/${dsView}/${userId}`,
               ajaxConfig: {
                 headers: {
