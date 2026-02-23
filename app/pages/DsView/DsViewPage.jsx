@@ -1364,11 +1364,11 @@ function DsViewPage() {
 
     console.log('[handleCellEditing] ✅ Emitting lock and allowing edit', { _id, field });
     // Emit lock event to notify other users
-    emitLock({ dsName, _id, field, user: auth.user?.user });
+    emitLock({ dsName, _id, field, user: auth.userId || userId });
     cellImEditingRef.current = cell;
 
     return true; // Allow edit
-  }, [dsName, isCellLocked, emitLock, auth.user]);
+  }, [dsName, isCellLocked, emitLock, auth.userId, userId]);
 
   // Cell edit cancelled handler
   const handleCellEditCancelled = useCallback((cell) => {
@@ -1379,7 +1379,7 @@ function DsViewPage() {
     // Skip unlocking for new rows (no _id yet)
     if (_id) {
       // Emit unlock when edit is cancelled (e.g., Escape key)
-      emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
+      emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.userId || userId });
     }
     cellImEditingRef.current = null;
     
@@ -1502,7 +1502,7 @@ function DsViewPage() {
 
     if (newVal === oldVal) {
       // No change, just unlock
-      emitUnlock({ dsName, _id, field, newVal, user: auth.user?.user });
+      emitUnlock({ dsName, _id, field, newVal, user: auth.userId || userId });
       cellImEditingRef.current = null;
       return;
     }
@@ -1542,7 +1542,7 @@ function DsViewPage() {
           });
           
           // Emit unlock with new value
-          emitUnlock({ dsName, _id, field, newVal, user: auth.user?.user });
+          emitUnlock({ dsName, _id, field, newVal, user: auth.userId || userId });
           cellImEditingRef.current = null;
 
           // Show success notification
@@ -1576,7 +1576,7 @@ function DsViewPage() {
           // so we don't need to do anything
 
           // Emit unlock
-          emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.user?.user });
+          emitUnlock({ dsName, _id, field, newVal: oldVal, user: auth.userId || userId });
           cellImEditingRef.current = null;
 
           // Show error notification
@@ -1586,7 +1586,7 @@ function DsViewPage() {
         },
       }
     );
-  }, [dsName, dsView, userId, viewConfig, editCellMutation, insertRowMutation, emitUnlock, auth.user]);
+  }, [dsName, dsView, userId, viewConfig, editCellMutation, insertRowMutation, emitUnlock, auth.userId]);
 
   // Add row handler
   // Reference: DsView.js lines 867-896
@@ -1627,7 +1627,14 @@ function DsViewPage() {
         cell = args[1];
       }
     } else if (args.length === 1) {
-      data = args[0];
+      // Could be event (from button click) or data object
+      if (args[0] && typeof args[0] === 'object' && ('preventDefault' in args[0] || 'target' in args[0] || 'nativeEvent' in args[0])) {
+        // This is an event from button click, not data
+        e = args[0];
+        data = null;
+      } else {
+        data = args[0];
+      }
     }
 
     // If no data provided, create empty row
@@ -1635,17 +1642,41 @@ function DsViewPage() {
       data = {};
       try {
         if (viewConfig?.perRowAccessConfig?.enabled && viewConfig?.perRowAccessConfig?.column) {
-          data[viewConfig.perRowAccessConfig.column] = auth.user?.user;
+          // Use userId string instead of auth.user object to avoid circular references
+          // Explicitly create a new string to avoid any reference issues
+          data[viewConfig.perRowAccessConfig.column] = String(auth.userId || userId || '');
         }
       } catch (err) {
         console.error('Error setting per-row access:', err);
       }
+    } else {
+      // If data was provided, create a deep copy to avoid any reference issues
+      try {
+        data = JSON.parse(JSON.stringify(data));
+      } catch (err) {
+        console.error('Error cloning data:', err);
+        // If JSON parse fails, create a new object with string values only
+        const cleanData = {};
+        for (const key in data) {
+          if (data.hasOwnProperty(key) && typeof data[key] !== 'function' && typeof data[key] !== 'object') {
+            cleanData[key] = data[key];
+          } else if (typeof data[key] === 'object' && data[key] !== null) {
+            try {
+              cleanData[key] = JSON.parse(JSON.stringify(data[key]));
+            } catch (e) {
+              // Skip this field if it can't be serialized
+              console.warn(`Skipping field ${key} due to serialization error`);
+            }
+          }
+        }
+        data = cleanData;
+      }
     }
 
-    // Determine row index from cell if provided (pass Row object)
-    let rowIdx = null;
-    if (cell) {
-      rowIdx = cell.getRow();
+    // Determine row component from cell if provided
+    let rowComponent = null;
+    if (cell && typeof cell.getRow === 'function') {
+      rowComponent = cell.getRow();
     }
 
     // Default position to top (true) if not specified
@@ -1653,15 +1684,39 @@ function DsViewPage() {
 
     // Add row to Tabulator (no _id yet, will be added by backend later)
     try {
-      let row = await tabulatorRef.current.table.addRow(data, pos, rowIdx);
+      console.log('[handleAddRow] About to call addRow with:', { 
+        dataKeys: Object.keys(data),
+        dataValues: Object.values(data),
+        pos, 
+        hasRowComponent: !!rowComponent,
+      });
+      // Verify data is serializable
+      try {
+        JSON.stringify(data);
+        console.log('[handleAddRow] ✓ Data is serializable');
+      } catch (e) {
+        console.error('[handleAddRow] ✗ Data has circular reference:', e);
+        throw new Error('Data contains circular reference');
+      }
+      
+      // Only pass rowComponent if it exists and we have a non-boolean position
+      let row;
+      if (rowComponent) {
+        row = await tabulatorRef.current.table.addRow(data, pos, rowComponent);
+      } else {
+        // For top button clicks, just pass data and position
+        row = await tabulatorRef.current.table.addRow(data, pos);
+      }
+      console.log('[handleAddRow] ✓ Row added successfully');
       return row;
     } catch (error) {
-      console.error('Error adding row to table:', error);
+      console.error('[handleAddRow] Error adding row to table:', error);
+      console.error('[handleAddRow] Full error:', error.stack);
       setNotificationType('error');
-      setNotificationMessage('Failed to add row to table');
+      setNotificationMessage(`Failed to add row: ${error.message}`);
       setShowNotification(true);
     }
-  }, [tabulatorRef, viewConfig, auth.user]);
+  }, [tabulatorRef, viewConfig, auth.userId, userId]);
 
   // Copy to clipboard handler
   const handleCopyToClipboard = useCallback(() => {
