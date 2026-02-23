@@ -48,6 +48,56 @@
   background-color: var(--color-bg-light) !important;
 }
 
+/* CodeMirror syntax highlighting - theme-aware colors */
+.cm-s-default .cm-keyword { color: #c792ea !important; }
+.cm-s-default .cm-atom { color: #f78c6c !important; }
+.cm-s-default .cm-number { color: #f78c6c !important; }
+.cm-s-default .cm-def { color: #82aaff !important; }
+.cm-s-default .cm-variable-2 { color: #89ddff !important; }
+.cm-s-default .cm-variable-3, .cm-s-default .cm-type { color: #ffcb6b !important; }
+.cm-s-default .cm-comment { color: #676e95 !important; }
+.cm-s-default .cm-string { color: #c3e88d !important; }
+.cm-s-default .cm-string-2 { color: #f07178 !important; }
+.cm-s-default .cm-meta { color: #89ddff !important; }
+.cm-s-default .cm-qualifier { color: #89ddff !important; }
+.cm-s-default .cm-builtin { color: #c792ea !important; }
+.cm-s-default .cm-bracket { color: var(--color-text) !important; }
+.cm-s-default .cm-tag { color: #f07178 !important; }
+.cm-s-default .cm-attribute { color: #c792ea !important; }
+.cm-s-default .cm-hr { color: var(--color-text-muted) !important; }
+.cm-s-default .cm-link { color: #89ddff !important; }
+.cm-s-default .cm-error { color: #ff5370 !important; }
+
+/* Autocomplete dropdown - theme-aware colors */
+.tabulator-edit-select-list {
+  background: var(--color-bg-light) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.tabulator-edit-select-list .tabulator-edit-select-list-item {
+  color: var(--color-text) !important;
+}
+
+.tabulator-edit-select-list .tabulator-edit-select-list-item.active {
+  color: var(--color-bg) !important;
+  background: var(--color-primary) !important;
+}
+
+.tabulator-edit-select-list .tabulator-edit-select-list-item:hover {
+  color: var(--color-bg) !important;
+  background: var(--color-primary) !important;
+}
+
+.tabulator-edit-select-list .tabulator-edit-select-list-notice {
+  color: var(--color-text-muted) !important;
+}
+
+.tabulator-edit-select-list .tabulator-edit-select-list-group {
+  border-bottom: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
 /* For revealjs integration. Don't remove! */
 .slide {
 }
@@ -57,7 +107,7 @@ h5 {
 }
 
 h1, h2 {
-  color: black !important;
+  color: var(--color-text) !important;
 }
 /* Without the below, clipboard always used to have dark background, 
 from god knows where. Finally decided to try this approach
@@ -315,7 +365,37 @@ table th {
   
 /* https://stackoverflow.com/questions/65409348/html-input-date-how-to-decrease-space-between-date-and-icon */
 ::-webkit-calendar-picker-indicator{
-  margin-left: -25px;
+  cursor: pointer;
+  filter: var(--date-picker-filter, invert(0));
+}
+
+/* Date input - theme-aware colors */
+input[type="date"] {
+  background-color: var(--color-bg) !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+  color-scheme: var(--date-picker-color-scheme, light);
+}
+
+/* Dark theme date picker */
+:root {
+  --date-picker-filter: invert(1);
+  --date-picker-color-scheme: dark;
+}
+
+:root.light-theme {
+  --date-picker-filter: invert(0);
+  --date-picker-color-scheme: light;
+}
+
+:root.beige-theme {
+  --date-picker-filter: invert(0);
+  --date-picker-color-scheme: light;
+}
+
+:root.gray-theme {
+  --date-picker-filter: invert(0);
+  --date-picker-color-scheme: light;
 }
 
   .tabulator .tabulator-header.tabulator-header-hidden {
