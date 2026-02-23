@@ -326,7 +326,7 @@ table th {
 /* Tabulator v4.6.2 (c) Oliver Folkerd */
 .tabulator {
     position: relative;
-    background-color: #fff;
+    background-color: var(--color-bg);
     overflow: hidden;
     font-size: 12px;
     text-align: left;
@@ -348,9 +348,9 @@ table th {
     position: relative;
     box-sizing: border-box;
     width: 100%;
-    border-bottom: 1px solid #999;
-    background-color: #fff;
-    color: #555;
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-bg);
+    color: var(--color-text);
     /* Jayaram, changed the below two. */
     font-weight: bold;
     font-size: 80%;
