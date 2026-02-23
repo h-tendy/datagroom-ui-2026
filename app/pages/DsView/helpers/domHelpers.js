@@ -167,7 +167,49 @@ export default function createDomHelpers(context) {
       try {
         const json = JSON.parse(decodeURIComponent(data));
         if (window.Plotly) {
-          window.Plotly.newPlot(div, json.data, json.layout, json.config || {})
+          // Get theme-aware colors from CSS variables
+          const computedStyle = getComputedStyle(document.documentElement);
+          const bgColor = computedStyle.getPropertyValue('--color-bg').trim() || '#181a1b';
+          const textColor = computedStyle.getPropertyValue('--color-text').trim() || '#f5f6fa';
+          const borderColor = computedStyle.getPropertyValue('--color-border').trim() || '#343a40';
+          
+          // Determine if we're in a light theme based on background brightness
+          const isDarkTheme = !document.documentElement.classList.contains('light-theme') &&
+                              !document.documentElement.classList.contains('beige-theme') &&
+                              !document.documentElement.classList.contains('gray-theme');
+          
+          // Build theme-aware layout defaults
+          const themeLayout = {
+            paper_bgcolor: bgColor,
+            plot_bgcolor: bgColor,
+            font: {
+              color: textColor,
+              family: computedStyle.getPropertyValue('--font-family-main').trim() || 'Consolas, monospace'
+            },
+            xaxis: {
+              gridcolor: borderColor,
+              color: textColor,
+              zerolinecolor: borderColor
+            },
+            yaxis: {
+              gridcolor: borderColor,
+              color: textColor,
+              zerolinecolor: borderColor
+            }
+          };
+          
+          // Merge user layout with theme layout (user layout takes precedence)
+          const mergedLayout = { ...themeLayout, ...json.layout };
+          
+          // Deep merge axis settings to preserve user customizations
+          if (json.layout?.xaxis) {
+            mergedLayout.xaxis = { ...themeLayout.xaxis, ...json.layout.xaxis };
+          }
+          if (json.layout?.yaxis) {
+            mergedLayout.yaxis = { ...themeLayout.yaxis, ...json.layout.yaxis };
+          }
+          
+          window.Plotly.newPlot(div, json.data, mergedLayout, json.config || {})
             .then(() => {
               // Attach event listener to normalize row heights after plot renders
               div.addEventListener('plotly_afterplot', () => {

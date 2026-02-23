@@ -225,7 +225,9 @@ function DsViewPage() {
           if (domHelpers.current) {
             domHelpers.current.normalizeAllImgRows();
             domHelpers.current.applyHighlightJsBadge();
-            domHelpers.current.renderPlotlyInCells();
+            // Render plotly graphs after DOM layout & paint is ready
+            // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
+            requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
           }
         }
       }, 500);
@@ -1306,7 +1308,9 @@ function DsViewPage() {
     if (domHelpers.current) {
       domHelpers.current.normalizeAllImgRows();
       domHelpers.current.applyHighlightJsBadge();
-      domHelpers.current.renderPlotlyInCells();
+      // Render plotly graphs after DOM layout & paint is ready
+      // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
+      requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
     }
   }, [dsName, emitLock]);
 
@@ -1395,7 +1399,9 @@ function DsViewPage() {
         if (domHelpers.current) {
           domHelpers.current.normalizeAllImgRows();
           domHelpers.current.applyHighlightJsBadge();
-          domHelpers.current.renderPlotlyInCells();
+          // Render plotly graphs after DOM layout & paint is ready
+          // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
+          requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
         }
       } else {
         console.log('Skipping table adjustment (cellEditCancelled)...');
@@ -1431,7 +1437,9 @@ function DsViewPage() {
         if (domHelpers.current) {
           domHelpers.current.normalizeAllImgRows();
           domHelpers.current.applyHighlightJsBadge();
-          domHelpers.current.renderPlotlyInCells();
+          // Render plotly graphs after DOM layout & paint is ready
+          // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
+          requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
         }
       }
     }, 500);
