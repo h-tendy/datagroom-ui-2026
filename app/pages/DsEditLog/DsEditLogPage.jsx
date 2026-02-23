@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { Row, Col, Form } from 'react-bootstrap';
 import { useAuth } from '../../auth/AuthProvider';
 import MyTabulator from '../../components/MyTabulator';
+import styles from '../DsView/DsViewPage.module.css';
 import MyTextArea from '../../components/editors/MyTextArea';
 import MarkdownIt from 'markdown-it';
 import markdownItBracketedSpans from 'markdown-it-bracketed-spans';
@@ -12,6 +13,8 @@ import markdownItSub from 'markdown-it-sub';
 import markdownItSup from 'markdown-it-sup';
 import markdownItHighlightjs from 'markdown-it-highlightjs';
 
+import '../DsView/DsViewSimple.css';
+import '../DsView/solarized-light.css';
 import '../DsView/simpleStyles.css';
 
 // Configure MarkdownIt with plugins for rendering selector and doc columns
@@ -229,7 +232,7 @@ function DsEditLogPage() {
   const dsView = 'default';
 
   return (
-    <div>
+    <div className={styles.container}>
       {/* Page Title */}
       <Row>
         <Col md={12} sm={12} xs={12}>
@@ -300,20 +303,28 @@ function DsEditLogPage() {
               ajaxSorting: true,
               ajaxFiltering: true,
               clipboard: true,
-              // Row formatter: non-saved rows (no _id) shown in light gray
+              // Row formatter: non-saved rows (no _id) shown with theme-aware colors
               rowFormatter: (row) => {
+                const rootStyles = getComputedStyle(document.documentElement);
+                const rowElement = row.getElement();
+                
                 if (!row.getData()._id) {
-                  row.getElement().style.backgroundColor = 'lightGray';
+                  // New unsaved row - use text-muted color with transparency
+                  const mutedColor = rootStyles.getPropertyValue('--color-text-muted').trim();
+                  rowElement.style.backgroundColor = `${mutedColor}33`; // 33 = ~20% opacity in hex
                 } else {
-                  row.getElement().style.backgroundColor = 'white';
+                  // Saved row - use normal background color from theme
+                  rowElement.style.backgroundColor = rootStyles.getPropertyValue('--color-bg').trim();
                 }
               },
-              // Cell hover effects
+              // Cell hover effects - use theme-aware colors
               cellMouseEnter: (e, cell) => {
-                if (cell.getElement().style.backgroundColor !== 'lightblue') {
+                const rootStyles = getComputedStyle(document.documentElement);
+                const hoverColor = rootStyles.getPropertyValue('--color-primary').trim();
+                if (cell.getElement().style.backgroundColor !== `${hoverColor}33`) {
                   cell.__dg__prevBgColor = cell.getElement().style.backgroundColor;
                 }
-                cell.getElement().style.backgroundColor = 'lightblue';
+                cell.getElement().style.backgroundColor = `${hoverColor}33`; // 33 = ~20% opacity
               },
               cellMouseLeave: (e, cell) => {
                 cell.getElement().style.backgroundColor = cell.__dg__prevBgColor;
