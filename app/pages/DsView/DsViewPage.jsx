@@ -2784,11 +2784,6 @@ function DsViewPage() {
                 console.log('[Tabulator] Data loaded, re-requesting active locks');
                 requestActiveLocks();
               },
-              // Render complete callback - called after any table redraw (including resize)
-              // Re-render Mermaid diagrams to ensure they display after formatter runs
-              renderComplete: () => {
-                renderMermaidDiagrams();
-              },
             }}
             cellEditing={handleCellEditing}
             cellEdited={handleCellEdited}
