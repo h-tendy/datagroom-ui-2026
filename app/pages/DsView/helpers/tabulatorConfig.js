@@ -111,54 +111,53 @@ export default function createTabulatorConfig(context) {
     const jiraAgileConfig = viewConfig.jiraAgileConfig;
     const keys = viewConfig.keys || [];
 
-    // Header menu for key columns (no hide option)
-    const headerMenuWithoutHide = [
-      { label: "Toggle Filters", action: toggleSingleFilter },
-      { label: "Freeze", action: freezeColumn },
-      { label: "Unfreeze", action: unfreezeColumn }
-    ];
+    // Helper function to filter out null menu items
+    const filterMenu = (menuItems) => menuItems.filter(item => item !== null);
 
-    // Header menu for non-key columns
-    const headerMenuWithHide = [
-      { label: "Toggle Filters", action: toggleSingleFilter },
-      { label: "Freeze", action: freezeColumn },
-      { label: "Unfreeze", action: unfreezeColumn },
-      { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: hideColumn },
-      { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: showAllCols }
-    ];
+    // Header menu for key columns (no hide option) - only include items with valid handlers
+    const headerMenuWithoutHide = filterMenu([
+      (typeof toggleSingleFilter === 'function') ? { label: "Toggle Filters", action: toggleSingleFilter } : null,
+      (typeof freezeColumn === 'function') ? { label: "Freeze", action: freezeColumn } : null,
+      (typeof unfreezeColumn === 'function') ? { label: "Unfreeze", action: unfreezeColumn } : null
+    ]);
 
-    // Context menu for all cells
+    // Header menu for non-key columns - only include items with valid handlers
+    const headerMenuWithHide = filterMenu([
+      (typeof toggleSingleFilter === 'function') ? { label: "Toggle Filters", action: toggleSingleFilter } : null,
+      (typeof freezeColumn === 'function') ? { label: "Freeze", action: freezeColumn } : null,
+      (typeof unfreezeColumn === 'function') ? { label: "Unfreeze", action: unfreezeColumn } : null,
+      (typeof hideColumn === 'function') ? { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: hideColumn } : null,
+      (typeof showAllCols === 'function') ? { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: showAllCols } : null
+    ]);
+
+    // Context menu for all cells - using reference implementation pattern
     const cellContextMenu = [
-      { label: "Copy cell to clipboard...", action: copyCellToClipboard },
-      // Presentation mode - deferred
-      // { label: "Generate slides...", action: startPreso },
+      { label: "Copy cell to clipboard...", action: function(e, cell) { if (copyCellToClipboard) copyCellToClipboard(e, cell); } },
       { label: "Generate URL.....", menu: [
-        { label: "Copy URL for this row to clipboard...", action: function (e, cell) { urlGeneratorFunction(e, cell, false) } },
-        { label: "Copy URL for current view to clipboard...", action: function (e, cell) { urlGeneratorFunction(e, cell, true); } }
+        { label: "Copy URL for this row to clipboard...", action: function (e, cell) { if (urlGeneratorFunction) urlGeneratorFunction(e, cell, false); } },
+        { label: "Copy URL for current view to clipboard...", action: function (e, cell) { if (urlGeneratorFunction) urlGeneratorFunction(e, cell, true); } }
       ] },
       { separator: true },
       { label: "Hide/Unhide column...", menu: [
-        { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: hideColumnFromCell },
-        { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: showAllCols }
+        { label: "<i class='fas fa-eye-slash'></i> Hide Column", action: function(e, cell) { if (hideColumnFromCell) hideColumnFromCell(e, cell); } },
+        { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: function(e, cell) { if (showAllCols) showAllCols(e, cell); } }
       ] },
       { label: "Add row.....", menu: [
-        { label: "Duplicate row & add (above)", action: function (e, cell) { duplicateAndAddRowHandler(e, cell, true) } },
-        { label: "Duplicate row & add (below)", action: function (e, cell) { duplicateAndAddRowHandler(e, cell, false) } },
-        { label: "Add empty row...", action: function (e, cell) { addRow(e, cell, null, true) } }
+        { label: "Duplicate row & add (above)", action: function (e, cell) { if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, true); } },
+        { label: "Duplicate row & add (below)", action: function (e, cell) { if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, false); } },
+        { label: "Add empty row...", action: function (e, cell) { if (addRow) addRow(e, cell, null, true); } }
       ] },
       { label: "Delete row....", menu: [
-        { label: "Delete all rows in view...", action: deleteAllRowsInViewQuestion },
-        { label: "Delete all rows in query...", action: deleteAllRowsInQuery },
-        { label: "Delete row...", action: deleteRowQuestion }
+        { label: "Delete all rows in view...", action: function(e, cell) { if (deleteAllRowsInViewQuestion) deleteAllRowsInViewQuestion(e, cell); } },
+        { label: "Delete all rows in query...", action: function(e, cell) { if (deleteAllRowsInQuery) deleteAllRowsInQuery(e, cell); } },
+        { label: "Delete row...", action: function(e, cell) { if (deleteRowQuestion) deleteRowQuestion(e, cell); } }
       ] },
-      { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { deleteColumnQuestion(e, cell); } } ] },
-      { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { addColumnQuestion(cell.getColumn().getField()); } } ] },
+      { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { if (deleteColumnQuestion) deleteColumnQuestion(e, cell); } } ] },
+      { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { if (addColumnQuestion) addColumnQuestion(cell.getColumn().getField()); } } ] },
       { label: "Get xlsx....", menu: [
-        { label: "Get xlsx for whole DS...", action: function () { downloadXlsx(false); } },
-        { label: "Get xlsx in query...", action: function () { downloadXlsx(true); } }
-      ] },
-      // JIRA integration - deferred
-      // { label: "JIRA Menu....", menu: [...] }
+        { label: "Get xlsx for whole DS...", action: function () { if (downloadXlsx) downloadXlsx(false); } },
+        { label: "Get xlsx in query...", action: function () { if (downloadXlsx) downloadXlsx(true); } }
+      ] }
     ];
 
     const columns = [];

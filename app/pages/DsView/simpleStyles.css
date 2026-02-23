@@ -14,6 +14,38 @@
   right:0;
   height:100%;
   font-size: 12px;
+  background-color: var(--color-bg) !important;
+  color: var(--color-text) !important;
+}
+
+/* CodeMirror theme-aware styling */
+.CodeMirror-gutters {
+  background-color: var(--color-bg-light) !important;
+  border-right: 1px solid var(--color-border) !important;
+}
+
+.CodeMirror-linenumber {
+  color: var(--color-text-muted) !important;
+}
+
+.CodeMirror-cursor {
+  border-left: 1px solid var(--color-text) !important;
+}
+
+.CodeMirror-selected {
+  background-color: var(--color-primary) !important;
+  opacity: 0.3;
+}
+
+.CodeMirror-line::selection,
+.CodeMirror-line > span::selection,
+.CodeMirror-line > span > span::selection {
+  background-color: var(--color-primary) !important;
+  opacity: 0.3;
+}
+
+.CodeMirror-activeline-background {
+  background-color: var(--color-bg-light) !important;
 }
 
 /* For revealjs integration. Don't remove! */
@@ -1043,6 +1075,25 @@ table th {
   .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover {
     cursor: pointer;
     background: #769BCC;
+  }
+  
+  .tabulator-menu .tabulator-menu-item.tabulator-menu-item-submenu {
+    padding-right: 25px;
+  }
+  
+  .tabulator-menu .tabulator-menu-item.tabulator-menu-item-submenu::after {
+    display: inline-block;
+    position: absolute;
+    top: calc(5px + .4em);
+    right: 10px;
+    height: 7px;
+    width: 7px;
+    content: "";
+    border-width: 1px 1px 0 0;
+    border-style: solid;
+    border-color: #333;
+    vertical-align: top;
+    transform: rotate(45deg);
   }
   
   .tabulator-menu .tabulator-menu-separator {

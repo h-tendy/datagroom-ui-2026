@@ -135,7 +135,9 @@ class ModalEditor extends React.Component {
 
         // The modal "window"
         const modalStyle = {
-            backgroundColor: '#fff',
+            backgroundColor: 'var(--color-bg)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
             borderRadius: 5,
             maxWidth: "55%",
             height: "100%",
@@ -144,7 +146,9 @@ class ModalEditor extends React.Component {
         };
         const bodyStyle = {
             height: "80%",
-            overflowY: 'auto'
+            overflowY: 'auto',
+            backgroundColor: 'var(--color-bg)',
+            color: 'var(--color-text)'
         }
         const textareaStyle = {
             // Makes no difference

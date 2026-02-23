@@ -22,7 +22,9 @@ class ModalWrapper extends React.Component {
   
       // The modal "window"
     const modalStyle = {
-        backgroundColor: '#fff',
+        backgroundColor: 'var(--color-bg)',
+        color: 'var(--color-text)',
+        border: '1px solid var(--color-border)',
         borderRadius: 5,
         maxWidth: 600,
         /*minHeight: 300,*/
@@ -31,7 +33,9 @@ class ModalWrapper extends React.Component {
     };
     const bodyStyle = {
       height: 400,
-      overflowY: 'auto'
+      overflowY: 'auto',
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-text)'
     }
     return (
         <div style={ backdropStyle }>
