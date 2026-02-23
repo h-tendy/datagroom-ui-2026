@@ -34,6 +34,7 @@
     "markdown-it-plantuml": "^1.4.1",
     "markdown-it-sub": "^2.0.0",
     "markdown-it-sup": "^2.0.0",
+    "mermaid": "^11.12.3",
     "pick-react-known-prop": "^0.1.5",
     "plotly.js-dist": "^2.29.1",
     "punycode": "^2.3.1",

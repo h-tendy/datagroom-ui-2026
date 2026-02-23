@@ -4,7 +4,7 @@ import mditBracketedSpans from 'markdown-it-bracketed-spans';
 import mditAttrs from 'markdown-it-attrs';
 import mditContainer from 'markdown-it-container';
 import mditHighlightjs from 'markdown-it-highlightjs';
-import markdownItMermaid from '@datatraccorporation/markdown-it-mermaid';
+import customMermaidPlugin from './customMermaidPlugin.js';
 import mditPlantuml from 'markdown-it-plantuml';
 import { markdownItFancyListPlugin as mditFancyLists } from 'markdown-it-fancy-lists';
 import { parseExpr, evalExpr } from '../../../components/editors/QueryParsers';
@@ -21,9 +21,31 @@ const md = new MarkdownIt({
   .use(mditContainer, 'indent2')
   .use(mditContainer, 'indent3')
   .use(mditHighlightjs)
-  .use(markdownItMermaid)
-  .use(mditPlantuml, { imageFormat: 'png' })
-  .use(mditContainer, 'slide')
+  .use(customMermaidPlugin)
+  .use(mditPlantuml, { imageFormat: 'png' });
+
+// Add support for additional PlantUML diagram types (nwdiag, salt, ditaa, etc.)
+// These need separate plugin instances with different markers
+md.use(mditPlantuml, { 
+  openMarker: '@startnwdiag',
+  closeMarker: '@endnwdiag', 
+  diagramName: 'nwdiag',
+  imageFormat: 'png' 
+});
+md.use(mditPlantuml, { 
+  openMarker: '@startsalt',
+  closeMarker: '@endsalt', 
+  diagramName: 'salt',
+  imageFormat: 'png' 
+});
+md.use(mditPlantuml, { 
+  openMarker: '@startditaa',
+  closeMarker: '@endditaa', 
+  diagramName: 'ditaa',
+  imageFormat: 'png' 
+});
+
+md.use(mditContainer, 'slide')
   .use(mditFancyLists);
 
 // Custom link renderer - open in new tab
@@ -288,6 +310,10 @@ export default function createTabulatorConfig(context) {
           if (typeof value !== "string") return value;
           
           const width = cell.getColumn().getWidth();
+          
+          // Normalize line endings to LF for consistent markdown parsing
+          // This ensures PlantUML and other block-level elements are recognized
+          value = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
           
           // Render markdown to HTML
           value = md.render(value);

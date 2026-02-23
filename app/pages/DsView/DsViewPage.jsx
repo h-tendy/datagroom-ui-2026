@@ -68,6 +68,9 @@ import './DsViewSimple.css';
 import './solarized-light.css';
 import './simpleStyles.css';
 
+// Mermaid for diagram rendering
+import mermaid from 'mermaid';
+
 // API
 const API_URL = import.meta.env.VITE_API_BASE || '';
 
@@ -262,6 +265,19 @@ function DsViewPage() {
 
   const clipboardHelpers = useRef(null);
   const domHelpers = useRef(null);
+
+  // Initialize mermaid for diagram rendering
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      securityLevel: 'loose',
+      theme: 'default',
+      flowchart: {
+        htmlLabels: false,
+        useMaxWidth: true,
+      }
+    });
+  }, []);
 
   // Display connection status indicator (matches reference implementation style)
   const displayConnectedStatus = () => {
@@ -1346,6 +1362,16 @@ function DsViewPage() {
       // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
       requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
     }
+    
+    // Re-run mermaid to render any mermaid diagrams in the table
+    // Use double requestAnimationFrame to ensure DOM is fully updated
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try {
+        mermaid.run({ querySelector: '.mermaid' });
+      } catch (err) {
+        console.error('Mermaid rendering error:', err);
+      }
+    }));
   }, [dsName, emitLock]);
 
   // Page loaded handler - called when pagination changes
