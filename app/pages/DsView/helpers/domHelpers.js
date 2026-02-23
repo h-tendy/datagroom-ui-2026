@@ -46,13 +46,18 @@ export default function createDomHelpers(context) {
             }
             // Prevent the event from bubbling to prevent cell from getting focus
             e.stopPropagation();
-            // Also prevent default to stop the focus shift that happens after link navigation
+            // Always prevent default to avoid any focus-related side effects
             e.preventDefault();
             
-            // Manually open the link in a new tab since we prevented default
+            // Manually open the link
             const href = linkElement.getAttribute('href');
             if (href) {
-              window.open(href, linkElement.getAttribute('target') || '_blank');
+              const newTab = window.open(href, linkElement.getAttribute('target') || '_blank');
+              // If Ctrl or Meta key is pressed, blur the new tab to keep focus on current tab
+              if ((e.ctrlKey || e.metaKey) && newTab) {
+                newTab.blur();
+                window.focus();
+              }
             }
             
             // Clear flag after a second
