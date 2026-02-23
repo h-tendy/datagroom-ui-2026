@@ -103,59 +103,6 @@ export default function SidebarLayout({ children, onLogout }) {
                 <i className={`fa fa-home ${styles.sidebarHomeIcon}`} aria-hidden="true" />
                 Your datasets
               </button>
-              <button
-                type="button"
-                className="btn btn-outline-light"
-                style={{
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  borderRadius: 'var(--border-radius)',
-                  padding: '0.5rem 0.7rem',
-                  transition: 'background 0.15s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.7em'
-                }}
-                onClick={() => navigate('/sample1')}
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="4" width="14" height="12" rx="2" fill="var(--color-primary)"/>
-                  <rect x="5" y="6" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
-                  <rect x="5" y="9" width="8" height="2" rx="1" fill="var(--color-bg-light)"/>
-                  <rect x="5" y="12" width="6" height="2" rx="1" fill="var(--color-bg-light)"/>
-                </svg>
-                Sample 1
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-light"
-                style={{
-                  textAlign: 'left',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-text-muted)',
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  borderRadius: 'var(--border-radius)',
-                  padding: '0.5rem 0.7rem',
-                  transition: 'background 0.15s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.7em'
-                }}
-                onClick={() => navigate('/sample2')}
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{display:'inline',verticalAlign:'middle'}} xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="5" width="14" height="10" rx="2" fill="var(--color-primary)"/>
-                  <rect x="5" y="7" width="10" height="2" rx="1" fill="var(--color-bg-light)"/>
-                  <rect x="5" y="10" width="8" height="2" rx="1" fill="var(--color-bg-light)"/>
-                </svg>
-                Sample 2
-              </button>
             </div>
             <div style={{flex:1}} />
             <ThemeSwitcher />
