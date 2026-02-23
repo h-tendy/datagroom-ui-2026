@@ -110,6 +110,24 @@ function FilterControls({ show, dsName, dsView, userId, tableRef, onFilterChange
       ...provided,
       color: 'var(--color-text-muted)',
     }),
+    dropdownIndicator: (provided) => ({
+      ...provided,
+      color: 'var(--color-text)',
+      '&:hover': {
+        color: 'var(--color-text)',
+      },
+    }),
+    clearIndicator: (provided) => ({
+      ...provided,
+      color: 'var(--color-text)',
+      '&:hover': {
+        color: 'var(--color-text)',
+      },
+    }),
+    indicatorSeparator: (provided) => ({
+      ...provided,
+      backgroundColor: 'var(--color-border)',
+    }),
   };
   
   // Handler for filter dropdown change
