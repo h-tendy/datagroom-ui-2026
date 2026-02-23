@@ -19,6 +19,7 @@ export default defineConfig({
     ],
   },
   build: {
+    outDir: 'build',
     commonjsOptions: {
       include: [/app\/lib\/tabulator/, /node_modules/],
       transformMixedEsModules: true,
