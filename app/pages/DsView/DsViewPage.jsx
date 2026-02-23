@@ -301,6 +301,10 @@ function DsViewPage() {
   // Listen for window resize events (e.g., opening debug console) and re-render Mermaid
   useEffect(() => {
     const handleResize = () => {
+      // Re-render both Mermaid and Plotly on window resize
+      if (domHelpers.current) {
+        requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
+      }
       renderMermaidDiagrams();
     };
     
