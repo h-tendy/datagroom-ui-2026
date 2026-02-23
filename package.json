@@ -15,7 +15,6 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@datatraccorporation/markdown-it-mermaid": "^0.5.0",
     "@react-router/node": "^7.9.6",
     "@react-router/serve": "^7.9.6",
     "@tanstack/react-query": "^5.0.0",
