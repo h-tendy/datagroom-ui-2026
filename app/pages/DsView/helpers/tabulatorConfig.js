@@ -47,10 +47,11 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
   const token = tokens[idx];
   const info = token.info ? token.info.trim() : '';
   
-  if (info === 'plotly') {
-    // Encode plotly data for rendering
-    const encoded = btoa(token.content);
-    return `<div class="plotly-graph-div" data-plotly="${encoded}"></div>`;
+  if (info === 'plotly' && token.content) {
+    // Encode plotly data for rendering (using encodeURIComponent to match reference)
+    const encoded = encodeURIComponent(token.content);
+    const id = `plotly-graph-${idx}`;
+    return `<div id="${id}" class="plotly-graph" data-plot='${encoded}'></div>`;
   }
   
   // Call the default fence renderer to apply syntax highlighting

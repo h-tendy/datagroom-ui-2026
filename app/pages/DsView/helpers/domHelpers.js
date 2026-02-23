@@ -160,17 +160,25 @@ export default function createDomHelpers(context) {
   function renderPlotlyInCells() {
     const plots = document.querySelectorAll('.plotly-graph');
     plots.forEach((div) => {
+      // Skip if already rendered (contains SVG)
+      if (div.querySelector('svg')) return;
+      
       const data = div.getAttribute('data-plot');
       try {
         const json = JSON.parse(decodeURIComponent(data));
         if (window.Plotly) {
-          window.Plotly.newPlot(div, json.data, json.layout, json.config || {});
-          if (ref && ref() && ref().table) {
-            let rows = ref().table.getRows();
-            for (let i = 0; i < rows.length; i++) {
-              rows[i].normalizeHeight();
-            }
-          }
+          window.Plotly.newPlot(div, json.data, json.layout, json.config || {})
+            .then(() => {
+              // Attach event listener to normalize row heights after plot renders
+              div.addEventListener('plotly_afterplot', () => {
+                if (ref && ref() && ref().table) {
+                  let rows = ref().table.getRows();
+                  for (let i = 0; i < rows.length; i++) {
+                    rows[i].normalizeHeight();
+                  }
+                }
+              });
+            });
         } else {
           div.innerHTML = `<div style="color:red;">Plotly CDN not loaded</div>`;
         }
