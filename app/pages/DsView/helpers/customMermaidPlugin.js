@@ -30,8 +30,10 @@ const MermaidChart = (code, title = '') => {
       title = `<div class="mermaid-title">${htmlEntities(title)}</div>`;
     }
     
+    // Store the original source in a data attribute so we can detect if content changed
+    // This helps preserve rendered SVGs during table redraws
     // Output as a mermaid div that will be rendered client-side
-    return `<div class="mermaid" id="${needsUniqueId}">${title}${escapedCode}</div>`;
+    return `<div class="mermaid" id="${needsUniqueId}" data-mermaid-source="${htmlEntities(code)}">${title}${escapedCode}</div>`;
   } catch (err) {
     console.error('Mermaid rendering error:', err);
     return `<pre>${htmlEntities(err.name)}: ${htmlEntities(err.message)}</pre>`;

@@ -311,15 +311,13 @@ export default function createTabulatorConfig(context) {
           
           const width = cell.getColumn().getWidth();
           
-          // Normalize line endings to LF for consistent markdown parsing
-          // This ensures PlantUML and other block-level elements are recognized
+          // Always render markdown fresh (no caching)
+          // This ensures Mermaid diagrams are always fresh .mermaid divs, just like PlantUML returns fresh <img> tags
           value = value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-          
-          // Render markdown to HTML
           value = md.render(value);
+          const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px">${value}</div>`;
           
-          // Wrap in div with proper width
-          return `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px">${value}</div>`;
+          return html;
         };
         
         // Clipboard formatter - preserve styling

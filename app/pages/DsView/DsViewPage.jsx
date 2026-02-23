@@ -279,6 +279,35 @@ function DsViewPage() {
     });
   }, []);
 
+  // Helper function to render Mermaid diagrams
+  // Called after renderComplete to process all .mermaid divs
+  const renderMermaidDiagrams = useCallback(() => {
+    // Use a timeout to debounce multiple rapid calls
+    if (timersRef.current['mermaid-render']) {
+      clearTimeout(timersRef.current['mermaid-render']);
+    }
+    
+    timersRef.current['mermaid-render'] = setTimeout(() => {
+      try {
+        mermaid.run({ querySelector: '.mermaid' }).catch(err => {
+          console.error('[MERMAID] Rendering error (caught promise rejection):', err);
+        });
+      } catch (err) {
+        console.error('[MERMAID] Rendering error:', err);
+      }
+    }, 100);
+  }, []);
+
+  // Listen for window resize events (e.g., opening debug console) and re-render Mermaid
+  useEffect(() => {
+    const handleResize = () => {
+      renderMermaidDiagrams();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [renderMermaidDiagrams]);
+
   // Display connection status indicator (matches reference implementation style)
   const displayConnectedStatus = () => {
     if (connectedState) {
@@ -1365,13 +1394,7 @@ function DsViewPage() {
     
     // Re-run mermaid to render any mermaid diagrams in the table
     // Use double requestAnimationFrame to ensure DOM is fully updated
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      try {
-        mermaid.run({ querySelector: '.mermaid' });
-      } catch (err) {
-        console.error('Mermaid rendering error:', err);
-      }
-    }));
+    requestAnimationFrame(() => requestAnimationFrame(() => renderMermaidDiagrams()));
   }, [dsName, emitLock]);
 
   // Page loaded handler - called when pagination changes
@@ -1466,13 +1489,7 @@ function DsViewPage() {
         
         // Re-run mermaid to render any mermaid diagrams in the table
         // Use double requestAnimationFrame to ensure DOM is fully updated
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          try {
-            mermaid.run({ querySelector: '.mermaid' });
-          } catch (err) {
-            console.error('Mermaid rendering error:', err);
-          }
-        }));
+        requestAnimationFrame(() => requestAnimationFrame(() => renderMermaidDiagrams()));
       } else {
         console.log('Skipping table adjustment (cellEditCancelled)...');
       }
@@ -1514,13 +1531,7 @@ function DsViewPage() {
         
         // Re-run mermaid to render any mermaid diagrams in the table
         // Use double requestAnimationFrame to ensure DOM is fully updated
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-          try {
-            mermaid.run({ querySelector: '.mermaid' });
-          } catch (err) {
-            console.error('Mermaid rendering error:', err);
-          }
-        }));
+        requestAnimationFrame(() => requestAnimationFrame(() => renderMermaidDiagrams()));
       }
     }, 500);
 
@@ -2772,6 +2783,11 @@ function DsViewPage() {
               dataLoaded: (data) => {
                 console.log('[Tabulator] Data loaded, re-requesting active locks');
                 requestActiveLocks();
+              },
+              // Render complete callback - called after any table redraw (including resize)
+              // Re-render Mermaid diagrams to ensure they display after formatter runs
+              renderComplete: () => {
+                renderMermaidDiagrams();
               },
             }}
             cellEditing={handleCellEditing}
