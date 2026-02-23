@@ -44,19 +44,20 @@ export default function createDomHelpers(context) {
             if (mouseDownOnHtmlLinkRef) {
               mouseDownOnHtmlLinkRef.current = true;
             }
-            // Prevent the event from bubbling to prevent cell from getting focus
+            // Always prevent the event from bubbling to prevent cell from getting focus
             e.stopPropagation();
-            // Always prevent default to avoid any focus-related side effects
-            e.preventDefault();
             
-            // Manually open the link
-            const href = linkElement.getAttribute('href');
-            if (href) {
-              const newTab = window.open(href, linkElement.getAttribute('target') || '_blank');
-              // If Ctrl or Meta key is pressed, blur the new tab to keep focus on current tab
-              if ((e.ctrlKey || e.metaKey) && newTab) {
-                newTab.blur();
-                window.focus();
+            // Handle differently based on whether Ctrl/Cmd key is pressed
+            if (e.ctrlKey || e.metaKey) {
+              // For Ctrl+click, DON'T prevent default - let browser handle it natively
+              // This opens in background tab by default
+              // The stopPropagation above prevents cell editing
+            } else {
+              // For regular click, prevent default and manually open
+              e.preventDefault();
+              const href = linkElement.getAttribute('href');
+              if (href) {
+                window.open(href, linkElement.getAttribute('target') || '_blank');
               }
             }
             
@@ -76,6 +77,35 @@ export default function createDomHelpers(context) {
     
     // Add handler in capture phase at document level to catch it as early as possible
     document.addEventListener("mousedown", linkMousedownHandler, true);
+    
+    // Also add click handler to prevent click events on links from triggering cell editing
+    if (document._linkClickHandler) {
+      document.removeEventListener("click", document._linkClickHandler, true);
+    }
+    
+    const linkClickHandler = function(e) {
+      const target = e.target;
+      if (target) {
+        const isLink = target.tagName && target.tagName.toLowerCase() === 'a';
+        const parentLink = target.closest && target.closest('a');
+        const linkElement = isLink ? target : parentLink;
+        
+        if (linkElement) {
+          const tabulatorEl = document.getElementById("tabulator") || 
+                              document.querySelector(".tabulator") ||
+                              document.querySelector("[role='grid']");
+          const isInsideTabulator = tabulatorEl && tabulatorEl.contains(linkElement);
+          
+          if (isInsideTabulator) {
+            // Stop the click from propagating to cell
+            e.stopPropagation();
+          }
+        }
+      }
+    };
+    
+    document._linkClickHandler = linkClickHandler;
+    document.addEventListener("click", linkClickHandler, true);
     
     for (var i = 0, len = splElements.length; i < len; i++) {
       splElements[i].onclick = function (e) {
