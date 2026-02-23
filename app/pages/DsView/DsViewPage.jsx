@@ -601,20 +601,32 @@ function DsViewPage() {
 
   // Process filter from URL - only when filterParam actually changes
   useEffect(() => {
-    if (!viewConfig) return;
+    console.log('[FILTER-EFFECT] Running. filterParam:', filterParam, ', current filter state:', filter, ', viewConfig.filters:', Object.keys(viewConfig?.filters || {}));
+    if (!viewConfig) {
+      console.log('[FILTER-EFFECT] No viewConfig, returning');
+      return;
+    }
     // If viewing single row via _id param, don't process pathname filters
-    if (searchParams.get('_id')) return;
+    if (searchParams.get('_id')) {
+      console.log('[FILTER-EFFECT] Has _id in searchParams, returning');
+      return;
+    }
     // If a query string is present, it takes precedence over pathname-based saved filters
-    if (searchParams.toString()) return;
+    if (searchParams.toString()) {
+      console.log('[FILTER-EFFECT] Has searchParams, returning');
+      return;
+    }
     // If in single-row mode (_id state is set), don't process pathname filters
-    if (_id) return;
-    // If searchParams were previously processed (non-empty URL), don't clear that state
-    // This prevents the pathname filter effect from clearing URL-restored filterColumnAttrs
-    if (lastProcessedSearchRef.current && lastProcessedSearchRef.current !== '') return;
+    if (_id) {
+      console.log('[FILTER-EFFECT] Has _id state, returning');
+      return;
+    }
     
     // Update filter state based on URL parameter
     if (filterParam) {
+      console.log('[FILTER-EFFECT] Processing filterParam:', filterParam);
       const filterData = viewConfig.filters?.[filterParam];
+      console.log('[FILTER-EFFECT] Filter data for', filterParam, ':', filterData ? 'FOUND' : 'NOT FOUND');
       
       if (filterData) {
         // Deep clone filter data
@@ -623,14 +635,30 @@ function DsViewPage() {
           const hdrSorters = JSON.parse(JSON.stringify(filterData.hdrSorters || []));
           const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
           
-          setFilter(filterParam);
-          setInitialHeaderFilter(hdrFilters);
-          setInitialSort(hdrSorters);
-          setFilterColumnAttrs(colAttrs);
-          setShowAllFilters(true);
+          // Only update state if the filter data has actually changed
+          const currentFilterState = JSON.stringify({
+            filter: filter,
+            hdrFilters: initialHeaderFilter,
+            hdrSorters: initialSort,
+            colAttrs: filterColumnAttrs
+          });
+          const newFilterState = JSON.stringify({
+            filter: filterParam,
+            hdrFilters,
+            hdrSorters,
+            colAttrs
+          });
           
-          // Apply filter column attributes after state update
-          setTimeout(() => {
+          if (currentFilterState !== newFilterState) {
+            console.log('[FILTER] Applying filter from URL:', filterParam);
+            setFilter(filterParam);
+            setInitialHeaderFilter(hdrFilters);
+            setInitialSort(hdrSorters);
+            setFilterColumnAttrs(colAttrs);
+            setShowAllFilters(true);
+            
+            // Apply filter column attributes after state update
+            setTimeout(() => {
               if (tabulatorRef.current?.table) {
                 try {
                   // Clear all existing header filters first so old regexes are removed
@@ -676,16 +704,16 @@ function DsViewPage() {
                   console.error('Error applying header filters or column attrs:', e);
                 }
               }
-          }, 100);
+            }, 100);
+          }
         } catch (e) {
           console.error('Error parsing filter data:', e);
         }
       } else {
-        // Filter name in URL but no data found
-        setFilter(filterParam);
-        setInitialHeaderFilter([]);
-        setInitialSort([]);
-        setFilterColumnAttrs({});
+        // Filter name in URL but no data found in viewConfig yet
+        // Don't set filter state - wait for viewConfig to update with the filter data
+        // The useEffect will run again when viewConfig updates (it's in dependencies)
+        console.log('[FILTER] Filter not found in viewConfig yet:', filterParam, '- waiting for data');
       }
     } else {
       // No filter in URL - clear everything
@@ -2562,6 +2590,7 @@ function DsViewPage() {
             show={showAllFilters}
             dsName={dsName}
             dsView={dsView}
+            userId={userId}
             tableRef={tabulatorRef.current}
             onFilterChange={processFilterChange}
             defaultValue={filter}

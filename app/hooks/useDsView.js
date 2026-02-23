@@ -17,7 +17,7 @@ export function useDsView(dsName, dsView, userId) {
     retry: 2,
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
     refetchOnReconnect: false,   // Don't refetch when network reconnects
-    refetchOnMount: false,       // Don't refetch on component remount if data exists
+    refetchOnMount: true,        // Refetch on component remount to get fresh filter data
   });
 }
 

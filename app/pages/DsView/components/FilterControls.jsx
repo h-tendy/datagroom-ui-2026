@@ -15,7 +15,7 @@ import Select from 'react-select';
 import { useAddFilter, useEditFilter, useDeleteFilter } from '../../../hooks/useDsFilters';
 import { collectCurrentFilterState } from '../helpers/filterHelpers';
 
-function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaultValue, viewConfig }) {
+function FilterControls({ show, dsName, dsView, userId, tableRef, onFilterChange, defaultValue, viewConfig }) {
   // Internal state for save/save-as-new/delete UI modes
   const [save, setSave] = useState(false);
   const [saveName, setSaveName] = useState(null);
@@ -30,10 +30,10 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
   const [deleteFilter, setDeleteFilter] = useState(false);
   const [deleteFilterErrorMsg, setDeleteFilterErrorMsg] = useState('');
   
-  // Mutation hooks
-  const addFilterMutation = useAddFilter(dsName, dsView, viewConfig?.dsUser);
-  const editFilterMutation = useEditFilter(dsName, dsView, viewConfig?.dsUser);
-  const deleteFilterMutation = useDeleteFilter(dsName, dsView, viewConfig?.dsUser);
+  // Mutation hooks - use userId prop instead of viewConfig?.dsUser
+  const addFilterMutation = useAddFilter(dsName, dsView, userId);
+  const editFilterMutation = useEditFilter(dsName, dsView, userId);
+  const deleteFilterMutation = useDeleteFilter(dsName, dsView, userId);
   
   // When the panel is hidden, reset only the *local UI* state.
   // IMPORTANT: Do not call onFilterChange(null) here.
@@ -176,10 +176,11 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
     }
     
     const { hdrFilters, hdrSorters, filterColumnAttrs } = collectCurrentFilterState(tableRef);
+    const newFilterName = saveAsNewName;
     
     addFilterMutation.mutate(
       {
-        name: saveAsNewName,
+        name: newFilterName,
         description: saveAsNewDescription,
         hdrFilters,
         hdrSorters,
@@ -191,8 +192,9 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
           setSaveAsNew(false);
           setSaveAsNewName('');
           setSaveAsNewDescription('');
-          // Switch to the newly created filter
-          onFilterChange(saveAsNewName);
+          // Navigate immediately (like reference implementation)
+          // React Query will refetch in background and component will update when data arrives
+          onFilterChange(newFilterName);
         },
         onError: (error) => {
           setSaveAsNewErrorMsg(`Save failed: ${error.message}`);

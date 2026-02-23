@@ -11,13 +11,17 @@ import { addFilter, editFilter, deleteFilter } from '../api/ds.js';
 /**
  * Hook to add a new filter
  * Reference: FilterControls.js lines 177-278 (saveAsNew logic)
+ * 
+ * Like the reference implementation, this triggers a delayed refetch (500ms) to allow
+ * the backend to process, but resolves immediately so navigation can happen right away.
+ * React Query will update the component when the refetch completes.
  */
 export function useAddFilter(dsName, dsView, userId) {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: (filterData) => {
-      const { name, description, hdrFilters, hdrSorters, filterColumnAttrs } = filterData;
+      const { name, description, hdrFilters, hdrSorters, filterColumnAttrs} = filterData;
       
       return addFilter({
         dsName,
@@ -33,10 +37,18 @@ export function useAddFilter(dsName, dsView, userId) {
       });
     },
     onSuccess: () => {
-      // Refresh view configuration after 500ms (matches reference implementation)
+      console.log('[ADD-FILTER] Success! Scheduling refetch in 500ms for:', dsName, dsView, userId);
+      // Trigger a delayed refetch like the reference implementation (500ms)
+      // This allows the backend to process the new filter before we fetch the updated config
+      // Use refetchQueries instead of invalidateQueries to force an immediate refetch
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
+        console.log('[ADD-FILTER] Triggering refetch NOW');
+        queryClient.refetchQueries({ queryKey: ['dsView', dsName, dsView, userId] }).then(() => {
+          console.log('[ADD-FILTER] Refetch completed');
+        });
       }, 500);
+      // Note: We don't await here - navigation happens immediately
+      // React Query will update components when the refetch completes
     },
   });
 }
@@ -66,9 +78,9 @@ export function useEditFilter(dsName, dsView, userId) {
       });
     },
     onSuccess: () => {
-      // Refresh view configuration after 500ms (matches reference implementation)
+      // Trigger delayed refetch
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
+        queryClient.refetchQueries({ queryKey: ['dsView', dsName, dsView, userId] });
       }, 500);
     },
   });
@@ -93,9 +105,9 @@ export function useDeleteFilter(dsName, dsView, userId) {
       });
     },
     onSuccess: () => {
-      // Refresh view configuration after 500ms (matches reference implementation)
+      // Trigger delayed refetch
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
+        queryClient.refetchQueries({ queryKey: ['dsView', dsName, dsView, userId] });
       }, 500);
     },
   });
