@@ -1052,20 +1052,29 @@ table th {
     position: absolute;
     display: inline-block;
     box-sizing: border-box;
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
     box-shadow: 0 0 5px 0 rgba(0, 0, 0, 0.2);
     font-size: 14px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     z-index: 10000;
+    color: var(--color-text);
+  }
+
+  /* Ensure submenus appear above parent menus */
+  .tabulator-menu:last-of-type {
+    z-index: 10001 !important;
   }
   
   .tabulator-menu .tabulator-menu-item {
+    position: relative;
+    box-sizing: border-box;
     padding: 5px 10px;
     -webkit-user-select: none;
         -ms-user-select: none;
             user-select: none;
+    color: var(--color-text);
   }
   
   .tabulator-menu .tabulator-menu-item.tabulator-menu-item-disabled {
@@ -1074,7 +1083,7 @@ table th {
   
   .tabulator-menu .tabulator-menu-item:not(.tabulator-menu-item-disabled):hover {
     cursor: pointer;
-    background: #769BCC;
+    background: var(--color-bg-light);
   }
   
   .tabulator-menu .tabulator-menu-item.tabulator-menu-item-submenu {
@@ -1091,13 +1100,13 @@ table th {
     content: "";
     border-width: 1px 1px 0 0;
     border-style: solid;
-    border-color: #333;
+    border-color: var(--color-text);
     vertical-align: top;
     transform: rotate(45deg);
   }
   
   .tabulator-menu .tabulator-menu-separator {
-    border-top: 1px solid #ddd;
+    border-top: 1px solid var(--color-border);
   }
   
   .tabulator-edit-select-list {
