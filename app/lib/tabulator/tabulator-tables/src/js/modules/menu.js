@@ -274,19 +274,19 @@ Menu.prototype.showSubmenu = function(e, parentItem, submenu, component){
 	var parentRect = parentItem.getBoundingClientRect();
 	var docHeight = Math.max(document.body.offsetHeight, window.innerHeight);
 	
-	submenuEl.style.position = "absolute";
+	submenuEl.style.position = "fixed";
 	submenuEl.style.left = parentRect.right + "px";
 	submenuEl.style.top = parentRect.top + "px";
 
 	document.body.appendChild(submenuEl);
 
 	// Adjust position if submenu goes off screen
-	if((parentRect.right + submenuEl.offsetWidth) >= document.body.offsetWidth){
+	if((parentRect.right + submenuEl.offsetWidth) >= window.innerWidth){
 		submenuEl.style.left = (parentRect.left - submenuEl.offsetWidth) + "px";
 	}
 
-	if((parentRect.top + submenuEl.offsetHeight) >= docHeight){
-		submenuEl.style.top = (docHeight - submenuEl.offsetHeight) + "px";
+	if((parentRect.top + submenuEl.offsetHeight) >= window.innerHeight){
+		submenuEl.style.top = (window.innerHeight - submenuEl.offsetHeight) + "px";
 	}
 
 	// Store reference to submenu for cleanup
