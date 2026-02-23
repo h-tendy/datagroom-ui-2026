@@ -4,6 +4,7 @@ import mditBracketedSpans from 'markdown-it-bracketed-spans';
 import mditAttrs from 'markdown-it-attrs';
 import mditContainer from 'markdown-it-container';
 import mditHighlightjs from 'markdown-it-highlightjs';
+import markdownItMermaid from '@datatraccorporation/markdown-it-mermaid';
 import mditPlantuml from 'markdown-it-plantuml';
 import { markdownItFancyListPlugin as mditFancyLists } from 'markdown-it-fancy-lists';
 import { parseExpr, evalExpr } from '../../../components/editors/QueryParsers';
@@ -20,8 +21,7 @@ const md = new MarkdownIt({
   .use(mditContainer, 'indent2')
   .use(mditContainer, 'indent3')
   .use(mditHighlightjs)
-  // mermaid temporarily disabled due to d3.js document access errors
-  // .use(mditMermaid)
+  .use(markdownItMermaid)
   .use(mditPlantuml, { imageFormat: 'png' })
   .use(mditContainer, 'slide')
   .use(mditFancyLists);
@@ -40,8 +40,8 @@ md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
   return defaultLinkOpen(tokens, idx, options, env, self);
 };
 
-// Custom fence renderer for plotly graphs
-// CRITICAL: Save the default fence renderer that markdown-it-highlightjs set up
+// Custom fence renderer for plotly graphs and mermaid width support
+// CRITICAL: Save the default fence renderer that markdown-it-mermaid and markdown-it-highlightjs set up
 const defaultFence = md.renderer.rules.fence;
 md.renderer.rules.fence = function(tokens, idx, options, env, self) {
   const token = tokens[idx];
@@ -52,6 +52,34 @@ md.renderer.rules.fence = function(tokens, idx, options, env, self) {
     const encoded = encodeURIComponent(token.content);
     const id = `plotly-graph-${idx}`;
     return `<div id="${id}" class="plotly-graph" data-plot='${encoded}'></div>`;
+  }
+  
+  // Check if this is a mermaid diagram with width specification
+  if (info.startsWith('mermaid')) {
+    // Let the mermaid plugin handle rendering first
+    const result = defaultFence(tokens, idx, options, env, self);
+    
+    // Extract width specification from the fence info line (e.g., "mermaid 100%", "mermaid 50%", etc.)
+    const parts = info.split(/\s+/);
+    if (parts.length > 1) {
+      const widthSpec = parts[1];
+      // Check if it looks like a width value (ends with %, px, em, etc. or is a number)
+      if (/^\d+(%|px|em|rem|vw)?$/.test(widthSpec)) {
+        // The mermaid plugin outputs: <div class="mermaid"><div class="mermaid-title">100%</div>...</div>
+        // Remove the title div showing the width spec and add width style to container
+        let modifiedResult = result.replace(
+          new RegExp(`<div class="mermaid-title">${widthSpec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</div>`),
+          ''
+        );
+        // Add width style to the mermaid container div
+        modifiedResult = modifiedResult.replace(
+          /<div class="mermaid">/,
+          `<div class="mermaid" style="width: ${widthSpec}; max-width: 100%;">`
+        );
+        return modifiedResult;
+      }
+    }
+    return result;
   }
   
   // Call the default fence renderer to apply syntax highlighting
