@@ -1463,6 +1463,16 @@ function DsViewPage() {
           // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
           requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
         }
+        
+        // Re-run mermaid to render any mermaid diagrams in the table
+        // Use double requestAnimationFrame to ensure DOM is fully updated
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          try {
+            mermaid.run({ querySelector: '.mermaid' });
+          } catch (err) {
+            console.error('Mermaid rendering error:', err);
+          }
+        }));
       } else {
         console.log('Skipping table adjustment (cellEditCancelled)...');
       }
@@ -1501,6 +1511,16 @@ function DsViewPage() {
           // (Double requestAnimationFrame ensures cells are fully laid out before measuring)
           requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
         }
+        
+        // Re-run mermaid to render any mermaid diagrams in the table
+        // Use double requestAnimationFrame to ensure DOM is fully updated
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          try {
+            mermaid.run({ querySelector: '.mermaid' });
+          } catch (err) {
+            console.error('Mermaid rendering error:', err);
+          }
+        }));
       }
     }, 500);
 
