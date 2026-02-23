@@ -25,6 +25,7 @@ const DIST_DIR = path.join(TABULATOR_DIR, 'dist/js');
 
 // Track processed files to detect circular includes
 const processingStack = [];
+let processedFileCount = 0;
 
 // Read a file with error handling
 function readFile(filePath) {
@@ -62,6 +63,7 @@ function processIncludes(content, baseDir) {
     
     // Read the included file
     processingStack.push(fullPath);
+    processedFileCount++;
     const includedContent = readFile(fullPath);
     
     // Recursively process includes in the included file
@@ -168,8 +170,9 @@ async function build() {
   
   try {
     // Step 1: Build core from sources
+    processedFileCount = 0;
     const coreSource = buildCore();
-    console.log(`✓ Processed ${processingStack.length} source files`);
+    console.log(`✓ Processed ${processedFileCount} source files`);
     
     // Step 2: Build UMD version (ES5)
     console.log('\n📦 Building UMD version (tabulator.js)...');
