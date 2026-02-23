@@ -70,6 +70,48 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
   // Get description of selected filter
   const filterDescription = defaultValue && filters[defaultValue] ? filters[defaultValue].description : '';
   
+  // Custom styles for react-select to match theme
+  const customSelectStyles = {
+    control: (provided, state) => ({
+      ...provided,
+      backgroundColor: 'var(--color-bg)',
+      borderColor: 'var(--color-border)',
+      color: 'var(--color-text)',
+      '&:hover': {
+        borderColor: 'var(--color-primary)',
+      },
+    }),
+    menu: (provided) => ({
+      ...provided,
+      backgroundColor: 'var(--color-bg)',
+      border: '1px solid var(--color-border)',
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      backgroundColor: state.isSelected 
+        ? 'var(--color-primary)' 
+        : state.isFocused 
+          ? 'var(--color-bg-light)' 
+          : 'var(--color-bg)',
+      color: state.isSelected ? 'white' : 'var(--color-text)',
+      '&:hover': {
+        backgroundColor: 'var(--color-bg-light)',
+      },
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: 'var(--color-text)',
+    }),
+    input: (provided) => ({
+      ...provided,
+      color: 'var(--color-text)',
+    }),
+    placeholder: (provided) => ({
+      ...provided,
+      color: 'var(--color-text-muted)',
+    }),
+  };
+  
   // Handler for filter dropdown change
   const handleFilterChange = (value) => {
     setSaveName(null);
@@ -184,7 +226,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
     if (!deleteFilter || !defaultValue) return null;
     
     return (
-      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg, #fff)', border: '1px solid #ddd', borderRadius: '4px' }}>
+      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
         <Col md={12} sm={12} xs={12}>
           <div style={{ marginBottom: '10px' }}>
             <b>Are you sure you want to delete filter "{defaultValue}"?</b>
@@ -195,11 +237,11 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
           <button 
             onClick={handleDelete} 
             disabled={deleteFilterMutation.isPending}
-            style={{ backgroundColor: '#d9534f', color: 'white', border: 'none', padding: '5px 15px' }}
+            style={{ backgroundColor: '#d9534f', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer' }}
           >
             {deleteFilterMutation.isPending ? 'Deleting...' : 'Confirm delete'}
           </button>
-          <button onClick={() => setDeleteFilter(false)} style={{ marginLeft: '10px' }}>
+          <button onClick={() => setDeleteFilter(false)} style={{ marginLeft: '10px', padding: '5px 15px', borderRadius: '4px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
             Cancel
           </button>
         </Col>
@@ -218,7 +260,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
     }
     
     return (
-      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg, #fff)', border: '1px solid #ddd', borderRadius: '4px' }}>
+      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
         <Col md={12} sm={12} xs={12}>
           <div style={{ marginBottom: '10px' }}>
             <label><b>Filter Name:</b> {defaultValue}</label>
@@ -228,17 +270,17 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
             <textarea
               value={saveDescription !== null ? saveDescription : (filters[defaultValue]?.description || '')}
               onChange={(e) => setSaveDescription(e.target.value)}
-              style={{ width: '100%', padding: '5px', minHeight: '60px' }}
+              style={{ width: '100%', padding: '5px', minHeight: '60px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
               placeholder="Enter filter description..."
             />
           </div>
           {saveErrorMsg && (
             <div style={{ color: 'red', marginBottom: '10px' }}>{saveErrorMsg}</div>
           )}
-          <button onClick={handleSave} disabled={editFilterMutation.isPending}>
+          <button onClick={handleSave} disabled={editFilterMutation.isPending} style={{ padding: '5px 15px', borderRadius: '4px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', cursor: 'pointer' }}>
             {editFilterMutation.isPending ? 'Saving...' : 'Save'}
           </button>
-          <button onClick={() => setSave(false)} style={{ marginLeft: '10px' }}>
+          <button onClick={() => setSave(false)} style={{ marginLeft: '10px', padding: '5px 15px', borderRadius: '4px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
             Cancel
           </button>
         </Col>
@@ -251,7 +293,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
     if (!saveAsNew) return null;
     
     return (
-      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg, #fff)', border: '1px solid #ddd', borderRadius: '4px' }}>
+      <Row style={{ marginTop: '15px', padding: '10px', backgroundColor: 'var(--color-bg-light)', border: '1px solid var(--color-border)', borderRadius: '4px' }}>
         <Col md={12} sm={12} xs={12}>
           <div style={{ marginBottom: '10px' }}>
             <label><b>New Filter Name:</b></label>
@@ -265,7 +307,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
                   setSaveAsNewName(value);
                 }
               }}
-              style={{ width: '100%', padding: '5px' }}
+              style={{ width: '100%', padding: '5px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
               placeholder="Enter filter name..."
             />
           </div>
@@ -274,17 +316,17 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
             <textarea
               value={saveAsNewDescription}
               onChange={(e) => setSaveAsNewDescription(e.target.value)}
-              style={{ width: '100%', padding: '5px', minHeight: '60px' }}
+              style={{ width: '100%', padding: '5px', minHeight: '60px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px' }}
               placeholder="Enter filter description..."
             />
           </div>
           {saveAsNewErrorMsg && (
             <div style={{ color: 'red', marginBottom: '10px' }}>{saveAsNewErrorMsg}</div>
           )}
-          <button onClick={handleSaveAsNew} disabled={addFilterMutation.isPending}>
+          <button onClick={handleSaveAsNew} disabled={addFilterMutation.isPending} style={{ padding: '5px 15px', borderRadius: '4px', backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', cursor: 'pointer' }}>
             {addFilterMutation.isPending ? 'Creating...' : 'Create'}
           </button>
-          <button onClick={() => setSaveAsNew(false)} style={{ marginLeft: '10px' }}>
+          <button onClick={() => setSaveAsNew(false)} style={{ marginLeft: '10px', padding: '5px 15px', borderRadius: '4px', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer' }}>
             Cancel
           </button>
         </Col>
@@ -293,7 +335,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
   };
   
   return (
-    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--color-bg-secondary, #f8f9fa)', borderRadius: '4px' }}>
+    <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: 'var(--color-bg)' }}>
       <br/>
       <Row style={{ marginBottom: '10px' }}>
         <Col md={1} sm={1} xs={1}>
@@ -309,6 +351,7 @@ function FilterControls({ show, dsName, dsView, tableRef, onFilterChange, defaul
             options={filterOptions}
             onChange={handleFilterChange}
             placeholder="Select a filter..."
+            styles={customSelectStyles}
           />
         </Col>
       </Row>
