@@ -36,13 +36,17 @@ class ModalEditor extends React.Component {
         }
         console.log("Ref value: ", this.state.textareaRef);
         if (this.state.textareaRef && !this.codeMirror) {
+            // Determine CodeMirror theme based on app theme
+            const appTheme = localStorage.getItem('theme') || 'light';
+            const cmTheme = appTheme === 'dark' ? 'monokai' : 'eclipse';
             this.codeMirror = window.CodeMirror.fromTextArea(this.state.textareaRef, {
                 lineNumbers: true,
                 lineWrapping: true,
                 mode: "spell-checker",
                 backdrop: "markdown",
                 highlightFormatting: true,
-                scrollbarStyle: "null"
+                scrollbarStyle: "null",
+                theme: cmTheme
             });
             window.inlineAttachment.editors.codemirror4.attach(this.codeMirror, {
                 uploadUrl: '/uploadAttachments',
