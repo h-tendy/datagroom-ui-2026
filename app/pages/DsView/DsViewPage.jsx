@@ -252,6 +252,11 @@ function DsViewPage() {
     onCellUnlocked: handleCellUnlocked,
   });
 
+  useEffect(() => {
+    document.title = dsName || 'Datagroom';
+    return () => { document.title = 'Datagroom'; };
+  }, [dsName]);
+
   // Sync socket state to refs so callbacks always have current values (fixes stale closure bug)
   useEffect(() => {
     connectedStateRef.current = connectedState;
