@@ -83,13 +83,17 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
         input.style.height = "100%";
         window.CodeMirrorSpellChecker({
             codeMirrorInstance: window.CodeMirror,
-        });        
+        });
+        // Determine CodeMirror theme based on app theme
+        const appTheme = localStorage.getItem('theme') || 'light';
+        const cmTheme = appTheme === 'dark' ? 'monokai' : 'eclipse';
         editor = window.CodeMirror.fromTextArea(input, {
             lineNumbers: true,
             lineWrapping: true,
             mode: "spell-checker",
 	        backdrop: "markdown",
-            highlightFormatting: true
+            highlightFormatting: true,
+            theme: cmTheme
           });
         window.inlineAttachment.editors.codemirror4.attach(editor, {
             uploadUrl: '/uploadAttachments', 
