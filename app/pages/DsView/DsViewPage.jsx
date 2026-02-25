@@ -2649,7 +2649,6 @@ function DsViewPage() {
         top: rowManagerElement.scrollTop,
         left: rowManagerElement.scrollLeft
       };
-      console.log('[Scroll Preservation] Scroll event - updated position:', scrollPositionBeforeLoadRef.current);
     };
     
     rowManagerElement.addEventListener('scroll', handleScroll, { passive: true });
@@ -2934,18 +2933,15 @@ function DsViewPage() {
               ajaxRequesting: () => {
                 const table = tabulatorRef.current?.table;
                 if (table && table.rowManager?.element) {
-                  const currentPos = {
+                  scrollPositionBeforeLoadRef.current = {
                     top: table.rowManager.element.scrollTop,
                     left: table.rowManager.element.scrollLeft
                   };
-                  scrollPositionBeforeLoadRef.current = currentPos;
-                  console.log('[Scroll Preservation] ajaxRequesting - captured position:', currentPos);
                 }
               },
               // Data loaded callback - restore scroll position and re-request active locks
               // This ensures scroll position stays the same after filter changes
               dataLoaded: (data) => {
-                console.log('[Tabulator] Data loaded, re-requesting active locks');
                 requestActiveLocks();
                 
                 // Restore scroll position after data loads (e.g., from filter changes)
@@ -2953,8 +2949,6 @@ function DsViewPage() {
                 if (table && table.rowManager?.element) {
                   const rowManagerElement = table.rowManager.element;
                   const savedPosition = scrollPositionBeforeLoadRef.current;
-                  
-                  console.log('[Scroll Preservation] dataLoaded - restoring to position:', savedPosition);
                   
                   if (savedPosition && (savedPosition.top > 0 || savedPosition.left > 0)) {
                     // Disable smooth scrolling temporarily
@@ -2964,14 +2958,12 @@ function DsViewPage() {
                     // Restore immediately (synchronous)
                     rowManagerElement.scrollTop = savedPosition.top;
                     rowManagerElement.scrollLeft = savedPosition.left;
-                    console.log('[Scroll Preservation] Immediate restoration applied');
                     
                     // Also restore after initial render
                     requestAnimationFrame(() => {
                       if (rowManagerElement) {
                         rowManagerElement.scrollTop = savedPosition.top;
                         rowManagerElement.scrollLeft = savedPosition.left;
-                        console.log('[Scroll Preservation] First RAF restoration applied');
                       }
                     });
                     
@@ -2982,15 +2974,9 @@ function DsViewPage() {
                           rowManagerElement.scrollTop = savedPosition.top;
                           rowManagerElement.scrollLeft = savedPosition.left;
                           rowManagerElement.style.scrollBehavior = originalScrollBehavior;
-                          console.log('[Scroll Preservation] Final RAF restoration applied, position:', {
-                            top: rowManagerElement.scrollTop,
-                            left: rowManagerElement.scrollLeft
-                          });
                         }
                       });
                     });
-                  } else {
-                    console.log('[Scroll Preservation] No saved position to restore (was at top)');
                   }
                 }
               },

@@ -1286,7 +1286,8 @@ RowManager.prototype.renderTable = function(){
 
 	this.table.options.renderStarted.call(this.table);
 
-	this.element.scrollTop = 0;
+	// COMMENTED OUT: This was causing unwanted scroll to top on every render
+	// this.element.scrollTop = 0;
 
 	switch(this.renderMode){
 		case "classic":
