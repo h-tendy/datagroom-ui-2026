@@ -2643,23 +2643,19 @@ function DsViewPage() {
     
     const rowManagerElement = table.rowManager.element;
     
-    // Throttled scroll handler to update ref without excessive calls
-    let scrollTimeout;
+    // Immediate scroll handler to update ref (no throttle to ensure we capture position quickly)
     const handleScroll = () => {
-      if (scrollTimeout) clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        scrollPositionBeforeLoadRef.current = {
-          top: rowManagerElement.scrollTop,
-          left: rowManagerElement.scrollLeft
-        };
-      }, 50); // Throttle to 50ms
+      scrollPositionBeforeLoadRef.current = {
+        top: rowManagerElement.scrollTop,
+        left: rowManagerElement.scrollLeft
+      };
+      console.log('[Scroll Preservation] Scroll event - updated position:', scrollPositionBeforeLoadRef.current);
     };
     
     rowManagerElement.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
       rowManagerElement.removeEventListener('scroll', handleScroll);
-      if (scrollTimeout) clearTimeout(scrollTimeout);
     };
   }, [initialUrlProcessed]); // Re-run when table is ready
 
