@@ -296,6 +296,14 @@ RowManager.prototype.scrollToRow = function(row, position, ifVisible){
 RowManager.prototype.setData = function(data, renderInPosition, columnsChanged){
 	var self = this;
 
+	console.log('[Tabulator setData]', {
+		renderInPosition: renderInPosition,
+		displayRowsLength: this.getDisplayRows().length,
+		dataLength: Array.isArray(data) ? data.length : 'not-array',
+		scrollTop: this.element.scrollTop,
+		scrollLeft: this.element.scrollLeft
+	});
+
 	return new Promise((resolve, reject)=>{
 		if(renderInPosition && this.getDisplayRows().length){
 			if(self.table.options.pagination){
@@ -313,7 +321,10 @@ RowManager.prototype.setData = function(data, renderInPosition, columnsChanged){
 			// COMMENTED OUT: Don't reset scroll when renderInPosition is true (preserve scroll during filter/sort)
 			// Only reset scroll when explicitly not preserving position
 			if(!renderInPosition){
+				console.log('[Tabulator setData] Calling resetScroll because renderInPosition=false');
 				this.resetScroll();
+			} else {
+				console.log('[Tabulator setData] Preserving scroll position, renderInPosition=true');
 			}
 
 			this._setDataActual(data, renderInPosition);
@@ -326,6 +337,13 @@ RowManager.prototype.setData = function(data, renderInPosition, columnsChanged){
 
 RowManager.prototype._setDataActual = function(data, renderInPosition){
 	var self = this;
+
+	console.log('[Tabulator _setDataActual]', {
+		renderInPosition: renderInPosition,
+		dataLength: Array.isArray(data) ? data.length : 'not-array',
+		scrollTop: this.element.scrollTop,
+		scrollLeft: this.element.scrollLeft
+	});
 
 	self.table.options.dataLoading.call(this.table, data);
 
@@ -826,6 +844,8 @@ RowManager.prototype.filterRefresh = function(){
 	options = table.options,
 	left = this.scrollLeft;
 
+	console.log('[Tabulator filterRefresh] scrollLeft:', left, 'scrollTop:', this.scrollTop);
+
 
 	if(options.ajaxFiltering){
 		if(options.pagination == "remote" && table.modExists("page")){
@@ -1290,6 +1310,8 @@ RowManager.prototype.getRenderMode = function(){
 };
 
 RowManager.prototype.renderTable = function(){
+
+	console.log('[Tabulator renderTable] scrollTop:', this.element.scrollTop, 'scrollLeft:', this.element.scrollLeft);
 
 	this.table.options.renderStarted.call(this.table);
 
@@ -1878,6 +1900,7 @@ RowManager.prototype.redraw = function (force){
 };
 
 RowManager.prototype.resetScroll = function(){
+	console.log('[Tabulator resetScroll] Called from:', new Error().stack.split('\n')[2]);
 	this.element.scrollLeft = 0;
 	this.element.scrollTop = 0;
 

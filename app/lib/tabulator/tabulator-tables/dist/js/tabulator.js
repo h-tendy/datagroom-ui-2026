@@ -2237,6 +2237,13 @@
     RowManager.prototype.setData = function (data, renderInPosition, columnsChanged) {
       var _this10 = this;
       var self = this;
+      console.log('[Tabulator setData]', {
+        renderInPosition: renderInPosition,
+        displayRowsLength: this.getDisplayRows().length,
+        dataLength: Array.isArray(data) ? data.length : 'not-array',
+        scrollTop: this.element.scrollTop,
+        scrollLeft: this.element.scrollLeft
+      });
       return new Promise(function (resolve, reject) {
         if (renderInPosition && _this10.getDisplayRows().length) {
           if (self.table.options.pagination) {
@@ -2254,7 +2261,10 @@
           // COMMENTED OUT: Don't reset scroll when renderInPosition is true (preserve scroll during filter/sort)
           // Only reset scroll when explicitly not preserving position
           if (!renderInPosition) {
+            console.log('[Tabulator setData] Calling resetScroll because renderInPosition=false');
             _this10.resetScroll();
+          } else {
+            console.log('[Tabulator setData] Preserving scroll position, renderInPosition=true');
           }
           _this10._setDataActual(data, renderInPosition);
         }
@@ -2263,6 +2273,12 @@
     };
     RowManager.prototype._setDataActual = function (data, renderInPosition) {
       var self = this;
+      console.log('[Tabulator _setDataActual]', {
+        renderInPosition: renderInPosition,
+        dataLength: Array.isArray(data) ? data.length : 'not-array',
+        scrollTop: this.element.scrollTop,
+        scrollLeft: this.element.scrollLeft
+      });
       self.table.options.dataLoading.call(this.table, data);
       this._wipeElements();
       if (this.table.options.history && this.table.modExists("history")) {
@@ -2647,6 +2663,7 @@
       var table = this.table,
         options = table.options,
         left = this.scrollLeft;
+      console.log('[Tabulator filterRefresh] scrollLeft:', left, 'scrollTop:', this.scrollTop);
       if (options.ajaxFiltering) {
         if (options.pagination == "remote" && table.modExists("page")) {
           table.modules.page.reset(true);
@@ -3021,6 +3038,7 @@
       return this.renderMode;
     };
     RowManager.prototype.renderTable = function () {
+      console.log('[Tabulator renderTable] scrollTop:', this.element.scrollTop, 'scrollLeft:', this.element.scrollLeft);
       this.table.options.renderStarted.call(this.table);
 
       // COMMENTED OUT: This was causing unwanted scroll to top on every render
@@ -3493,6 +3511,7 @@
       }
     };
     RowManager.prototype.resetScroll = function () {
+      console.log('[Tabulator resetScroll] Called from:', new Error().stack.split('\n')[2]);
       this.element.scrollLeft = 0;
       this.element.scrollTop = 0;
       if (this.table.browser === "ie") {
