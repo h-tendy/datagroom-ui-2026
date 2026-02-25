@@ -44,6 +44,11 @@ export default defineConfig({
         ws: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '^/(login|logout|sessionCheck)': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
       '/socket.io': {
         target: API_TARGET,
         changeOrigin: true,
