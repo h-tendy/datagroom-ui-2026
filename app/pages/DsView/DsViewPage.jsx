@@ -480,27 +480,57 @@ function DsViewPage() {
     }, 1000);
     
     // Preserve scroll position during column resize to prevent unwanted scrolling
-    // Store current scroll position
     const table = tabulatorRef.current?.table;
-    if (table && table.element) {
+    if (table && table.element && table.rowManager?.element) {
+      // Store current scroll position before any operations
       const scrollTop = table.rowManager.element.scrollTop;
       const scrollLeft = table.rowManager.element.scrollLeft;
       
-      // Only redraw if absolutely necessary, and restore scroll position
-      // Note: Removing redraw as Tabulator handles column resize updates automatically
-      // If redraw is needed, restore scroll position after
-      /*
+      // Use requestAnimationFrame to restore scroll position after Tabulator's internal updates
+      // This ensures scroll position is maintained even if Tabulator triggers layout changes
       requestAnimationFrame(() => {
-        table.redraw(true);
-        requestAnimationFrame(() => {
-          if (table.rowManager.element) {
-            table.rowManager.element.scrollTop = scrollTop;
-            table.rowManager.element.scrollLeft = scrollLeft;
-          }
-        });
+        if (table.rowManager?.element) {
+          table.rowManager.element.scrollTop = scrollTop;
+          table.rowManager.element.scrollLeft = scrollLeft;
+        }
       });
-      */
     }
+  }, []);
+
+  // Utility function to redraw table while preserving scroll position
+  // Prevents unwanted scrolling when redrawing the table
+  const redrawTableWithScrollPreservation = useCallback((table) => {
+    if (!table || !table.rowManager?.element) return;
+    
+    const rowManagerElement = table.rowManager.element;
+    
+    // Capture current scroll position
+    const scrollTop = rowManagerElement.scrollTop;
+    const scrollLeft = rowManagerElement.scrollLeft;
+    
+    // Temporarily disable smooth scrolling to prevent visual jumps
+    const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
+    rowManagerElement.style.scrollBehavior = 'auto';
+    
+    // Perform redraw
+    table.redraw(true);
+    
+    // Restore scroll position immediately (synchronous) to minimize visual jump
+    rowManagerElement.scrollTop = scrollTop;
+    rowManagerElement.scrollLeft = scrollLeft;
+    
+    // Double requestAnimationFrame ensures restoration happens after browser paint
+    // This catches any cases where the redraw causes additional layout changes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (rowManagerElement) {
+          rowManagerElement.scrollTop = scrollTop;
+          rowManagerElement.scrollLeft = scrollLeft;
+          // Restore original scroll behavior
+          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+        }
+      });
+    });
   }, []);
 
   // Process search params (query string) and restore ad-hoc filter state
@@ -1943,12 +1973,12 @@ function DsViewPage() {
 
       // Lightweight redraw and size adjustment (matches reference)
       if (tabulatorRef.current?.table) {
-        tabulatorRef.current.table.redraw(true);
+        redrawTableWithScrollPreservation(tabulatorRef.current.table);
       }
     } catch (err) {
       console.error('hideColumn error', err);
     }
-  }, [viewConfig]);
+  }, [viewConfig, redrawTableWithScrollPreservation]);
 
   // Hide column from cell context menu - matches reference DsView.js hideColFromCell
   // Reference: DsView.js lines 1833-1839
@@ -1990,12 +2020,12 @@ function DsViewPage() {
 
       // Lightweight redraw and size adjustment (matches reference)
       if (tabulatorRef.current?.table) {
-        tabulatorRef.current.table.redraw(true);
+        redrawTableWithScrollPreservation(tabulatorRef.current.table);
       }
     } catch (err) {
       console.error('hideColumnFromCell error', err);
     }
-  }, [viewConfig]);
+  }, [viewConfig, redrawTableWithScrollPreservation]);
 
   // Show all hidden columns - matches reference DsView.js showAllCols
   // Reference: DsView.js lines 1841-1848
@@ -2016,11 +2046,11 @@ function DsViewPage() {
       }
 
       // Lightweight redraw (matches reference)
-      table.redraw(true);
+      redrawTableWithScrollPreservation(table);
     } catch (err) {
       console.error('showAllCols error', err);
     }
-  }, []);
+  }, [redrawTableWithScrollPreservation]);
 
   // Add column question - shows modal with form
   // Reference: DsView.js lines 1444-1488
@@ -2124,7 +2154,7 @@ function DsViewPage() {
                 }
                 
                 console.log('[ADD COLUMN] Dynamically added column to table');
-                table.redraw(true);
+                redrawTableWithScrollPreservation(table);
               }
             } catch (err) {
               console.error('[ADD COLUMN] Error dynamically adding column:', err);
@@ -2143,7 +2173,7 @@ function DsViewPage() {
         },
       }
     );
-  }, [dsName, dsView, userId, newColumnName, addColumnPosition, addColumnReferenceField, addColumnMutation]);
+  }, [dsName, dsView, userId, newColumnName, addColumnPosition, addColumnReferenceField, addColumnMutation, redrawTableWithScrollPreservation]);
 
   // Delete column question - shows modal with confirmation or error if key column
   // Reference: DsView.js lines 1387-1412
