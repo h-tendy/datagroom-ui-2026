@@ -479,9 +479,27 @@ function DsViewPage() {
       columnResizedRecentlyRef.current = false;
     }, 1000);
     
-    // Redraw table
-    if (tabulatorRef.current?.table) {
-      tabulatorRef.current.table.redraw(true);
+    // Preserve scroll position during column resize to prevent unwanted scrolling
+    // Store current scroll position
+    const table = tabulatorRef.current?.table;
+    if (table && table.element) {
+      const scrollTop = table.rowManager.element.scrollTop;
+      const scrollLeft = table.rowManager.element.scrollLeft;
+      
+      // Only redraw if absolutely necessary, and restore scroll position
+      // Note: Removing redraw as Tabulator handles column resize updates automatically
+      // If redraw is needed, restore scroll position after
+      /*
+      requestAnimationFrame(() => {
+        table.redraw(true);
+        requestAnimationFrame(() => {
+          if (table.rowManager.element) {
+            table.rowManager.element.scrollTop = scrollTop;
+            table.rowManager.element.scrollLeft = scrollLeft;
+          }
+        });
+      });
+      */
     }
   }, []);
 
