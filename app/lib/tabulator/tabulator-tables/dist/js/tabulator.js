@@ -781,7 +781,9 @@
         if (_Tabulator.prototype.helpers.elVisible(this.element)) {
           this._verticalAlignHeaders();
         }
-        this.table.rowManager.resetScroll();
+
+        // COMMENTED OUT: This was causing unwanted scroll reset during column operations
+        // this.table.rowManager.resetScroll();
         this.table.rowManager.reinitialize();
       }
       if (["fitColumns", "fitDataStretch"].indexOf(this.table.modules.layout.getMode()) > -1) {
@@ -2645,7 +2647,8 @@
           table.modules.page.reset(true);
           table.modules.page.setPage(1).then(function () {}).catch(function () {});
         } else if (options.ajaxProgressiveLoad) {
-          table.modules.ajax.loadData().then(function () {}).catch(function () {});
+          // Pass true to preserve scroll position during filter changes
+          table.modules.ajax.loadData(true).then(function () {}).catch(function () {});
         } else {
           //assume data is url, make ajax call to url to get data
           this._genRemoteRequest();
@@ -2666,7 +2669,8 @@
           table.modules.page.reset(true);
           table.modules.page.setPage(1).then(function () {}).catch(function () {});
         } else if (options.ajaxProgressiveLoad) {
-          table.modules.ajax.loadData().then(function () {}).catch(function () {});
+          // Pass true to preserve scroll position during sort changes
+          table.modules.ajax.loadData(true).then(function () {}).catch(function () {});
         } else {
           //assume data is url, make ajax call to url to get data
           this._genRemoteRequest();

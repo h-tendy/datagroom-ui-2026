@@ -827,7 +827,8 @@ RowManager.prototype.filterRefresh = function(){
 			table.modules.page.reset(true);
 			table.modules.page.setPage(1).then(()=>{}).catch(()=>{});
 		}else if(options.ajaxProgressiveLoad){
-			table.modules.ajax.loadData().then(()=>{}).catch(()=>{});
+			// Pass true to preserve scroll position during filter changes
+			table.modules.ajax.loadData(true).then(()=>{}).catch(()=>{});
 		}else{
 			//assume data is url, make ajax call to url to get data
 			this._genRemoteRequest();
@@ -850,7 +851,8 @@ RowManager.prototype.sorterRefresh = function(loadOrignalData){
 			table.modules.page.reset(true);
 			table.modules.page.setPage(1).then(()=>{}).catch(()=>{});
 		}else if(options.ajaxProgressiveLoad){
-			table.modules.ajax.loadData().then(()=>{}).catch(()=>{});
+			// Pass true to preserve scroll position during sort changes
+			table.modules.ajax.loadData(true).then(()=>{}).catch(()=>{});
 		}else{
 			//assume data is url, make ajax call to url to get data
 			this._genRemoteRequest();

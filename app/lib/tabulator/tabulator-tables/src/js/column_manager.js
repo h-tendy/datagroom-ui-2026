@@ -705,7 +705,8 @@ ColumnManager.prototype.redraw = function(force){
 			this._verticalAlignHeaders();
 		}
 
-		this.table.rowManager.resetScroll();
+		// COMMENTED OUT: This was causing unwanted scroll reset during column operations
+		// this.table.rowManager.resetScroll();
 		this.table.rowManager.reinitialize();
 	}
 
