@@ -682,7 +682,8 @@ Page.prototype._parseRemoteData = function(data){
 		}else{
 			left = this.table.rowManager.scrollLeft;
 
-			this.table.rowManager.setData(data[this.dataReceivedNames.data], false, this.initialLoad && this.page == 1);
+			// Changed from false to true to preserve scroll position during pagination/filtering
+			this.table.rowManager.setData(data[this.dataReceivedNames.data], true, this.initialLoad && this.page == 1);
 
 			this.table.rowManager.scrollHorizontal(left);
 

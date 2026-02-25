@@ -2082,6 +2082,10 @@
 
         //handle horizontal scrolling
         if (self.scrollLeft != left) {
+          // Debug: Log when horizontal scroll position changes
+          if (left === 0 && self.scrollLeft !== 0) {
+            console.log('[Tabulator SCROLL EVENT] Horizontal scroll reset to 0! Previous scrollLeft:', self.scrollLeft);
+          }
           self.columnManager.scrollHorizontal(left);
           if (self.table.options.groupBy) {
             self.table.modules.groupRows.scrollHeaders(left);
@@ -2094,22 +2098,33 @@
         self.scrollLeft = left;
       });
 
+      // Track vertical scroll for all render modes (not just virtual)
+      self.element.addEventListener("scroll", function () {
+        var top = self.element.scrollTop;
+        if (self.scrollTop != top) {
+          // Debug: Log when scroll position changes
+          if (top === 0 && self.scrollTop !== 0) {
+            console.log('[Tabulator SCROLL EVENT] Scroll reset to 0! Previous scrollTop:', self.scrollTop);
+          }
+          self.scrollTop = top;
+          self.table.options.scrollVertical(top);
+        } else {
+          self.scrollTop = top;
+        }
+      });
+
       //handle virtual dom scrolling
       if (this.renderMode === "virtual") {
         self.element.addEventListener("scroll", function () {
           var top = self.element.scrollTop;
           var dir = self.scrollTop > top;
 
-          //handle verical scrolling
+          //handle verical scrolling (virtual DOM specific logic)
           if (self.scrollTop != top) {
-            self.scrollTop = top;
             self.scrollVertical(dir);
             if (self.table.options.ajaxProgressiveLoad == "scroll") {
               self.table.modules.ajax.nextPage(self.element.scrollHeight - self.element.clientHeight - top);
             }
-            self.table.options.scrollVertical(top);
-          } else {
-            self.scrollTop = top;
           }
         });
       }
@@ -3113,6 +3128,7 @@
     };
     RowManager.prototype._clearVirtualDom = function () {
       var element = this.tableElement;
+      console.log('[Tabulator _clearVirtualDom] Called, current scrollTop:', this.scrollTop, 'scrollLeft:', this.scrollLeft, 'Stack:', new Error().stack.split('\n')[2]);
       if (this.table.options.placeholder && this.table.options.placeholder.parentNode) {
         this.table.options.placeholder.parentNode.removeChild(this.table.options.placeholder);
       }
@@ -3125,8 +3141,12 @@
       element.style.minHeight = "";
       element.style.display = "";
       element.style.visibility = "";
-      this.scrollTop = 0;
-      this.scrollLeft = 0;
+
+      // COMMENTED OUT: Don't reset scroll tracking variables - they should only be updated from scroll events
+      // This was causing scroll position to be lost when rendering with zero rows
+      // this.scrollTop = 0;
+      // this.scrollLeft = 0;
+
       this.vDomTop = 0;
       this.vDomBottom = 0;
       this.vDomTopPad = 0;
@@ -17316,7 +17336,9 @@
           }
         } else {
           left = this.table.rowManager.scrollLeft;
-          this.table.rowManager.setData(data[this.dataReceivedNames.data], false, this.initialLoad && this.page == 1);
+
+          // Changed from false to true to preserve scroll position during pagination/filtering
+          this.table.rowManager.setData(data[this.dataReceivedNames.data], true, this.initialLoad && this.page == 1);
           this.table.rowManager.scrollHorizontal(left);
           this.table.columnManager.scrollHorizontal(left);
           this.table.options.pageLoaded.call(this.table, this.getPage());
