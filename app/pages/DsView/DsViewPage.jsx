@@ -102,6 +102,7 @@ function DsViewPage() {
   const originalColumnAttrsRef = useRef(null);
   const mouseDownOnHtmlLinkRef = useRef(false);
   const mouseDownOnBadgeCopyIconRef = useRef(false);
+  const scrollPositionBeforeLoadRef = useRef({ top: 0, left: 0 });
 
   // Fetch view configuration
   const { data: viewConfig, isLoading, isError, error } = useDsView(dsName, dsView, userId);
@@ -2904,11 +2905,48 @@ function DsViewPage() {
               pageLoaded: handlePageLoaded,
               // Page size changed callback to track user changes
               pageSizeChanged: handlePaginationPageSizeChanged,
-              // Data loaded callback - re-request active locks after data loads
-              // This ensures locked cells are styled even on fresh reload
+              // Data loading callback - capture scroll position before data loads
+              // This ensures scroll position is preserved when filters change
+              dataLoading: (data) => {
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element) {
+                  scrollPositionBeforeLoadRef.current = {
+                    top: table.rowManager.element.scrollTop,
+                    left: table.rowManager.element.scrollLeft
+                  };
+                }
+              },
+              // Data loaded callback - restore scroll position and re-request active locks
+              // This ensures scroll position stays the same after filter changes
               dataLoaded: (data) => {
                 console.log('[Tabulator] Data loaded, re-requesting active locks');
                 requestActiveLocks();
+                
+                // Restore scroll position after data loads (e.g., from filter changes)
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element) {
+                  const rowManagerElement = table.rowManager.element;
+                  const savedPosition = scrollPositionBeforeLoadRef.current;
+                  
+                  // Disable smooth scrolling temporarily
+                  const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
+                  rowManagerElement.style.scrollBehavior = 'auto';
+                  
+                  // Restore immediately
+                  rowManagerElement.scrollTop = savedPosition.top;
+                  rowManagerElement.scrollLeft = savedPosition.left;
+                  
+                  // Also restore after render completes
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      if (rowManagerElement) {
+                        rowManagerElement.scrollTop = savedPosition.top;
+                        rowManagerElement.scrollLeft = savedPosition.left;
+                        rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+                      }
+                    });
+                  });
+                }
               },
             }}
             cellEditing={handleCellEditing}
