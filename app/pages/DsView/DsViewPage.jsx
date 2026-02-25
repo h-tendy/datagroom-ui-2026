@@ -2780,6 +2780,7 @@ function DsViewPage() {
               initialHeaderFilter: initialHeaderFilter,
               // Apply saved filter sort order
               initialSort: initialSort,
+              headerSortTristate:true,
               // Row formatter to style unsaved rows (no _id) with different background
               // Reference: DsView.js lines 1962-1968
               // Uses CSS variables to match current theme with accent color for contrast
