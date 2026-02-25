@@ -14,6 +14,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { transformSync } from '@babel/core';
 import { minify } from 'terser';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,8 @@ const __dirname = path.dirname(__filename);
 const TABULATOR_DIR = path.resolve(__dirname, '../app/lib/tabulator/tabulator-tables');
 const SRC_DIR = path.join(TABULATOR_DIR, 'src/js');
 const DIST_DIR = path.join(TABULATOR_DIR, 'dist/js');
+const SCSS_SRC = path.join(TABULATOR_DIR, 'src/scss/tabulator.scss');
+const CSS_DIST = path.join(TABULATOR_DIR, 'dist/css/tabulator.css');
 
 // Track processed files to detect circular includes
 const processingStack = [];
@@ -163,6 +166,36 @@ async function minifyCode(code, filename) {
   }
 }
 
+// Compile SCSS to CSS using Sass
+function compileCSS() {
+  console.log('\n🎨 Compiling SCSS to CSS...');
+  try {
+    // Ensure dist/css directory exists
+    const cssDir = path.dirname(CSS_DIST);
+    if (!fs.existsSync(cssDir)) {
+      fs.mkdirSync(cssDir, { recursive: true });
+    }
+    
+    // Run sass compiler
+    execSync(`sass "${SCSS_SRC}" "${CSS_DIST}" --no-source-map`, {
+      stdio: 'inherit',
+      cwd: TABULATOR_DIR
+    });
+    
+    console.log(`✓ Created ${path.relative(TABULATOR_DIR, CSS_DIST)}`);
+    
+    // Display file size
+    if (fs.existsSync(CSS_DIST)) {
+      const size = (fs.statSync(CSS_DIST).size / 1024).toFixed(2);
+      console.log(`  CSS file size: ${size} KB`);
+    }
+  } catch (err) {
+    console.error('⚠️  CSS compilation failed:', err.message);
+    console.error('Make sure sass is installed: npm install -g sass');
+    // Don't fail the build if CSS compilation fails
+  }
+}
+
 // Main build process
 async function build() {
   console.log('🚀 Starting Tabulator build...\n');
@@ -195,6 +228,26 @@ async function build() {
     console.log('\n📦 Building minified ESM version (tabulator.es2015.min.js)...');
     const esmMinified = await minifyCode(esmTranspiled, 'tabulator.es2015.min.js');
     writeFile(path.join(DIST_DIR, 'tabulator.es2015.min.js'), esmMinified);
+    
+    // Step 6: Compile SCSS to CSS
+    compileCSS();
+    
+    // Step 7: Copy CSS to all tabulator locations
+    console.log('\n📋 Copying CSS to all tabulator locations...');
+    const cssLocations = [
+      path.resolve(__dirname, '../app/lib/tabulator/styles/tabulator.css'),
+      path.resolve(__dirname, '../app/lib/tabulator/react-tabulator/css/tabulator.css'),
+      path.resolve(__dirname, '../app/lib/tabulator/react-tabulator/lib/css/tabulator.css'),
+    ];
+    
+    cssLocations.forEach(dest => {
+      const dir = path.dirname(dest);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.copyFileSync(CSS_DIST, dest);
+      console.log(`  ✓ Copied to ${path.relative(path.resolve(__dirname, '..'), dest)}`);
+    });
     
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`\n✅ Build completed successfully in ${duration}s\n`);

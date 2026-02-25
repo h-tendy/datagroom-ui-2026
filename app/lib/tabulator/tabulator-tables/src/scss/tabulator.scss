@@ -359,6 +359,64 @@ $footerActiveColor:#d00 !default; //footer bottom active text color
 		}
 	}
 
+	//top horizontal scrollbar
+	.tabulator-top-scrollbar{
+		position:relative;
+		z-index: 10; // Ensure scrollbar appears above header
+		width:100%;
+		white-space: nowrap;
+		overflow-x:auto !important;
+		overflow-y: hidden !important;
+		-webkit-overflow-scrolling: touch;
+		height: 6px !important; // 6px = 50% of bottom scrollbar (12px)
+		max-height: 6px !important;
+		min-height: 6px !important;
+		display: block !important;
+		box-sizing: border-box;
+		margin: 0;
+		padding: 10.3px 0 0 0; // Top padding to position scrollbar below header
+		line-height: 0;
+		background: transparent;
+		
+		// Custom scrollbar styling for thinner appearance using theme colors
+		&::-webkit-scrollbar {
+			height: 6px !important;
+			background: var(--color-bg, transparent);
+		}
+		
+		&::-webkit-scrollbar-track {
+			background: var(--color-bg, transparent);
+			border-radius: 6px;
+		}
+		
+		&::-webkit-scrollbar-thumb {
+			background: var(--color-text-muted, #999);
+			border-radius: 6px;
+			border: 2px solid var(--color-bg, transparent);
+		}
+		
+		&::-webkit-scrollbar-thumb:hover {
+			background: var(--color-primary, #666);
+		}
+		
+		// Firefox
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-text-muted, #999) var(--color-bg, transparent);
+		line-height: 0;
+		background: transparent;
+		
+		.tabulator-top-scrollbar-content{
+			height: 1px;
+			min-height: 1px;
+			display: block;
+			margin: 0;
+			padding: 0;
+			line-height: 0;
+			font-size: 0;
+			// width set dynamically by JavaScript
+		}
+	}
+
 	//scrolling element to hold table
 	.tabulator-tableHolder{
 		position:relative;
