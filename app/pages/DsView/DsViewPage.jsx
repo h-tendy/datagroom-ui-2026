@@ -305,19 +305,62 @@ function DsViewPage() {
     }, 100);
   }, []);
 
+  // Utility function to execute operations while preserving scroll position
+  // Prevents unwanted scrolling during layout-affecting operations (filters, column changes, etc.)
+  const executeWithScrollPreservation = useCallback((table, operation) => {
+    if (!table || !table.rowManager?.element) {
+      // If no table, just execute the operation
+      if (operation) operation();
+      return;
+    }
+    
+    const rowManagerElement = table.rowManager.element;
+    
+    // Capture current scroll position
+    const scrollTop = rowManagerElement.scrollTop;
+    const scrollLeft = rowManagerElement.scrollLeft;
+    
+    // Temporarily disable smooth scrolling to prevent visual jumps
+    const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
+    rowManagerElement.style.scrollBehavior = 'auto';
+    
+    // Execute the operation
+    if (operation) operation();
+    
+    // Restore scroll position immediately (synchronous) to minimize visual jump
+    rowManagerElement.scrollTop = scrollTop;
+    rowManagerElement.scrollLeft = scrollLeft;
+    
+    // Double requestAnimationFrame ensures restoration happens after browser paint
+    // This catches any cases where the operation causes additional layout changes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (rowManagerElement) {
+          rowManagerElement.scrollTop = scrollTop;
+          rowManagerElement.scrollLeft = scrollLeft;
+          // Restore original scroll behavior
+          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+        }
+      });
+    });
+  }, []);
+
   // Listen for window resize events (e.g., opening debug console) and re-render Mermaid
   useEffect(() => {
     const handleResize = () => {
-      // Re-render both Mermaid and Plotly on window resize
-      if (domHelpers.current) {
-        requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
-      }
-      renderMermaidDiagrams();
+      const table = tabulatorRef.current?.table;
+      executeWithScrollPreservation(table, () => {
+        // Re-render both Mermaid and Plotly on window resize
+        if (domHelpers.current) {
+          requestAnimationFrame(() => requestAnimationFrame(() => domHelpers.current.renderPlotlyInCells()));
+        }
+        renderMermaidDiagrams();
+      });
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [renderMermaidDiagrams]);
+  }, [renderMermaidDiagrams, executeWithScrollPreservation]);
 
   // Display connection status indicator (matches reference implementation style)
   const displayConnectedStatus = () => {
@@ -420,46 +463,6 @@ function DsViewPage() {
       localStorage.setItem('chronologyDescending', JSON.stringify(value));
     }
   }, [searchParams]);
-
-  // Utility function to execute operations while preserving scroll position
-  // Prevents unwanted scrolling during layout-affecting operations (filters, column changes, etc.)
-  const executeWithScrollPreservation = useCallback((table, operation) => {
-    if (!table || !table.rowManager?.element) {
-      // If no table, just execute the operation
-      if (operation) operation();
-      return;
-    }
-    
-    const rowManagerElement = table.rowManager.element;
-    
-    // Capture current scroll position
-    const scrollTop = rowManagerElement.scrollTop;
-    const scrollLeft = rowManagerElement.scrollLeft;
-    
-    // Temporarily disable smooth scrolling to prevent visual jumps
-    const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
-    rowManagerElement.style.scrollBehavior = 'auto';
-    
-    // Execute the operation
-    if (operation) operation();
-    
-    // Restore scroll position immediately (synchronous) to minimize visual jump
-    rowManagerElement.scrollTop = scrollTop;
-    rowManagerElement.scrollLeft = scrollLeft;
-    
-    // Double requestAnimationFrame ensures restoration happens after browser paint
-    // This catches any cases where the operation causes additional layout changes
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (rowManagerElement) {
-          rowManagerElement.scrollTop = scrollTop;
-          rowManagerElement.scrollLeft = scrollLeft;
-          // Restore original scroll behavior
-          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
-        }
-      });
-    });
-  }, []);
 
   // Process filter change - handle filter selection from FilterControls
   // Reference: DsView.js lines 1996-2037
