@@ -2955,6 +2955,27 @@ function DsViewPage() {
               pageLoaded: handlePageLoaded,
               // Page size changed callback to track user changes
               pageSizeChanged: handlePaginationPageSizeChanged,
+              // ═════════════════════════════════════════════════════════════════════════
+              // SCROLL PRESERVATION: AJAX REQUEST/RESPONSE CALLBACKS
+              // ═════════════════════════════════════════════════════════════════════════
+              // These callbacks work together to preserve scroll position during AJAX
+              // operations (filtering, sorting, pagination). Critical for maximized windows.
+              //
+              // TIMING:
+              //   ajaxRequesting → AJAX call → server response → dataLoaded
+              //                                                ↓
+              //                                    React re-renders (6x for handlers)
+              //                                                ↓
+              //                                    Scroll restoration (now + deferred)
+              //
+              // WHY TWO RESTORATIONS?
+              //   1. Immediate: Gets scroll back ASAP (before React re-renders)
+              //   2. Deferred (setTimeout 0): After React finishes handler recreations
+              //
+              // NOTE: React recreates handlers 6 times during filter operations, so we
+              // restore scroll both immediately and after call stack clears.
+              // ═════════════════════════════════════════════════════════════════════════
+
               // Ajax requesting callback - capture scroll position before any AJAX request
               // This catches filter changes, sorting, pagination, etc.
               ajaxRequesting: () => {
