@@ -6168,21 +6168,38 @@
       var tableHolder = self.rowManager.element;
       var topScrollWrapper = self.topScrollWrapper;
       var topScrollContent = self.topScrollContent;
+      var headerElement = self.columnManager.element;
       var syncing = false;
       console.log('[TopScrollbar] Setup called', {
         tableHolder: !!tableHolder,
         topScrollWrapper: !!topScrollWrapper,
-        topScrollContent: !!topScrollContent
+        topScrollContent: !!topScrollContent,
+        headerElement: !!headerElement
       });
       if (!tableHolder || !topScrollWrapper || !topScrollContent) {
         console.warn('[TopScrollbar] Missing elements, aborting setup');
         return;
       }
 
+      // Calculate header height dynamically
+      var updateStickyPosition = function updateStickyPosition() {
+        if (headerElement) {
+          var headerHeight = headerElement.offsetHeight;
+          topScrollWrapper.style.top = headerHeight + 'px';
+          console.log('[TopScrollbar] Updated sticky position, header height:', headerHeight);
+        }
+      };
+
       // CRITICAL: Force inline styles to override any cached CSS - height: 6px for thinner scrollbar
-      // padding-top: 10.3px to position scrollbar below header
-      topScrollWrapper.style.cssText = 'position: relative; z-index: 10; width: 100%; white-space: nowrap; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; height: 6px !important; max-height: 6px !important; min-height: 6px !important; display: block; box-sizing: border-box; margin: 0; padding: 10.3px 0 0 0; line-height: 0; border: none; background-color: transparent !important;';
+      // position: sticky to stick below header when scrolling (top calculated dynamically)
+      topScrollWrapper.style.cssText = 'position: sticky; z-index: 14; width: 100%; white-space: nowrap; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; height: 6px !important; max-height: 6px !important; min-height: 6px !important; display: block; box-sizing: border-box; margin: 0; padding: 10.3px 0 0 0; line-height: 0; border: none; background-color: var(--color-bg) !important;';
       topScrollContent.style.cssText = 'height: 1px; min-height: 1px; display: block; margin: 0; padding: 0; line-height: 0; font-size: 0;';
+
+      // Set initial sticky position
+      updateStickyPosition();
+
+      // Update sticky position when header might resize
+      window.addEventListener('resize', updateStickyPosition);
 
       // Add custom scrollbar styling via injected stylesheet for thinner scrollbar (6px = 50% of bottom scrollbar 12px)
       if (!document.getElementById('tabulator-top-scrollbar-style')) {

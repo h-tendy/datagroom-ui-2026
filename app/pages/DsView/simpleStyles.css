@@ -327,7 +327,7 @@ table th {
 .tabulator {
     position: relative;
     background-color: var(--color-bg);
-    overflow: hidden;
+    overflow: visible;
     font-size: 12px;
     text-align: left;
     -ms-transform: translatez(0);
@@ -345,7 +345,9 @@ table th {
   }
   
   .tabulator .tabulator-header {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 15;
     box-sizing: border-box;
     width: 100%;
     border-bottom: 1px solid var(--color-border);

@@ -62,7 +62,7 @@
   color: var(--color-text);
   transition: margin-left 0.2s cubic-bezier(.4,0,.2,1), background 0.2s;
   width: 100vw;
-  overflow-x: auto;
+  overflow-x: visible;
 }
 .mainContentShift {
   margin-left: var(--sidebar-width);
