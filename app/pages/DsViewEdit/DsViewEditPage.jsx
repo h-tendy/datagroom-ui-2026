@@ -272,8 +272,8 @@ function DsViewEditPage() {
 
   const getHeaderMenuWithoutHide = () => [
     { label: "Toggle Filters", action: toggleSingleFilter },
-    { label: "Set Editor to 'line'", action: (e, col) => setEditor(col, 'input') },
-    { label: "Set Editor to 'paragraph'", action: (e, col) => setEditor(col, 'textarea') },
+    { label: "Set Editor to 'line'", action: (e, col) => setEditor(col, 'line') },
+    { label: "Set Editor to 'paragraph'", action: (e, col) => setEditor(col, 'paragraph') },
     { label: "Disable editing", action: (e, col) => setEditor(col, false) },
     { label: "Set Formatter to 'line'", action: (e, col) => setFormatter(col, 'plaintext') },
     { label: "Set Formatter to 'paragraph'", action: (e, col) => setFormatter(col, 'textarea') },
@@ -284,8 +284,8 @@ function DsViewEditPage() {
 
   const getHeaderMenuWithHide = () => [
     { label: "Toggle Filters", action: toggleSingleFilter },
-    { label: "Set Editor to 'line'", action: (e, col) => setEditor(col, 'input') },
-    { label: "Set Editor to 'paragraph'", action: (e, col) => setEditor(col, 'textarea') },
+    { label: "Set Editor to 'line'", action: (e, col) => setEditor(col, 'line') },
+    { label: "Set Editor to 'paragraph'", action: (e, col) => setEditor(col, 'paragraph') },
     { label: "Disable editing", action: (e, col) => setEditor(col, false) },
     { label: "Set Formatter to 'line'", action: (e, col) => setFormatter(col, 'plaintext') },
     { label: "Set Formatter to 'paragraph'", action: (e, col) => setFormatter(col, 'textarea') },
@@ -305,17 +305,34 @@ function DsViewEditPage() {
   const setEditor = (column, editor) => {
     if (!tabulatorRef.current) return;
     
+    // Map dropdown values to Tabulator editor strings
+    const editorStringMap = {
+      'line': 'input',
+      'paragraph': 'textarea',
+      'codemirror': 'codemirror',
+      'autocomplete': 'autocomplete',
+      'date': 'date'
+    };
+    
     const currentDefs = tabulatorRef.current.table.getColumnDefinitions();
     for (let j = 0; j < currentDefs.length; j++) {
       if (currentDefs[j].field === column.getField()) {
         const width = column.getWidth();
-        editorsRef.current[column.getField()] = editor;
-        let displayEditor = editor;
-        if (editor === "codemirror" || editor === "date") {
+        
+        // Get the actual editor string from the map
+        const actualEditor = editorStringMap[editor] || editor;
+        
+        // Store original editor type
+        editorsRef.current[column.getField()] = actualEditor;
+        
+        // For display in Tabulator, convert codemirror/date to textarea
+        let displayEditor = actualEditor;
+        if (actualEditor === "codemirror" || actualEditor === "date") {
           displayEditor = "textarea";
         }
+        
         tabulatorRef.current.table.updateColumnDefinition(currentDefs[j].field, { 
-          editor: displayEditor, 
+          editor: displayEditor,
           width 
         });
         break;

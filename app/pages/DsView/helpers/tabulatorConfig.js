@@ -119,7 +119,7 @@ export { md };
  */
 export default function createTabulatorConfig(context) {
   const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol,
-          MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter,
+          MyInput, MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter,
           filterColumnAttrs, columnResizedRecently, originalColumnAttrs } = context;
   
   // Extract handlers passed from DsViewPage
@@ -215,6 +215,7 @@ export default function createTabulatorConfig(context) {
     
     for (let i = 0; i < viewConfig.columnAttrs.length; i++) {
       const col = { ...viewConfig.columnAttrs[i] };
+      console.log('[tabulatorConfig] Processing column:', col.field, 'editor:', col.editor, 'formatter:', col.formatter);
       // If saved filter column attributes provided, apply visibility/width before returning
       try {
         const attrsForField = filterColumnAttrs && col.field ? filterColumnAttrs[col.field] : null;
@@ -295,12 +296,21 @@ export default function createTabulatorConfig(context) {
           if (value === undefined) return "";
           return value;
         };
+        
+        // Setup editor params and custom editor for input to support Ctrl+Click CodeMirror
+        if (col.editor === "input") {
+          col.editorParams = col.editorParams || {};
+          col.editorParams.dsName = dsName;
+          col.editor = MyInput;
+        }
       }
 
       // Markdown/HTML formatting for textarea, codemirror, autocomplete
       if (col.editor === "textarea" || col.editor === "codemirror" || 
           (col.editor === false && col.formatter === "textarea") || 
           col.editor === "autocomplete") {
+        
+        console.log('[tabulatorConfig] Column with markdown/HTML formatting:', col.field, 'editor:', col.editor, 'formatter:', col.formatter);
         
         col.formatter = function(cell, formatterParams) {
           let value = cell.getValue();
@@ -334,13 +344,16 @@ export default function createTabulatorConfig(context) {
         
         // Setup editor params and custom editors for textarea/codemirror
         if (col.editor === "textarea" || col.editor === "codemirror") {
+          console.log('[tabulatorConfig] Setting up editor for column:', col.field, 'editor:', col.editor);
           col.editorParams = col.editorParams || {};
           col.editorParams.dsName = dsName;
           
           // Replace string editor names with actual function references
           if (col.editor === "textarea") {
+            console.log('[tabulatorConfig] Replacing textarea with MyTextArea for column:', col.field);
             col.editor = MyTextArea;
           } else if (col.editor === "codemirror") {
+            console.log('[tabulatorConfig] Replacing codemirror with MyCodeMirror for column:', col.field);
             col.editor = MyCodeMirror;
           }
           

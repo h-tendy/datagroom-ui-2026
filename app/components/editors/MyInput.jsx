@@ -2,30 +2,24 @@ import ModalEditor from '../../pages/DsView/components/ModalEditor';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 
-function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
-    console.log('[MyTextArea] Called with:', { 
+function MyInput(cell, onRendered, success, cancel, editorParams, ctrlKey) {
+    console.log('[MyInput] Called with:', { 
         cellValue: cell.getValue(), 
         ctrlKey, 
         hasEditorParams: !!editorParams,
         dsName: editorParams?.dsName 
     });
     
-    var self = this,
-        cellValue = cell.getValue(),
-        vertNav = (editorParams && editorParams.verticalNavigation) || "hybrid",
+    var cellValue = cell.getValue(),
         value = String(cellValue !== null && typeof cellValue !== "undefined" ? cellValue : ""),
-        count = (value.match(/(?:\r\n|\r|\n)/g) || []).length + 1,
-        input = document.createElement("textarea"),
-        scrollHeight = 0;
+        input = document.createElement("input");
+
+    input.setAttribute("type", (editorParams && editorParams.search) || "text");
 
     //create and style input
-    input.style.display = "block";
-    input.style.padding = "2px";
-    input.style.height = "100%";
+    input.style.padding = "4px";
     input.style.width = "100%";
     input.style.boxSizing = "border-box";
-    input.style.whiteSpace = "pre-wrap";
-    input.style.resize = "none";
 
     if (editorParams.elementAttributes && typeof editorParams.elementAttributes == "object") {
         for (let key in editorParams.elementAttributes) {
@@ -40,6 +34,7 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
 
     input.value = value;
 
+    // If Ctrl+Click, open modal CodeMirror editor
     if (ctrlKey) {
         // Hide the input element since we're using modal editor
         input.style.display = "none";
@@ -77,8 +72,8 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
             input.focus({
                 preventScroll: true
             });
+            input.select();
         }
-        input.style.height = "100%";
     });
 
     var editCompleted = false;
@@ -89,15 +84,10 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
         }
 
         if (((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue) {
-
             if (success(input.value)) {
                 editCompleted = true;
-                cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
+                cellValue = input.value;
             }
-            /*
-            setTimeout(function () {
-                cell.getRow().normalizeHeight();
-            }, 300) */
         } else {
             editCompleted = true;
             cancel();
@@ -107,80 +97,22 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
     //submit new value on blur or change
     input.addEventListener("change", onChange);
     input.addEventListener("blur", onChange);
-    // This is how you can retain focus while editing. 
-    // You also have to disable blur I think. 
-    // This is experimental. 
-    //window.addEventListener("mousedown", onChange);
-    //input.addEventListener("mousedown", function (e) {
-    //    e.stopPropagation();
-    //})
-    input.addEventListener("keyup", function () {
 
-        // Jayaram: 8/23 change, only set height if it is different in the
-        // below block. 
-        //input.style.height = "";
-
-        var heightNow = input.scrollHeight;
-
-        //input.style.height = heightNow + "px";
-
-        if (!scrollHeight) scrollHeight = heightNow;
-        if (heightNow != scrollHeight) {
-            input.style.height = heightNow + "px";
-            scrollHeight = heightNow;
-            cell.getRow().normalizeHeight();
-        }
-    });
-
+    //submit new value on enter
     input.addEventListener("keydown", function (e) {
-
         switch (e.keyCode) {
             case 13:
-                if (e.ctrlKey) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onChange(e);
-                }
+                onChange(e);
                 break;
+
             case 27:
                 cancel();
                 break;
-
-            // Jayaram: Copied from 'textarea' handling within the source. 
-            // Added the below keycodes (Home/End: 35/36) to not leave the editor. 
-            case 33:
-            case 34:
-                //e.stopImmediatePropagation();
-                //e.stopPropagation();
-                e.preventDefault();
-                const cursorPosition = e.key === 'PageUp' ? 0 : e.target.textLength;
-                e.target.setSelectionRange(cursorPosition, cursorPosition);
-                // Intentional that break is commented here. To make sure you don't leave
-                // editing when you press pgup/pgdown. 
-                //break;
+                
             case 35:
             case 36:
-                e.stopImmediatePropagation();
                 e.stopPropagation();
                 break;
-
-            case 38: //up arrow
-                if (vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart)) {
-                    e.stopImmediatePropagation();
-                    e.stopPropagation();
-                }
-
-                break;
-
-            case 40: //down arrow
-                if (vertNav == "editor" || (vertNav == "hybrid" && input.selectionStart !== input.value.length)) {
-                    e.stopImmediatePropagation();
-                    e.stopPropagation();
-                }
-                break;
-            default:
-                break;
-
         }
     });
 
@@ -191,4 +123,4 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
     return input;
 }
 
-export default MyTextArea;
+export default MyInput;

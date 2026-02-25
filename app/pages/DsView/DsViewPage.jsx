@@ -41,6 +41,7 @@ import AddColumnForm from './components/AddColumnForm';
 // Editors
 import * as DateEditorModule from '@tabulator/react-tabulator/lib/editors/DateEditor';
 const DateEditor = DateEditorModule.default;
+import MyInput from '../../components/editors/MyInput.jsx';
 import MyTextArea from '../../components/editors/MyTextArea.jsx';
 import MyCodeMirror from '../../components/editors/MyCodeMirror.jsx';
 import MyAutoCompleter from '../../components/editors/MyAutoCompleter.jsx';
@@ -2457,6 +2458,7 @@ function DsViewPage() {
       setModalQuestion,
       setShowModal,
       // Editor functions for Tabulator columns
+      MyInput,
       MyTextArea,
       MyCodeMirror,
       DateEditor,

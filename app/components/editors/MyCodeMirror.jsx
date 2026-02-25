@@ -3,9 +3,16 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 
 function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) {
+    console.log('[MyCodeMirror] Called with:', { 
+        cellValue: cell.getValue(), 
+        ctrlKey, 
+        hasEditorParams: !!editorParams,
+        dsName: editorParams?.dsName 
+    });
+    
     var self = this,
         cellValue = cell.getValue(),
-        vertNav = editorParams.verticalNavigation || "hybrid",
+        vertNav = (editorParams && editorParams.verticalNavigation) || "hybrid",
         value = String(cellValue !== null && typeof cellValue !== "undefined" ? cellValue : ""),
         count = (value.match(/(?:\r\n|\r|\n)/g) || []).length + 1,
         input = document.createElement("textarea"),
@@ -36,6 +43,9 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
     input.value = value;
 
     if (ctrlKey) {
+        // Hide the input element since we're using modal editor
+        input.style.display = "none";
+        
         let cellWidth = cell._cell.element.style.width;
         let div = document.createElement("div");
         document.body.appendChild(div);
@@ -44,7 +54,7 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
         const PopupContent = () => {
             return (
                 <ModalEditor show={true}
-                    title={"Edit"} text={value} onClose={clear} editorParams={editorParams}
+                    title={"Edit"} text={value} onClose={clear} editorParams={editorParams || {}}
                     cancel={"Cancel"} ok={"Done"} cmRef={cmRef} width={cellWidth}>
                 </ModalEditor>
             );
@@ -100,7 +110,7 @@ function MyCodeMirror(cell, onRendered, success, cancel, editorParams, ctrlKey) 
             urlText: '<img src="{filename}" alt="{filename}" width="100%" height="100%"/>', fileUrlText: '[{filename}]({filename})',
             allowedTypes: '*',
             extraParams: {
-                dsName: editorParams.dsName
+                dsName: editorParams && editorParams.dsName
             }
         });
 
