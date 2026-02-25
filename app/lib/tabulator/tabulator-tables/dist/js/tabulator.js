@@ -2083,6 +2083,7 @@
         //handle horizontal scrolling
         if (self.scrollLeft != left) {
           // Debug: Log when horizontal scroll position changes
+          console.log('[Tabulator SCROLL EVENT] Horizontal scroll changed from', self.scrollLeft, 'to', left);
           if (left === 0 && self.scrollLeft !== 0) {
             console.log('[Tabulator SCROLL EVENT] Horizontal scroll reset to 0! Previous scrollLeft:', self.scrollLeft);
           }
@@ -2102,9 +2103,10 @@
       self.element.addEventListener("scroll", function () {
         var top = self.element.scrollTop;
         if (self.scrollTop != top) {
-          // Debug: Log when scroll position changes
+          // Debug: Log when vertical scroll position changes
+          console.log('[Tabulator SCROLL EVENT] Vertical scroll changed from', self.scrollTop, 'to', top);
           if (top === 0 && self.scrollTop !== 0) {
-            console.log('[Tabulator SCROLL EVENT] Scroll reset to 0! Previous scrollTop:', self.scrollTop);
+            console.log('[Tabulator SCROLL EVENT] Vertical scroll reset to 0! Previous scrollTop:', self.scrollTop);
           }
           self.scrollTop = top;
           self.table.options.scrollVertical(top);
@@ -3089,10 +3091,15 @@
       // Restore scroll position after rendering (for classic mode)
       // The internal tracking variables (this.scrollTop, this.scrollLeft) are preserved
       // but the DOM element's scroll may have been reset during rendering
-      if (this.renderMode === "classic" && (this.scrollTop > 0 || this.scrollLeft > 0)) {
-        console.log('[Tabulator renderTable] Restoring scroll position to:', this.scrollTop, this.scrollLeft);
-        this.element.scrollTop = this.scrollTop;
-        this.element.scrollLeft = this.scrollLeft;
+      console.log('[Tabulator renderTable] Before restore - renderMode:', this.renderMode, 'scrollTop:', this.scrollTop, 'scrollLeft:', this.scrollLeft);
+      if (this.renderMode === "classic") {
+        if (this.scrollTop > 0 || this.scrollLeft > 0) {
+          console.log('[Tabulator renderTable] Restoring scroll position to:', this.scrollTop, this.scrollLeft);
+          this.element.scrollTop = this.scrollTop;
+          this.element.scrollLeft = this.scrollLeft;
+        } else {
+          console.log('[Tabulator renderTable] Not restoring - scroll positions are 0');
+        }
       }
       this.table.options.renderComplete.call(this.table);
     };
@@ -12730,7 +12737,9 @@
           //focus on element on click
           editorElement.addEventListener("click", function (e) {
             e.stopPropagation();
-            editorElement.focus();
+            editorElement.focus({
+              preventScroll: true
+            });
           });
           editorElement.addEventListener("focus", function (e) {
             var left = _this60.table.columnManager.element.scrollLeft;
@@ -12811,7 +12820,9 @@
     //programatically set focus of header filter
     Filter.prototype.setHeaderFilterFocus = function (column) {
       if (column.modules.filter && column.modules.filter.headerElement) {
-        column.modules.filter.headerElement.focus();
+        column.modules.filter.headerElement.focus({
+          preventScroll: true
+        });
       } else {
         console.warn("Column Filter Focus Error - No header filter set on column:", column.getField());
       }

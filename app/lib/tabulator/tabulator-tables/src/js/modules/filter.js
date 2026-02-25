@@ -233,7 +233,7 @@ Filter.prototype.generateHeaderFilterElement = function(column, initialValue, re
 			//focus on element on click
 			editorElement.addEventListener("click", function(e){
 				e.stopPropagation();
-				editorElement.focus();
+				editorElement.focus({ preventScroll: true });
 			});
 
 			editorElement.addEventListener("focus", (e) => {
@@ -335,7 +335,7 @@ Filter.prototype.showHeaderFilterElements = function(){
 //programatically set focus of header filter
 Filter.prototype.setHeaderFilterFocus = function(column){
 	if(column.modules.filter && column.modules.filter.headerElement){
-		column.modules.filter.headerElement.focus();
+		column.modules.filter.headerElement.focus({ preventScroll: true });
 	}else{
 		console.warn("Column Filter Focus Error - No header filter set on column:", column.getField());
 	}

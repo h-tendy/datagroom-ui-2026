@@ -409,6 +409,33 @@ function DsViewPage() {
     };
   }, [currentTheme]);
 
+  // Disable browser's automatic scroll restoration to prevent unwanted scrolling
+  // This is especially important in maximized windows where content height changes trigger auto-scroll
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      const originalScrollRestoration = window.history.scrollRestoration;
+      window.history.scrollRestoration = 'manual';
+      console.log('[SCROLL] Disabled browser scroll restoration');
+      
+      return () => {
+        window.history.scrollRestoration = originalScrollRestoration;
+        console.log('[SCROLL] Restored browser scroll restoration');
+      };
+    }
+  }, []);
+
+  // Force instant scroll behavior to prevent smooth scrolling that can cause jumps
+  useEffect(() => {
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    console.log('[SCROLL] Set scroll behavior to auto');
+    
+    return () => {
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      console.log('[SCROLL] Restored scroll behavior');
+    };
+  }, []);
+
   // Process URL parameters for chronologyDescending
   // Reference: DsView.js lines 343-345, 439
   // URL params override localStorage
@@ -1614,9 +1641,9 @@ function DsViewPage() {
       }
     }, 500);
     
-    // Return focus to table
+    // Return focus to table (preventScroll prevents unwanted page scrolling)
     if (tabulatorRef.current?.table?.element) {
-      tabulatorRef.current.table.element.focus({ preventScroll: false });
+      tabulatorRef.current.table.element.focus({ preventScroll: true });
     }
   }, [dsName, emitUnlock, auth.user]);
 
@@ -2935,8 +2962,11 @@ function DsViewPage() {
                 if (table && table.rowManager?.element) {
                   scrollPositionBeforeLoadRef.current = {
                     top: table.rowManager.element.scrollTop,
-                    left: table.rowManager.element.scrollLeft
+                    left: table.rowManager.element.scrollLeft,
+                    windowScrollY: window.scrollY,
+                    windowScrollX: window.scrollX
                   };
+                  console.log('[AJAX] Captured scroll positions:', scrollPositionBeforeLoadRef.current);
                 }
               },
               // Data loaded callback - restore scroll position and re-request active locks
@@ -2944,13 +2974,31 @@ function DsViewPage() {
               dataLoaded: (data) => {
                 requestActiveLocks();
                 
-                // Restore scroll position after data loads (e.g., from filter changes)
-                const table = tabulatorRef.current?.table;
-                if (table && table.rowManager?.element) {
-                  const rowManagerElement = table.rowManager.element;
-                  const savedPosition = scrollPositionBeforeLoadRef.current;
+                const savedPosition = scrollPositionBeforeLoadRef.current;
+                
+                if (savedPosition) {
+                  console.log('[AJAX] Restoring scroll positions:', savedPosition);
                   
-                  if (savedPosition && (savedPosition.top > 0 || savedPosition.left > 0)) {
+                  // Restore window scroll position after React has finished all updates
+                  // Use setTimeout with 0ms to defer until after current call stack clears
+                  // This ensures restoration happens after handler recreations and re-renders
+                  if (savedPosition.windowScrollY !== undefined || savedPosition.windowScrollX !== undefined) {
+                    // Immediate restoration (may be overwritten by React)
+                    window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+                    
+                    // Deferred restoration after call stack clears and React updates settle
+                    setTimeout(() => {
+                      window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+                    }, 0);
+                  }
+                }
+                
+                // Restore table internal scroll position
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element && savedPosition) {
+                  const rowManagerElement = table.rowManager.element;
+                  
+                  if (savedPosition.top > 0 || savedPosition.left > 0) {
                     // Disable smooth scrolling temporarily
                     const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
                     rowManagerElement.style.scrollBehavior = 'auto';
@@ -2959,23 +3007,13 @@ function DsViewPage() {
                     rowManagerElement.scrollTop = savedPosition.top;
                     rowManagerElement.scrollLeft = savedPosition.left;
                     
-                    // Also restore after initial render
+                    // Also restore after initial render (backup)
                     requestAnimationFrame(() => {
                       if (rowManagerElement) {
                         rowManagerElement.scrollTop = savedPosition.top;
                         rowManagerElement.scrollLeft = savedPosition.left;
+                        rowManagerElement.style.scrollBehavior = originalScrollBehavior;
                       }
-                    });
-                    
-                    // Final restoration after complete render cycle
-                    requestAnimationFrame(() => {
-                      requestAnimationFrame(() => {
-                        if (rowManagerElement) {
-                          rowManagerElement.scrollTop = savedPosition.top;
-                          rowManagerElement.scrollLeft = savedPosition.left;
-                          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
-                        }
-                      });
                     });
                   }
                 }
