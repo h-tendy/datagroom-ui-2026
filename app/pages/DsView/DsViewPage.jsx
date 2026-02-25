@@ -420,6 +420,46 @@ function DsViewPage() {
     }
   }, [searchParams]);
 
+  // Utility function to execute operations while preserving scroll position
+  // Prevents unwanted scrolling during layout-affecting operations (filters, column changes, etc.)
+  const executeWithScrollPreservation = useCallback((table, operation) => {
+    if (!table || !table.rowManager?.element) {
+      // If no table, just execute the operation
+      if (operation) operation();
+      return;
+    }
+    
+    const rowManagerElement = table.rowManager.element;
+    
+    // Capture current scroll position
+    const scrollTop = rowManagerElement.scrollTop;
+    const scrollLeft = rowManagerElement.scrollLeft;
+    
+    // Temporarily disable smooth scrolling to prevent visual jumps
+    const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
+    rowManagerElement.style.scrollBehavior = 'auto';
+    
+    // Execute the operation
+    if (operation) operation();
+    
+    // Restore scroll position immediately (synchronous) to minimize visual jump
+    rowManagerElement.scrollTop = scrollTop;
+    rowManagerElement.scrollLeft = scrollLeft;
+    
+    // Double requestAnimationFrame ensures restoration happens after browser paint
+    // This catches any cases where the operation causes additional layout changes
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (rowManagerElement) {
+          rowManagerElement.scrollTop = scrollTop;
+          rowManagerElement.scrollLeft = scrollLeft;
+          // Restore original scroll behavior
+          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+        }
+      });
+    });
+  }, []);
+
   // Process filter change - handle filter selection from FilterControls
   // Reference: DsView.js lines 1996-2037
   const processFilterChange = useCallback((filterName) => {
@@ -455,21 +495,23 @@ function DsViewPage() {
     setTimeout(() => {
       try {
         if (tabulatorRef.current?.table) {
-          const existing = tabulatorRef.current.table.getHeaderFilters() || [];
-          for (let j = 0; j < existing.length; j++) {
-            const f = existing[j];
-            if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-              tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+          executeWithScrollPreservation(tabulatorRef.current.table, () => {
+            const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+            for (let j = 0; j < existing.length; j++) {
+              const f = existing[j];
+              if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+              }
             }
-          }
-          // Show all columns and restore widths
-          applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
-          // Clear sorters
-          try { if (typeof tabulatorRef.current.table.clearSort === 'function') tabulatorRef.current.table.clearSort(); } catch (e) {}
+            // Show all columns and restore widths
+            applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+            // Clear sorters
+            try { if (typeof tabulatorRef.current.table.clearSort === 'function') tabulatorRef.current.table.clearSort(); } catch (e) {}
+          });
         }
       } catch (e) {}
     }, 50);
-  }, [dsName, dsView, navigate, setSearchParams]);
+  }, [dsName, dsView, navigate, setSearchParams, executeWithScrollPreservation]);
   
   // Handle column resize to set the flag
   const handleColumnResized = useCallback((column) => {
@@ -657,38 +699,40 @@ function DsViewPage() {
       setTimeout(() => {
         if (tabulatorRef.current?.table) {
           try {
-            const existing = tabulatorRef.current.table.getHeaderFilters() || [];
-            for (let j = 0; j < existing.length; j++) {
-              const f = existing[j];
-              if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
-              }
-            }
-
-            applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
-
-            if (Array.isArray(hdrFilters) && hdrFilters.length) {
-              for (let i = 0; i < hdrFilters.length; i++) {
-                const hf = hdrFilters[i];
-                if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                  tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+            executeWithScrollPreservation(tabulatorRef.current.table, () => {
+              const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+              for (let j = 0; j < existing.length; j++) {
+                const f = existing[j];
+                if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                  tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
                 }
               }
-            }
 
-            if (Array.isArray(hdrSorters) && hdrSorters.length) {
-              try {
-                tabulatorRef.current.table.setSort(hdrSorters);
-              } catch (e) {
-                console.error('Error applying hdrSorters from URL', e);
-              }
-            } else {
-              try {
-                if (typeof tabulatorRef.current.table.clearSort === 'function') {
-                  tabulatorRef.current.table.clearSort();
+              applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+
+              if (Array.isArray(hdrFilters) && hdrFilters.length) {
+                for (let i = 0; i < hdrFilters.length; i++) {
+                  const hf = hdrFilters[i];
+                  if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                    tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                  }
                 }
-              } catch (e) {}
-            }
+              }
+
+              if (Array.isArray(hdrSorters) && hdrSorters.length) {
+                try {
+                  tabulatorRef.current.table.setSort(hdrSorters);
+                } catch (e) {
+                  console.error('Error applying hdrSorters from URL', e);
+                }
+              } else {
+                try {
+                  if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                    tabulatorRef.current.table.clearSort();
+                  }
+                } catch (e) {}
+              }
+            });
           } catch (e) {
             console.error('Error applying URL filters/attrs', e);
           }
@@ -698,7 +742,7 @@ function DsViewPage() {
 
     lastProcessedSearchRef.current = searchString;
     urlRestoreLog('[URL RESTORE] processFilterViaUrl complete, marked as processed');
-  }, [searchParams, viewConfig]);
+  }, [searchParams, viewConfig, executeWithScrollPreservation]);
 
   // (removed premature marking here — we'll set `initialUrlProcessed` once columns are generated)
 
@@ -770,45 +814,47 @@ function DsViewPage() {
             setTimeout(() => {
               if (tabulatorRef.current?.table) {
                 try {
-                  // Clear all existing header filters first so old regexes are removed
-                  const existing = tabulatorRef.current.table.getHeaderFilters() || [];
-                  for (let j = 0; j < existing.length; j++) {
-                    const f = existing[j];
-                    if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                      tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
-                    }
-                  }
-
-                  // Apply column visibility/width attrs (pass original attrs so widths can be restored when needed)
-                  applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
-
-                  // Now apply saved header filter values so Tabulator (and backend) perform filtering
-                  if (Array.isArray(hdrFilters) && hdrFilters.length) {
-                    for (let i = 0; i < hdrFilters.length; i++) {
-                      const hf = hdrFilters[i];
-                      if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                        tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                  executeWithScrollPreservation(tabulatorRef.current.table, () => {
+                    // Clear all existing header filters first so old regexes are removed
+                    const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+                    for (let j = 0; j < existing.length; j++) {
+                      const f = existing[j];
+                      if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                        tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
                       }
                     }
-                  }
-                  // Apply saved sorters (hdrSorters) if present
-                  if (Array.isArray(hdrSorters) && hdrSorters.length) {
-                    try {
-                      // Tabulator accepts sort entries like [{column: 'field', dir: 'asc'}]
-                      tabulatorRef.current.table.setSort(hdrSorters);
-                    } catch (e) {
-                      console.error('Error applying saved sorters:', e);
-                    }
-                  } else {
-                    // No saved sorters for this filter: clear any existing sort
-                    try {
-                      if (typeof tabulatorRef.current.table.clearSort === 'function') {
-                        tabulatorRef.current.table.clearSort();
+
+                    // Apply column visibility/width attrs (pass original attrs so widths can be restored when needed)
+                    applyFilterColumnAttrs(tabulatorRef.current, colAttrs, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+
+                    // Now apply saved header filter values so Tabulator (and backend) perform filtering
+                    if (Array.isArray(hdrFilters) && hdrFilters.length) {
+                      for (let i = 0; i < hdrFilters.length; i++) {
+                        const hf = hdrFilters[i];
+                        if (hf && hf.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                          tabulatorRef.current.table.setHeaderFilterValue(hf.field, hf.value);
+                        }
                       }
-                    } catch (e) {
-                      console.error('Error clearing sorters:', e);
                     }
-                  }
+                    // Apply saved sorters (hdrSorters) if present
+                    if (Array.isArray(hdrSorters) && hdrSorters.length) {
+                      try {
+                        // Tabulator accepts sort entries like [{column: 'field', dir: 'asc'}]
+                        tabulatorRef.current.table.setSort(hdrSorters);
+                      } catch (e) {
+                        console.error('Error applying saved sorters:', e);
+                      }
+                    } else {
+                      // No saved sorters for this filter: clear any existing sort
+                      try {
+                        if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                          tabulatorRef.current.table.clearSort();
+                        }
+                      } catch (e) {
+                        console.error('Error clearing sorters:', e);
+                      }
+                    }
+                  });
                 } catch (e) {
                   console.error('Error applying header filters or column attrs:', e);
                 }
@@ -834,30 +880,32 @@ function DsViewPage() {
       setTimeout(() => {
         if (tabulatorRef.current?.table) {
           try {
-            const existing = tabulatorRef.current.table.getHeaderFilters() || [];
-            for (let j = 0; j < existing.length; j++) {
-              const f = existing[j];
-              if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
-                tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+            executeWithScrollPreservation(tabulatorRef.current.table, () => {
+              const existing = tabulatorRef.current.table.getHeaderFilters() || [];
+              for (let j = 0; j < existing.length; j++) {
+                const f = existing[j];
+                if (f && f.field && typeof tabulatorRef.current.table.setHeaderFilterValue === 'function') {
+                  tabulatorRef.current.table.setHeaderFilterValue(f.field, null);
+                }
               }
-            }
-            // Apply empty attrs to show all columns and restore original widths
-            applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
-            // Clear sorters when filter cleared
-            try {
-              if (typeof tabulatorRef.current.table.clearSort === 'function') {
-                tabulatorRef.current.table.clearSort();
+              // Apply empty attrs to show all columns and restore original widths
+              applyFilterColumnAttrs(tabulatorRef.current, {}, columnResizedRecentlyRef.current, originalColumnAttrsRef.current);
+              // Clear sorters when filter cleared
+              try {
+                if (typeof tabulatorRef.current.table.clearSort === 'function') {
+                  tabulatorRef.current.table.clearSort();
+                }
+              } catch (e) {
+                console.error('Error clearing sorters on filter clear:', e);
               }
-            } catch (e) {
-              console.error('Error clearing sorters on filter clear:', e);
-            }
+            });
           } catch (e) {
             console.error('Error clearing header filters:', e);
           }
         }
       }, 100);
     }
-  }, [filterParam, viewConfig, searchParams, _id]); // Respect viewConfig, searchParams, and _id for reload handling
+  }, [filterParam, viewConfig, searchParams, _id, executeWithScrollPreservation]); // Respect viewConfig, searchParams, and _id for reload handling
 
   // If there is no URL pathname filter and no query string, we'll allow mount once columns are ready
 
