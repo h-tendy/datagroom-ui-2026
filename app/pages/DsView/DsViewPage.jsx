@@ -1636,8 +1636,11 @@ function DsViewPage() {
 
     // Call API to save edit
     // Match reference implementation payload shape
+    // Reference: DsView.js lines 1172-1183
     const selectorObj = { _id, [field]: oldVal };
     const editObj = { [field]: newVal };
+    const jiraConfig = viewConfig?.jiraConfig;
+    const jiraAgileConfig = viewConfig?.jiraAgileConfig;
     const payload = {
       dsName,
       dsView,
@@ -1645,6 +1648,8 @@ function DsViewPage() {
       column: field,
       selectorObj,
       editObj,
+      jiraConfig,
+      jiraAgileConfig,
     };
     
     // Store cell reference to check later if still valid
