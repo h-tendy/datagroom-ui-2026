@@ -627,6 +627,16 @@ Tabulator.prototype._buildElement = function(){
 
 	//build table elements
 	element.appendChild(this.columnManager.getElement());
+	
+	// Add top horizontal scrollbar
+	this.topScrollWrapper = document.createElement("div");
+	this.topScrollWrapper.classList.add("tabulator-top-scrollbar");
+	this.topScrollContent = document.createElement("div");
+	this.topScrollContent.classList.add("tabulator-top-scrollbar-content");
+	this.topScrollContent.innerHTML = "&nbsp;"; // Add content to force height
+	this.topScrollWrapper.appendChild(this.topScrollContent);
+	element.appendChild(this.topScrollWrapper);
+	
 	element.appendChild(this.rowManager.getElement());
 
 
@@ -744,6 +754,9 @@ Tabulator.prototype._buildElement = function(){
 		mod.print.initialize();
 	}
 
+	// Setup top scrollbar synchronization
+	this._setupTopScrollbar();
+
 	options.tableBuilt.call(this);
 };
 
@@ -791,6 +804,122 @@ Tabulator.prototype._loadInitialData = function(){
 			}
 		}
 	}
+};
+
+//setup top horizontal scrollbar
+Tabulator.prototype._setupTopScrollbar = function(){
+	var self = this;
+	var tableHolder = self.rowManager.element;
+	var topScrollWrapper = self.topScrollWrapper;
+	var topScrollContent = self.topScrollContent;
+	var syncing = false;
+	
+	console.log('[TopScrollbar] Setup called', {
+		tableHolder: !!tableHolder,
+		topScrollWrapper: !!topScrollWrapper,
+		topScrollContent: !!topScrollContent
+	});
+	
+	if(!tableHolder || !topScrollWrapper || !topScrollContent) {
+		console.warn('[TopScrollbar] Missing elements, aborting setup');
+		return;
+	}
+	
+	// CRITICAL: Force inline styles to override any cached CSS - height: 6px for thinner scrollbar
+	// padding-top: 10.3px to position scrollbar below header
+	topScrollWrapper.style.cssText = 'position: relative; z-index: 10; width: 100%; white-space: nowrap; overflow-x: auto !important; overflow-y: hidden !important; -webkit-overflow-scrolling: touch; height: 6px !important; max-height: 6px !important; min-height: 6px !important; display: block; box-sizing: border-box; margin: 0; padding: 10.3px 0 0 0; line-height: 0; border: none; background-color: transparent !important;';
+	topScrollContent.style.cssText = 'height: 1px; min-height: 1px; display: block; margin: 0; padding: 0; line-height: 0; font-size: 0;';
+	
+	// Add custom scrollbar styling via injected stylesheet for thinner scrollbar (6px = 50% of bottom scrollbar 12px)
+	if (!document.getElementById('tabulator-top-scrollbar-style')) {
+		var style = document.createElement('style');
+		style.id = 'tabulator-top-scrollbar-style';
+		style.textContent = `
+			.tabulator-top-scrollbar::-webkit-scrollbar {
+				height: 6px !important;
+				background: var(--color-bg, transparent);
+			}
+			.tabulator-top-scrollbar::-webkit-scrollbar-track {
+				background: var(--color-bg, transparent);
+				border-radius: 6px;
+			}
+			.tabulator-top-scrollbar::-webkit-scrollbar-thumb {
+				background: var(--color-text-muted, #999);
+				border-radius: 6px;
+				border: 2px solid var(--color-bg, transparent);
+			}
+			.tabulator-top-scrollbar::-webkit-scrollbar-thumb:hover {
+				background: var(--color-primary, #666);
+			}
+			.tabulator-top-scrollbar {
+				scrollbar-width: thin;
+				scrollbar-color: var(--color-text-muted, #999) var(--color-bg, transparent);
+			}
+		`;
+		document.head.appendChild(style);
+	}
+	
+	// Update top scrollbar content width to match table scroll width
+	var updateWidth = function(){
+		var scrollWidth = tableHolder.scrollWidth;
+		var clientWidth = tableHolder.clientWidth;
+		
+		console.log('[TopScrollbar] DEBUG_V3 updateWidth called', {
+			scrollWidth: scrollWidth,
+			clientWidth: clientWidth,
+			needsScrollbar: scrollWidth > clientWidth
+		});
+		
+		// Set the content width to match table's scrollable width
+		topScrollContent.style.width = scrollWidth + 'px';
+		
+		// Show/hide scrollbar based on need
+		if(scrollWidth > clientWidth) {
+			topScrollWrapper.style.display = 'block';
+			topScrollWrapper.style.overflowX = 'auto';
+			
+			// Log computed styles after setting
+			var computedStyles = window.getComputedStyle(topScrollWrapper);
+			console.log('[TopScrollbar] DEBUG_V3 wrapper styles after show', {
+				display: topScrollWrapper.style.display,
+				overflowX: topScrollWrapper.style.overflowX,
+				computedHeight: computedStyles.height,
+				computedMaxHeight: computedStyles.maxHeight,
+				computedMinHeight: computedStyles.minHeight,
+				computedMargin: computedStyles.margin,
+				computedPadding: computedStyles.padding,
+				computedLineHeight: computedStyles.lineHeight,
+				computedBackgroundColor: computedStyles.backgroundColor,
+				computedOverflowX: computedStyles.overflowX
+			});
+		} else {
+			topScrollWrapper.style.display = 'none';
+			console.log('[TopScrollbar] DEBUG_V3 Hidden (no scroll needed)');
+		}
+	};
+	
+	// Initial width update
+	setTimeout(updateWidth, 100);
+	
+	// Sync top scrollbar to table - smooth scrolling
+	topScrollWrapper.addEventListener('scroll', function(){
+		if(syncing) return;
+		syncing = true;
+		tableHolder.scrollLeft = topScrollWrapper.scrollLeft;
+		requestAnimationFrame(function(){ syncing = false; });
+	});
+	
+	// Sync table to top scrollbar - smooth scrolling
+	tableHolder.addEventListener('scroll', function(){
+		if(syncing) return;
+		syncing = true;
+		topScrollWrapper.scrollLeft = tableHolder.scrollLeft;
+		requestAnimationFrame(function(){ syncing = false; });
+	});
+	
+	// Watch for table width changes
+	var resizeObserver = new ResizeObserver(updateWidth);
+	resizeObserver.observe(tableHolder);
 };
 
 //deconstructor
