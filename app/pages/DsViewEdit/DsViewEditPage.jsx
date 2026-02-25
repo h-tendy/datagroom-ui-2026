@@ -862,7 +862,7 @@ function DsViewEditPage() {
 
     const filterOptions = [
       { value: 'number', label: 'number' },
-      { value: 'text', label: 'text' }
+      { value: 'input', label: 'text' }
     ];
 
     const hozAlignOptions = [
