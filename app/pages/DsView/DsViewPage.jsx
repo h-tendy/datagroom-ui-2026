@@ -2635,6 +2635,34 @@ function DsViewPage() {
     }
   }, [showAllFilters, viewConfig, filterColumnAttrs]);
 
+  // Continuously track scroll position to ensure we always have the latest position
+  // This helps preserve scroll position during filter changes, pagination, etc.
+  useEffect(() => {
+    const table = tabulatorRef.current?.table;
+    if (!table || !table.rowManager?.element || !initialUrlProcessed) return;
+    
+    const rowManagerElement = table.rowManager.element;
+    
+    // Throttled scroll handler to update ref without excessive calls
+    let scrollTimeout;
+    const handleScroll = () => {
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        scrollPositionBeforeLoadRef.current = {
+          top: rowManagerElement.scrollTop,
+          left: rowManagerElement.scrollLeft
+        };
+      }, 50); // Throttle to 50ms
+    };
+    
+    rowManagerElement.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      rowManagerElement.removeEventListener('scroll', handleScroll);
+      if (scrollTimeout) clearTimeout(scrollTimeout);
+    };
+  }, [initialUrlProcessed]); // Re-run when table is ready
+
 
   // TODO: Implement remaining handlers:
   // - handleAddColumn
@@ -2905,7 +2933,20 @@ function DsViewPage() {
               pageLoaded: handlePageLoaded,
               // Page size changed callback to track user changes
               pageSizeChanged: handlePaginationPageSizeChanged,
-              // Data loading callback - capture scroll position before data loads
+              // Ajax requesting callback - capture scroll position before any AJAX request
+              // This catches filter changes, sorting, pagination, etc.
+              ajaxRequesting: () => {
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element) {
+                  const currentPos = {
+                    top: table.rowManager.element.scrollTop,
+                    left: table.rowManager.element.scrollLeft
+                  };
+                  scrollPositionBeforeLoadRef.current = currentPos;
+                  console.log('[Scroll Preservation] ajaxRequesting - captured position:', currentPos);
+                }
+              },
+              // Data loading callback - also capture scroll position
               // This ensures scroll position is preserved when filters change
               dataLoading: (data) => {
                 const table = tabulatorRef.current?.table;
@@ -2928,24 +2969,44 @@ function DsViewPage() {
                   const rowManagerElement = table.rowManager.element;
                   const savedPosition = scrollPositionBeforeLoadRef.current;
                   
-                  // Disable smooth scrolling temporarily
-                  const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
-                  rowManagerElement.style.scrollBehavior = 'auto';
+                  console.log('[Scroll Preservation] dataLoaded - restoring to position:', savedPosition);
                   
-                  // Restore immediately
-                  rowManagerElement.scrollTop = savedPosition.top;
-                  rowManagerElement.scrollLeft = savedPosition.left;
-                  
-                  // Also restore after render completes
-                  requestAnimationFrame(() => {
+                  if (savedPosition && (savedPosition.top > 0 || savedPosition.left > 0)) {
+                    // Disable smooth scrolling temporarily
+                    const originalScrollBehavior = rowManagerElement.style.scrollBehavior;
+                    rowManagerElement.style.scrollBehavior = 'auto';
+                    
+                    // Restore immediately (synchronous)
+                    rowManagerElement.scrollTop = savedPosition.top;
+                    rowManagerElement.scrollLeft = savedPosition.left;
+                    console.log('[Scroll Preservation] Immediate restoration applied');
+                    
+                    // Also restore after initial render
                     requestAnimationFrame(() => {
                       if (rowManagerElement) {
                         rowManagerElement.scrollTop = savedPosition.top;
                         rowManagerElement.scrollLeft = savedPosition.left;
-                        rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+                        console.log('[Scroll Preservation] First RAF restoration applied');
                       }
                     });
-                  });
+                    
+                    // Final restoration after complete render cycle
+                    requestAnimationFrame(() => {
+                      requestAnimationFrame(() => {
+                        if (rowManagerElement) {
+                          rowManagerElement.scrollTop = savedPosition.top;
+                          rowManagerElement.scrollLeft = savedPosition.left;
+                          rowManagerElement.style.scrollBehavior = originalScrollBehavior;
+                          console.log('[Scroll Preservation] Final RAF restoration applied, position:', {
+                            top: rowManagerElement.scrollTop,
+                            left: rowManagerElement.scrollLeft
+                          });
+                        }
+                      });
+                    });
+                  } else {
+                    console.log('[Scroll Preservation] No saved position to restore (was at top)');
+                  }
                 }
               },
             }}
