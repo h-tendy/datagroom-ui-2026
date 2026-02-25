@@ -1369,6 +1369,15 @@ RowManager.prototype.renderTable = function(){
 		}
 	}
 
+	// Restore scroll position after rendering (for classic mode)
+	// The internal tracking variables (this.scrollTop, this.scrollLeft) are preserved
+	// but the DOM element's scroll may have been reset during rendering
+	if(this.renderMode === "classic" && (this.scrollTop > 0 || this.scrollLeft > 0)){
+		console.log('[Tabulator renderTable] Restoring scroll position to:', this.scrollTop, this.scrollLeft);
+		this.element.scrollTop = this.scrollTop;
+		this.element.scrollLeft = this.scrollLeft;
+	}
+
 	this.table.options.renderComplete.call(this.table);
 };
 
