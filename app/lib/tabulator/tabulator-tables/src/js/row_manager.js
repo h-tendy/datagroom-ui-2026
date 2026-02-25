@@ -309,9 +309,14 @@ RowManager.prototype.setData = function(data, renderInPosition, columnsChanged){
 			if(this.table.options.autoColumns && columnsChanged){
 				this.table.columnManager.generateColumnsFromRowData(data);
 			}
-			this.resetScroll();
+			
+			// COMMENTED OUT: Don't reset scroll when renderInPosition is true (preserve scroll during filter/sort)
+			// Only reset scroll when explicitly not preserving position
+			if(!renderInPosition){
+				this.resetScroll();
+			}
 
-			this._setDataActual(data);
+			this._setDataActual(data, renderInPosition);
 
 		}
 

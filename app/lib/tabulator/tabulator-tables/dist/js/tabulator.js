@@ -2250,8 +2250,13 @@
           if (_this10.table.options.autoColumns && columnsChanged) {
             _this10.table.columnManager.generateColumnsFromRowData(data);
           }
-          _this10.resetScroll();
-          _this10._setDataActual(data);
+
+          // COMMENTED OUT: Don't reset scroll when renderInPosition is true (preserve scroll during filter/sort)
+          // Only reset scroll when explicitly not preserving position
+          if (!renderInPosition) {
+            _this10.resetScroll();
+          }
+          _this10._setDataActual(data, renderInPosition);
         }
         resolve();
       });
