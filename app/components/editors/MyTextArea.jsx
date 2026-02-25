@@ -41,8 +41,8 @@ function MyTextArea(cell, onRendered, success, cancel, editorParams, ctrlKey) {
     input.value = value;
 
     if (ctrlKey) {
-        // Hide the input element since we're using modal editor
-        input.style.display = "none";
+        // Launch modal editor - keep input visible so cell doesn't appear blank
+        input.readOnly = true;
         
         let cellWidth = cell._cell.element.style.width;
         let div = document.createElement("div");
