@@ -2946,17 +2946,6 @@ function DsViewPage() {
                   console.log('[Scroll Preservation] ajaxRequesting - captured position:', currentPos);
                 }
               },
-              // Data loading callback - also capture scroll position
-              // This ensures scroll position is preserved when filters change
-              dataLoading: (data) => {
-                const table = tabulatorRef.current?.table;
-                if (table && table.rowManager?.element) {
-                  scrollPositionBeforeLoadRef.current = {
-                    top: table.rowManager.element.scrollTop,
-                    left: table.rowManager.element.scrollLeft
-                  };
-                }
-              },
               // Data loaded callback - restore scroll position and re-request active locks
               // This ensures scroll position stays the same after filter changes
               dataLoaded: (data) => {
