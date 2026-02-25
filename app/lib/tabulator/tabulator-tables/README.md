@@ -55,3 +55,31 @@ Cell.prototype.getHeight = function(){
 	```
 1. Made changes to have some space at the bottom of the table. 
 1. Now, editing is always done by 'force' from the application. This is to ensure we don't lose clipboard functionality when editors are enabled. 
+
+1. **[02/2026] Added optional horizontal scrollbar at the top of the table.** For wide tables that require horizontal scrolling, users previously had to scroll all the way down to the bottom scrollbar to navigate horizontally. This enhancement adds a synchronized horizontal scrollbar at the top of the table for improved usability.
+
+	**Option:** `scrollbarTop` (default: `true`)
+	
+	**Usage:**
+	```javascript
+	// Default behavior - top scrollbar enabled
+	new Tabulator("#example-table", {
+		// ... other options
+	});
+	
+	// Disable top scrollbar if not needed
+	new Tabulator("#example-table", {
+		scrollbarTop: false,
+		// ... other options
+	});
+	```
+	
+	**Implementation details:**
+	- The top scrollbar is created as a wrapper div (`.tabulator-top-scrollbar`) positioned above the table holder
+	- Bidirectional scroll synchronization using `requestAnimationFrame` for smooth 60fps scrolling
+	- Automatically shows/hides based on table width (hidden when no horizontal scrolling needed)
+	- Dynamically adjusts width using `ResizeObserver` to match table content width
+	- Styling uses inline JavaScript styles via `style.cssText` to ensure reliable rendering across builds
+	- Scrollbar appearance is theme-aware using CSS variables (`--color-bg`, `--color-text-muted`, `--color-primary`)
+	- Height: 6px with 10.3px top padding for optimal positioning
+	- z-index: 10 to ensure visibility above table header 

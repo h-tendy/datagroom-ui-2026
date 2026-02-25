@@ -2732,6 +2732,7 @@ function DsViewPage() {
             data={[]}
             options={{
               layout: 'fitDataStretch',
+              //scrollbarTop: false,
               pagination: 'remote',
               paginationSize: pageSize,
               paginationSizeSelector: [5, 10, 25, 30, 50, 100, 500, 1000, 2000, 5000, true],

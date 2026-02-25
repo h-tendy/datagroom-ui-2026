@@ -52,6 +52,7 @@ Tabulator.prototype.defaultOptions = {
 	resizableColumns:true, //resizable columns
 	resizableRows:false, //resizable rows
 	autoResize:true, //auto resize table
+	scrollbarTop:true, //enable top horizontal scrollbar
 
 	columns:[],//store for colum header info
 
@@ -628,14 +629,16 @@ Tabulator.prototype._buildElement = function(){
 	//build table elements
 	element.appendChild(this.columnManager.getElement());
 	
-	// Add top horizontal scrollbar
-	this.topScrollWrapper = document.createElement("div");
-	this.topScrollWrapper.classList.add("tabulator-top-scrollbar");
-	this.topScrollContent = document.createElement("div");
-	this.topScrollContent.classList.add("tabulator-top-scrollbar-content");
-	this.topScrollContent.innerHTML = "&nbsp;"; // Add content to force height
-	this.topScrollWrapper.appendChild(this.topScrollContent);
-	element.appendChild(this.topScrollWrapper);
+	// Add top horizontal scrollbar (if enabled)
+	if(options.scrollbarTop){
+		this.topScrollWrapper = document.createElement("div");
+		this.topScrollWrapper.classList.add("tabulator-top-scrollbar");
+		this.topScrollContent = document.createElement("div");
+		this.topScrollContent.classList.add("tabulator-top-scrollbar-content");
+		this.topScrollContent.innerHTML = "&nbsp;"; // Add content to force height
+		this.topScrollWrapper.appendChild(this.topScrollContent);
+		element.appendChild(this.topScrollWrapper);
+	}
 	
 	element.appendChild(this.rowManager.getElement());
 
@@ -754,8 +757,10 @@ Tabulator.prototype._buildElement = function(){
 		mod.print.initialize();
 	}
 
-	// Setup top scrollbar synchronization
-	this._setupTopScrollbar();
+	// Setup top scrollbar synchronization (if enabled)
+	if(this.options.scrollbarTop){
+		this._setupTopScrollbar();
+	}
 
 	options.tableBuilt.call(this);
 };
