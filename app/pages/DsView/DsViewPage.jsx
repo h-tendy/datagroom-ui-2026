@@ -3039,6 +3039,24 @@ function DsViewPage() {
                   }
                 }
               },
+              // Enable clipboard export module for copy-to-clipboard functionality
+              // Reference: DsView.js lines 1948-1960
+              clipboard: "fullTableCopyOnly",
+              clipboardCopyFormatter: (type, output) => {
+                if (type === 'html' && clipboardHelpers.current) {
+                  output = clipboardHelpers.current.fixImgSizeForClipboard(output);
+                  
+                  // Style table headers with green background
+                  output = output.replaceAll('<th>', '<th style="border: 1px solid #ddd; padding: 8px; padding-top: 12px; padding-bottom: 12px; text-align: left; background-color: darkgreen;color: white;">');
+                  
+                  // Style table cells with borders
+                  output = output.replaceAll('<td>', '<td style="border: 1px solid #ddd; padding: 8px;">');
+                  
+                  // Remove highlightjs badge wrapper for cleaner copy
+                  output = output.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
+                }
+                return output;
+              },
             }}
             cellEditing={handleCellEditing}
             cellEdited={handleCellEdited}

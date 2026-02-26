@@ -71,74 +71,57 @@ export default function createClipboardHelpers(context) {
   }
 
   function copyFormatted(element, html) {
+    // Reference: clipboardHelpers.js lines 92-126
     try {
       const container = document.createElement('div');
       if (element && element.innerHTML) html = element.innerHTML;
-      // Prepare container and temporary style overrides
-      const rootStyles = getComputedStyle(document.documentElement);
-      const bg = (rootStyles.getPropertyValue('--color-bg') || '').trim() || '#ffffff';
-      const textColor = (rootStyles.getPropertyValue('--color-text') || '').trim() || '#111111';
-      const codeBg = (rootStyles.getPropertyValue('--color-code-bg') || '').trim() || '#f6f8fa';
-
-      const styleEl = document.createElement('style');
-      styleEl.setAttribute('data-clipboard-temp-style', '1');
-      styleEl.textContent = `
-        html, body { background: ${bg} !important; color: ${textColor} !important; }
-        body { margin: 0 !important; }
-        pre, code { background: ${codeBg} !important; color: ${textColor} !important; }
-        .badge, .highlightjs-badge { background: transparent !important; color: ${textColor} !important; box-shadow: none !important; }
-        table { border-collapse: collapse !important; background: ${bg} !important; }
-        table, th, td { border: 1px solid #ddd !important; }
-        th, td { background: ${bg} !important; color: ${textColor} !important; }
-        a { color: #0366d6 !important; text-decoration: underline !important; }
-        img { max-width: 800px !important; height: auto !important; display: block !important; }
-      `;
-
-      // Attach style and content wrapper so selection picks up styles
+      
+      // Fix image sizes before setting innerHTML
+      html = fixImgSizeForClipboard(html);
+      
+      // Remove highlightjs badge wrapper and set white background for code blocks
+      html = html.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
+      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="background-color:white; font-size:12px">');
+      
+      container.innerHTML = html || '';
+      
+      // Hide element
       container.style.position = 'fixed';
-      container.style.left = '0';
-      container.style.top = '0';
       container.style.pointerEvents = 'none';
       container.style.opacity = '0';
-      container.style.zIndex = '-9999';
-
-      const contentWrapper = document.createElement('div');
-      contentWrapper.setAttribute('data-clipboard-content', '1');
-      contentWrapper.innerHTML = html || '';
-
-      container.appendChild(styleEl);
-      container.appendChild(contentWrapper);
+      
+      // Detect all style sheets of the page
+      const activeSheets = Array.prototype.slice.call(document.styleSheets)
+        .filter(function (sheet) { return !sheet.disabled; });
+      
+      // Mount the container to the DOM to make `contentWindow` available
       document.body.appendChild(container);
-
-      // Fix image sizes inside wrapper so clipboard consumers see reasonable dimensions
-      try {
-        const imgs = contentWrapper.querySelectorAll('img');
-        imgs.forEach(img => {
-          try {
-            const w = img.naturalWidth || img.width || img.getBoundingClientRect().width || 300;
-            img.style.width = (w > 800 ? 800 : w) + 'px';
-            img.style.maxWidth = '800px';
-            img.style.height = 'auto';
-            img.removeAttribute('srcset');
-          } catch (e) {}
-        });
-      } catch (e) {}
-
-      const sel = window.getSelection();
-      sel.removeAllRanges();
+      
+      // Copy to clipboard
+      window.getSelection().removeAllRanges();
       const range = document.createRange();
       range.selectNode(container);
-      sel.addRange(range);
-
-      let ok = false;
-      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-
-      sel.removeAllRanges();
-      try { document.body.removeChild(container); } catch (e) {}
-
-      showCopiedNotification(!!ok);
-      return !!ok;
+      window.getSelection().addRange(range);
+      document.execCommand('copy');
+      
+      // Temporarily disable non-static stylesheets so copied HTML keeps desired look
+      for (let i = 0; i < activeSheets.length; i++) {
+        if (!/static\/css/.test(activeSheets[i].href))
+          activeSheets[i].disabled = true;
+      }
+      document.execCommand('copy');
+      
+      // Re-enable stylesheets we disabled earlier
+      for (let i = 0; i < activeSheets.length; i++) {
+        if (!/static\/css/.test(activeSheets[i].href))
+          activeSheets[i].disabled = false;
+      }
+      
+      document.body.removeChild(container);
+      showCopiedNotification(true);
+      return true;
     } catch (e) {
+      console.error('copyFormatted error:', e);
       showCopiedNotification(false);
       return false;
     }
@@ -184,41 +167,15 @@ export default function createClipboardHelpers(context) {
   }
 
   function myCopyToClipboard(ref) {
-    try {
-      if (!ref || !ref.table) return false;
-
-      // Try Tabulator export HTML if available
-      try {
-        const exportModule = ref.table.modules && ref.table.modules.export;
-        if (exportModule && typeof exportModule.getHtml === 'function') {
-          const html = exportModule.getHtml(true, true, null, 'clipboard');
-          return copyFormatted(null, html);
-        }
-      } catch (e) {
-        // fallthrough to fallback
-      }
-
-      // Fallback: build simple HTML table from visible columns and data
-      try {
-        const cols = (ref.table.getColumns && ref.table.getColumns()) || [];
-        const fields = cols.map(c => c.getField()).filter(Boolean);
-        const data = ref.table.getData ? ref.table.getData() : [];
-
-        let html = '<table><thead><tr>' + fields.map(f => '<th>' + escapeHtml(f) + '</th>').join('') + '</tr></thead><tbody>';
-        for (let i = 0; i < data.length; i++) {
-          html += '<tr>' + fields.map(f => '<td>' + escapeHtml(data[i][f]) + '</td>').join('') + '</tr>';
-        }
-        html += '</tbody></table>';
-        return copyFormatted(null, html);
-      } catch (e) {
-        // final fallback
-        showCopiedNotification(false);
-        return false;
-      }
-    } catch (e) {
-      showCopiedNotification(false);
-      return false;
-    }
+    // Reference: clipboardHelpers.js lines 147-152
+    // Use Tabulator export module to generate HTML for ALL rows (not just visible page)
+    // The key is passing "all" instead of true to export all rows regardless of pagination
+    let visible = "all";  // Changed from true to "all" to export all rows, not just current page
+    let style = true;
+    let colVisProp = "clipboard";
+    let config = null;
+    let html = ref.table.modules.export.getHtml(visible, style, config, colVisProp);
+    copyFormatted(null, html);
   }
 
   function copyToClipboard(ref) {
@@ -226,19 +183,30 @@ export default function createClipboardHelpers(context) {
   }
 
   function fixImgSizeForClipboard(html) {
-    // Placeholder: in reference this adjusted img width/height to preserve size when copying.
-    // Keep as no-op to avoid brittle DOM queries here.
+    // Reference: clipboardHelpers.js lines 60-89
     try {
-      // If passed HTML string, attempt to set reasonable width attributes on img tags.
-      if (!html) return html;
-      if (typeof html === 'string') {
-        return html.replace(/<img([^>]+)>/gi, (match, attrs) => {
-          // If width already present, leave it; otherwise add max-width style
-          if (/width=|style=.*max-width/i.test(attrs)) return `<img${attrs}>`;
-          return `<img${attrs} style="max-width:800px;height:auto;"/>`;
-        });
+      const imgList = document.querySelectorAll("img");
+      const imgSizes = {};
+      for (let i = 0; i < imgList.length; i++) {
+        const img = {};
+        img.src = imgList[i].getAttribute("src");
+        img.width = imgList[i].width;
+        img.height = imgList[i].height;
+        imgSizes[img.src] = img;
       }
-    } catch (e) {}
+      const e = [...html.matchAll(/<img src="(.*?)"/gi)];
+      for (let i = 0; i < e.length; i++) {
+        const key = e[i][1];
+        if (!imgSizes[key]) continue;
+        if (/data:image/.test(key)) continue;
+        const str = `<img src="${key}" alt="${key}" width=".*" height=".*"`;
+        const rep = `<img src="${key}" alt="${key}" width=${imgSizes[key].width} height=${imgSizes[key].height}`;
+        html = html.replace(new RegExp(str), rep);
+      }
+      html = html.replaceAll('<img src="/attachments/', `<img src="${window.location.origin}/attachments/`);
+    } catch (e) {
+      console.error('fixImgSizeForClipboard error:', e);
+    }
     return html;
   }
 
