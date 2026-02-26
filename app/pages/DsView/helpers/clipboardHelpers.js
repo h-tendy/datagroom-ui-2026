@@ -82,9 +82,64 @@ export default function createClipboardHelpers(context) {
       // Fix image sizes before setting innerHTML
       html = fixImgSizeForClipboard(html);
       
-      // Remove highlightjs badge wrapper and set white background for code blocks
-      html = html.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
-      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="background-color:white; font-size:12px">');
+      // Process code blocks - match the full <pre> structure and rebuild with proper formatting
+      // Original structure: <pre class="code-badge-pre"><div class="code-badge">...<div class="code-badge-language">LANG</div>...<copy icon>...</div><code class="hljs">CODE</code></pre>
+      html = html.replace(/<pre class="code-badge-pre">\s*<div class="code-badge">[\s\S]*?<div class="code-badge-language"\s*>(.*?)<\/div>[\s\S]*?<\/div>\s*(<code[^>]*>[\s\S]*?<\/code>)\s*<\/pre>/gi, 
+        function(match, lang, codeBlock) {
+          // Keep the entire code block with its tags and content to preserve formatting
+          // Use display:inline-block to fit content width, white-space:pre to preserve formatting
+          return '<div style="display: inline-block; border: 2px solid #999; border-radius: 4px; padding: 12px; margin: 8px 0; background: #fdf6e3;">' +
+                 '<pre style="margin: 0; padding: 0; font-family: \'Courier New\', monospace; font-size: 12px; white-space: pre; background: transparent; color: #657b83;">' +
+                 codeBlock +
+                 '</pre></div>';
+        });
+      
+      // Style the code tag to ensure proper display
+      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="display: block; padding: 0; background: transparent; color: #657b83; font-family: inherit; font-size: inherit; white-space: pre;">');
+      
+      // Apply colors to syntax highlighting classes
+      // Solarized Green - keywords
+      html = html.replace(/<span class="hljs-keyword">/gi, '<span class="hljs-keyword" style="color: #859900;">');
+      html = html.replace(/<span class="hljs-selector-tag">/gi, '<span class="hljs-selector-tag" style="color: #859900;">');
+      html = html.replace(/<span class="hljs-addition">/gi, '<span class="hljs-addition" style="color: #859900;">');
+      
+      // Solarized Cyan - strings, numbers
+      html = html.replace(/<span class="hljs-number">/gi, '<span class="hljs-number" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-string">/gi, '<span class="hljs-string" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-literal">/gi, '<span class="hljs-literal" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-doctag">/gi, '<span class="hljs-doctag" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-regexp">/gi, '<span class="hljs-regexp" style="color: #2aa198;">');
+      
+      // Solarized Blue - titles, names
+      html = html.replace(/<span class="hljs-title">/gi, '<span class="hljs-title" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-section">/gi, '<span class="hljs-section" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-name">/gi, '<span class="hljs-name" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-selector-id">/gi, '<span class="hljs-selector-id" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-selector-class">/gi, '<span class="hljs-selector-class" style="color: #268bd2;">');
+      
+      // Solarized Yellow - attributes, variables
+      html = html.replace(/<span class="hljs-attribute">/gi, '<span class="hljs-attribute" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-attr">/gi, '<span class="hljs-attr" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-variable">/gi, '<span class="hljs-variable" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-template-variable">/gi, '<span class="hljs-template-variable" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-type">/gi, '<span class="hljs-type" style="color: #b58900;">');
+      
+      // Solarized Orange - symbols, meta
+      html = html.replace(/<span class="hljs-symbol">/gi, '<span class="hljs-symbol" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-bullet">/gi, '<span class="hljs-bullet" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-subst">/gi, '<span class="hljs-subst" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-meta">/gi, '<span class="hljs-meta" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-selector-attr">/gi, '<span class="hljs-selector-attr" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-selector-pseudo">/gi, '<span class="hljs-selector-pseudo" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-link">/gi, '<span class="hljs-link" style="color: #cb4b16;">');
+      
+      // Solarized Red - built-ins
+      html = html.replace(/<span class="hljs-built_in">/gi, '<span class="hljs-built_in" style="color: #dc322f;">');
+      html = html.replace(/<span class="hljs-deletion">/gi, '<span class="hljs-deletion" style="color: #dc322f;">');
+      
+      // Solarized Gray - comments
+      html = html.replace(/<span class="hljs-comment">/gi, '<span class="hljs-comment" style="color: #93a1a1;">');
+      html = html.replace(/<span class="hljs-quote">/gi, '<span class="hljs-quote" style="color: #93a1a1;">');
       
       container.innerHTML = html || '';
       
@@ -398,16 +453,66 @@ export default function createClipboardHelpers(context) {
       // Get the modified HTML
       let html = wrapper.innerHTML;
       
-      // Reference: clipboardHelpers.js lines 96-97
-      // Remove highlightjs badge wrapper and set white background for code blocks
-      html = html.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
-      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="background-color:white; font-size:12px">');
-      // Also set white background on pre tags to remove theme colors
-      html = html.replace(/<pre>/gi, '<pre style="background-color:white">');
-      html = html.replace(/<pre /gi, '<pre style="background-color:white" ');
+      // Process code blocks - match the full <pre> structure and rebuild with proper formatting
+      // Original structure: <pre class="code-badge-pre"><div class="code-badge">...<div class="code-badge-language">LANG</div>...<copy icon>...</div><code class="hljs">CODE</code></pre>
+      html = html.replace(/<pre class="code-badge-pre">\s*<div class="code-badge">[\s\S]*?<div class="code-badge-language"\s*>(.*?)<\/div>[\s\S]*?<\/div>\s*(<code[^>]*>[\s\S]*?<\/code>)\s*<\/pre>/gi, 
+        function(match, lang, codeBlock) {
+          // Keep the entire code block with its tags and content to preserve formatting
+          // Use display:inline-block to fit content width, white-space:pre to preserve formatting
+          return '<div style="display: inline-block; border: 2px solid #999; border-radius: 4px; padding: 12px; margin: 8px 0; background: #fdf6e3;">' +
+                 '<pre style="margin: 0; padding: 0; font-family: \'Courier New\', monospace; font-size: 12px; white-space: pre; background: transparent; color: #657b83;">' +
+                 codeBlock +
+                 '</pre></div>';
+        });
       
-      // Reference: clipboardHelpers.js lines 153-156
-      // Wrap with white background to remove theme colors, but preserve specific element colors
+      // Style the code tag to ensure proper display
+      html = html.replace(/<code class="hljs">/gi, '<code class="hljs" style="display: block; padding: 0; background: transparent; color: #657b83; font-family: inherit; font-size: inherit; white-space: pre;">');
+      
+      // Apply colors to syntax highlighting classes
+      // Solarized Green - keywords
+      html = html.replace(/<span class="hljs-keyword">/gi, '<span class="hljs-keyword" style="color: #859900;">');
+      html = html.replace(/<span class="hljs-selector-tag">/gi, '<span class="hljs-selector-tag" style="color: #859900;">');
+      html = html.replace(/<span class="hljs-addition">/gi, '<span class="hljs-addition" style="color: #859900;">');
+      
+      // Solarized Cyan - strings, numbers
+      html = html.replace(/<span class="hljs-number">/gi, '<span class="hljs-number" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-string">/gi, '<span class="hljs-string" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-literal">/gi, '<span class="hljs-literal" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-doctag">/gi, '<span class="hljs-doctag" style="color: #2aa198;">');
+      html = html.replace(/<span class="hljs-regexp">/gi, '<span class="hljs-regexp" style="color: #2aa198;">');
+      
+      // Solarized Blue - titles, names
+      html = html.replace(/<span class="hljs-title">/gi, '<span class="hljs-title" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-section">/gi, '<span class="hljs-section" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-name">/gi, '<span class="hljs-name" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-selector-id">/gi, '<span class="hljs-selector-id" style="color: #268bd2;">');
+      html = html.replace(/<span class="hljs-selector-class">/gi, '<span class="hljs-selector-class" style="color: #268bd2;">');
+      
+      // Solarized Yellow - attributes, variables
+      html = html.replace(/<span class="hljs-attribute">/gi, '<span class="hljs-attribute" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-attr">/gi, '<span class="hljs-attr" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-variable">/gi, '<span class="hljs-variable" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-template-variable">/gi, '<span class="hljs-template-variable" style="color: #b58900;">');
+      html = html.replace(/<span class="hljs-type">/gi, '<span class="hljs-type" style="color: #b58900;">');
+      
+      // Solarized Orange - symbols, meta
+      html = html.replace(/<span class="hljs-symbol">/gi, '<span class="hljs-symbol" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-bullet">/gi, '<span class="hljs-bullet" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-subst">/gi, '<span class="hljs-subst" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-meta">/gi, '<span class="hljs-meta" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-selector-attr">/gi, '<span class="hljs-selector-attr" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-selector-pseudo">/gi, '<span class="hljs-selector-pseudo" style="color: #cb4b16;">');
+      html = html.replace(/<span class="hljs-link">/gi, '<span class="hljs-link" style="color: #cb4b16;">');
+      
+      // Solarized Red - built-ins
+      html = html.replace(/<span class="hljs-built_in">/gi, '<span class="hljs-built_in" style="color: #dc322f;">');
+      html = html.replace(/<span class="hljs-deletion">/gi, '<span class="hljs-deletion" style="color: #dc322f;">');
+      
+      // Solarized Gray - comments
+      html = html.replace(/<span class="hljs-comment">/gi, '<span class="hljs-comment" style="color: #93a1a1;">');
+      html = html.replace(/<span class="hljs-quote">/gi, '<span class="hljs-quote" style="color: #93a1a1;">');
+      
+      // Wrap with white background for overall consistency, but preserve code block colors
       html = `<div style="font-family:verdana; font-size:12px; background-color: white">${html}</div>`;
       
       // Try to copy formatted HTML

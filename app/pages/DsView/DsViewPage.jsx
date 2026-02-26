@@ -3041,8 +3041,51 @@ function DsViewPage() {
                   // Style table cells with borders
                   output = output.replaceAll('<td>', '<td style="border: 1px solid #ddd; padding: 8px;">');
                   
-                  // Remove highlightjs badge wrapper for cleaner copy
-                  output = output.replace(/<pre class="code-badge-pre"[\s\S]*?(<code [\s\S]*?<\/code>)<\/pre>/gi, '<pre>$1</pre>');
+                  // Process code blocks - match the full <pre> structure and rebuild with proper formatting
+                  // Original structure: <pre class="code-badge-pre"><div class="code-badge">...<div class="code-badge-language">LANG</div>...<copy icon>...</div><code class="hljs">CODE</code></pre>
+                  output = output.replace(/<pre class="code-badge-pre">\s*<div class="code-badge">[\s\S]*?<div class="code-badge-language"\s*>(.*?)<\/div>[\s\S]*?<\/div>\s*(<code[^>]*>[\s\S]*?<\/code>)\s*<\/pre>/gi, 
+                    function(match, lang, codeBlock) {
+                      // Keep the entire code block with its tags and content to preserve formatting
+                      // Use display:inline-block to fit content width, white-space:pre to preserve formatting
+                      return '<div style="display: inline-block; border: 2px solid #999; border-radius: 4px; padding: 12px; margin: 8px 0; background: #fdf6e3;">' +
+                             '<pre style="margin: 0; padding: 0; font-family: \'Courier New\', monospace; font-size: 12px; white-space: pre; background: transparent; color: #657b83;">' +
+                             codeBlock +
+                             '</pre></div>';
+                    });
+                  
+                  // Style the code tag to ensure proper display
+                  output = output.replace(/<code class="hljs">/gi, '<code class="hljs" style="display: block; padding: 0; background: transparent; color: #657b83; font-family: inherit; font-size: inherit; white-space: pre;">');
+                  
+                  // Apply colors to syntax highlighting classes (Solarized Light theme)
+                  output = output.replace(/<span class="hljs-keyword">/gi, '<span class="hljs-keyword" style="color: #859900;">');
+                  output = output.replace(/<span class="hljs-selector-tag">/gi, '<span class="hljs-selector-tag" style="color: #859900;">');
+                  output = output.replace(/<span class="hljs-addition">/gi, '<span class="hljs-addition" style="color: #859900;">');
+                  output = output.replace(/<span class="hljs-number">/gi, '<span class="hljs-number" style="color: #2aa198;">');
+                  output = output.replace(/<span class="hljs-string">/gi, '<span class="hljs-string" style="color: #2aa198;">');
+                  output = output.replace(/<span class="hljs-literal">/gi, '<span class="hljs-literal" style="color: #2aa198;">');
+                  output = output.replace(/<span class="hljs-doctag">/gi, '<span class="hljs-doctag" style="color: #2aa198;">');
+                  output = output.replace(/<span class="hljs-regexp">/gi, '<span class="hljs-regexp" style="color: #2aa198;">');
+                  output = output.replace(/<span class="hljs-title">/gi, '<span class="hljs-title" style="color: #268bd2;">');
+                  output = output.replace(/<span class="hljs-section">/gi, '<span class="hljs-section" style="color: #268bd2;">');
+                  output = output.replace(/<span class="hljs-name">/gi, '<span class="hljs-name" style="color: #268bd2;">');
+                  output = output.replace(/<span class="hljs-selector-id">/gi, '<span class="hljs-selector-id" style="color: #268bd2;">');
+                  output = output.replace(/<span class="hljs-selector-class">/gi, '<span class="hljs-selector-class" style="color: #268bd2;">');
+                  output = output.replace(/<span class="hljs-attribute">/gi, '<span class="hljs-attribute" style="color: #b58900;">');
+                  output = output.replace(/<span class="hljs-attr">/gi, '<span class="hljs-attr" style="color: #b58900;">');
+                  output = output.replace(/<span class="hljs-variable">/gi, '<span class="hljs-variable" style="color: #b58900;">');
+                  output = output.replace(/<span class="hljs-template-variable">/gi, '<span class="hljs-template-variable" style="color: #b58900;">');
+                  output = output.replace(/<span class="hljs-type">/gi, '<span class="hljs-type" style="color: #b58900;">');
+                  output = output.replace(/<span class="hljs-symbol">/gi, '<span class="hljs-symbol" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-bullet">/gi, '<span class="hljs-bullet" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-subst">/gi, '<span class="hljs-subst" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-meta">/gi, '<span class="hljs-meta" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-selector-attr">/gi, '<span class="hljs-selector-attr" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-selector-pseudo">/gi, '<span class="hljs-selector-pseudo" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-link">/gi, '<span class="hljs-link" style="color: #cb4b16;">');
+                  output = output.replace(/<span class="hljs-built_in">/gi, '<span class="hljs-built_in" style="color: #dc322f;">');
+                  output = output.replace(/<span class="hljs-deletion">/gi, '<span class="hljs-deletion" style="color: #dc322f;">');
+                  output = output.replace(/<span class="hljs-comment">/gi, '<span class="hljs-comment" style="color: #93a1a1;">');
+                  output = output.replace(/<span class="hljs-quote">/gi, '<span class="hljs-quote" style="color: #93a1a1;">');
                 }
                 return output;
               },
