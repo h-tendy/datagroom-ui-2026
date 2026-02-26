@@ -739,11 +739,15 @@ export default function createClipboardHelpers(context) {
   function fixImgSizeForClipboard(html) {
     // Reference: clipboardHelpers.js lines 60-89
     try {
+      // Get all images and their displayed sizes
+      // imgList[i].width gives us the rendered width as seen on screen (accounting for zoom)
+      // This is exactly what we want to preserve in the clipboard
       const imgList = document.querySelectorAll("img");
       const imgSizes = {};
       for (let i = 0; i < imgList.length; i++) {
         const img = {};
         img.src = imgList[i].getAttribute("src");
+        // Use the displayed dimensions directly - this is what the user sees
         img.width = imgList[i].width;
         img.height = imgList[i].height;
         imgSizes[img.src] = img;
