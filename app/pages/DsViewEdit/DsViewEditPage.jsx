@@ -749,112 +749,122 @@ function DsViewEditPage() {
   };
 
   const renderEditorParamsControl = (col) => {
-    if (!tabulatorRef.current) return null;
+    // Check the actual editor type stored in editorsRef
+    const actualEditor = editorsRef.current[col.field] || col.editor;
     
-    try {
-      const columnDef = tabulatorRef.current.table.getColumn(col.field).getDefinition();
+    if (actualEditor === "autocomplete") {
+      let valueStr = "";
+      let checked = true;
+      let condValues = false;
+      let condExprStr = "";
       
-      if (columnDef.editor === "autocomplete") {
-        let valueStr = "";
-        let checked = true;
-        let condValues = false;
-        let condExprStr = "";
-        
+      // Get editorParams from tabulator if available, otherwise from col
+      let editorParams = col.editorParams;
+      if (tabulatorRef.current) {
         try {
-          valueStr = columnDef.editorParams.values.join(', ');
+          const columnDef = tabulatorRef.current.table.getColumn(col.field).getDefinition();
+          editorParams = columnDef.editorParams;
         } catch (e) {}
-        
-        try {
-          checked = columnDef.editorParams.multiselect;
-        } catch (e) {}
-        
-        try {
-          condValues = columnDef.editorParams.conditionalValues;
-        } catch (e) {}
-        
-        try {
-          condExprStr = columnDef.editorParams.conditionalExprs.join('\n');
-        } catch (e) {}
-        
-        return (
-          <div>
-            Values:
+      }
+      
+      try {
+        valueStr = editorParams.values.join(', ');
+      } catch (e) {}
+      
+      try {
+        checked = editorParams.multiselect;
+      } catch (e) {}
+      
+      try {
+        condValues = editorParams.conditionalValues;
+      } catch (e) {}
+      
+      try {
+        condExprStr = editorParams.conditionalExprs.join('\n');
+      } catch (e) {}
+      
+      return (
+        <div>
+          Values:
+          <Form.Control 
+            type="text" 
+            defaultValue={valueStr} 
+            onChange={(event) => {
+              const value = event.target.value;
+              handleDebounce(col.field, () => {
+                if (!value) return;
+                if (!tabulatorRef.current) return;
+                const valArray = value.split(',').map(v => v.trim());
+                const currentEditorParams = editorParams || {};
+                const newEditorParams = {
+                  ...currentEditorParams,
+                  values: valArray,
+                  showListOnEmpty: true,
+                  allowEmpty: true
+                };
+                console.log("EditorParams: ", newEditorParams);
+                tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams: newEditorParams });
+              });
+            }} 
+          />
+          <Form.Check 
+            type="checkbox" 
+            label="&nbsp; autocomplete multi" 
+            checked={checked} 
+            onChange={(event) => {
+              if (!tabulatorRef.current) return;
+              const isChecked = event.target.checked;
+              const curEditorParams = editorParams || {};
+              const newEditorParams = {
+                ...curEditorParams,
+                multiselect: isChecked
+              };
+              setSomethingChanged(prev => prev + 1);
+              tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams: newEditorParams });
+            }}
+          />
+          <Form.Check 
+            type="checkbox" 
+            label="&nbsp; autocomplete cond-values" 
+            checked={condValues} 
+            onChange={(event) => {
+              if (!tabulatorRef.current) return;
+              const isChecked = event.target.checked;
+              const curEditorParams = editorParams || {};
+              const newEditorParams = {
+                ...curEditorParams,
+                conditionalValues: isChecked
+              };
+              setSomethingChanged(prev => prev + 1);
+              tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams: newEditorParams });
+            }}
+          />
+          {condValues && (
             <Form.Control 
-              type="text" 
-              defaultValue={valueStr} 
+              as="textarea" 
+              rows="3" 
+              defaultValue={condExprStr} 
               onChange={(event) => {
                 const value = event.target.value;
                 handleDebounce(col.field, () => {
                   if (!value) return;
-                  const valArray = value.split(',').map(v => v.trim());
-                  const editorParams = {
-                    ...columnDef.editorParams,
-                    values: valArray,
+                  if (!tabulatorRef.current) return;
+                  let condExprs = value.split('\n').map(v => v.trim());
+                  condExprs = condExprs.filter(v => v !== "");
+                  const curEditorParams = editorParams || {};
+                  const newEditorParams = {
+                    ...curEditorParams,
+                    conditionalExprs: condExprs,
                     showListOnEmpty: true,
                     allowEmpty: true
                   };
-                  console.log("EditorParams: ", editorParams);
-                  tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams });
+                  tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams: newEditorParams });
                 });
               }} 
             />
-            <Form.Check 
-              type="checkbox" 
-              label="&nbsp; autocomplete multi" 
-              checked={checked} 
-              onChange={(event) => {
-                const isChecked = event.target.checked;
-                const curEditorParams = columnDef.editorParams || {};
-                const editorParams = {
-                  ...curEditorParams,
-                  multiselect: isChecked
-                };
-                setSomethingChanged(prev => prev + 1);
-                tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams });
-              }}
-            />
-            <Form.Check 
-              type="checkbox" 
-              label="&nbsp; autocomplete cond-values" 
-              checked={condValues} 
-              onChange={(event) => {
-                const isChecked = event.target.checked;
-                const curEditorParams = columnDef.editorParams || {};
-                const editorParams = {
-                  ...curEditorParams,
-                  conditionalValues: isChecked
-                };
-                setSomethingChanged(prev => prev + 1);
-                tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams });
-              }}
-            />
-            {condValues && (
-              <Form.Control 
-                as="textarea" 
-                rows="3" 
-                defaultValue={condExprStr} 
-                onChange={(event) => {
-                  const value = event.target.value;
-                  handleDebounce(col.field, () => {
-                    if (!value) return;
-                    let condExprs = value.split('\n').map(v => v.trim());
-                    condExprs = condExprs.filter(v => v !== "");
-                    const editorParams = {
-                      ...columnDef.editorParams,
-                      conditionalExprs: condExprs,
-                      showListOnEmpty: true,
-                      allowEmpty: true
-                    };
-                    tabulatorRef.current.table.updateColumnDefinition(col.field, { editorParams });
-                  });
-                }} 
-              />
-            )}
-          </div>
-        );
-      }
-    } catch (e) {
-      console.error('Error in renderEditorParamsControl:', e);
+          )}
+        </div>
+      );
     }
     
     return null;
@@ -913,12 +923,15 @@ function DsViewEditPage() {
             }
           }
           
+          // Use editorsRef to get the current actual editor type
+          const actualEditor = editorsRef.current[col.field] || col.editor;
+          
           let editorCurVal = {};
-          if (col.editor === "textarea") editorCurVal = editorOptions[1];
-          else if (col.editor === "input") editorCurVal = editorOptions[0];
-          else if (col.editor === "autocomplete") editorCurVal = editorOptions[3];
-          else if (col.editor === "codemirror") editorCurVal = editorOptions[2];
-          else if (col.editor === "date") editorCurVal = editorOptions[4];
+          if (actualEditor === "textarea") editorCurVal = editorOptions[1];
+          else if (actualEditor === "input") editorCurVal = editorOptions[0];
+          else if (actualEditor === "autocomplete") editorCurVal = editorOptions[3];
+          else if (actualEditor === "codemirror") editorCurVal = editorOptions[2];
+          else if (actualEditor === "date") editorCurVal = editorOptions[4];
 
           let hdrFilterTypeCurVal = {};
           if (col.headerFilterType === "input") hdrFilterTypeCurVal = filterOptions[1];
