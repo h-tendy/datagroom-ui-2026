@@ -165,10 +165,38 @@ export default function createClipboardHelpers(context) {
         width = forcedWidth;
         height = forcedHeight;
       } else {
+        // Get the actual SVG dimensions, not the visible bounding box
         const mainSvg = svgs[0];
-        const bbox = mainSvg.getBoundingClientRect();
-        width = Math.ceil(bbox.width) || parseInt(mainSvg.getAttribute('width')) || 800;
-        height = Math.ceil(bbox.height) || parseInt(mainSvg.getAttribute('height')) || 600;
+        
+        // Try to get from viewBox first (most accurate for full graph)
+        const viewBox = mainSvg.getAttribute('viewBox');
+        if (viewBox) {
+          const parts = viewBox.split(/\s+/);
+          if (parts.length === 4) {
+            width = Math.ceil(parseFloat(parts[2]));
+            height = Math.ceil(parseFloat(parts[3]));
+            console.log(`[convertPlotlyGraphToPng] Using viewBox dimensions: ${width}x${height}`);
+          }
+        }
+        
+        // If no viewBox or invalid, try width/height attributes
+        if (!width || !height) {
+          const svgWidth = mainSvg.getAttribute('width');
+          const svgHeight = mainSvg.getAttribute('height');
+          if (svgWidth && svgHeight) {
+            width = Math.ceil(parseFloat(svgWidth));
+            height = Math.ceil(parseFloat(svgHeight));
+            console.log(`[convertPlotlyGraphToPng] Using SVG attributes: ${width}x${height}`);
+          }
+        }
+        
+        // Last resort: use bounding box (but this may be clipped)
+        if (!width || !height) {
+          const bbox = mainSvg.getBoundingClientRect();
+          width = Math.ceil(bbox.width) || 800;
+          height = Math.ceil(bbox.height) || 600;
+          console.log(`[convertPlotlyGraphToPng] Using bounding box (may be clipped): ${width}x${height}`);
+        }
       }
       
       console.log(`[convertPlotlyGraphToPng] Converting plotly graph with ${svgs.length} SVG layers to ${width}x${height} PNG`);
@@ -419,12 +447,43 @@ export default function createClipboardHelpers(context) {
           for (const plotlyDiv of plotlyGraphs) {
             const id = plotlyDiv.getAttribute('id');
             if (id) {
-              const bbox = plotlyDiv.getBoundingClientRect();
-              if (bbox.width > 0 && bbox.height > 0) {
-                plotlyDimensions.set(id, {
-                  width: Math.ceil(bbox.width),
-                  height: Math.ceil(bbox.height)
-                });
+              // Get full dimensions from the SVG, not just visible bounding box
+              const mainSvg = plotlyDiv.querySelector('svg');
+              if (mainSvg) {
+                let width, height;
+                
+                // Try viewBox first (most accurate)
+                const viewBox = mainSvg.getAttribute('viewBox');
+                if (viewBox) {
+                  const parts = viewBox.split(/\s+/);
+                  if (parts.length === 4) {
+                    width = Math.ceil(parseFloat(parts[2]));
+                    height = Math.ceil(parseFloat(parts[3]));
+                  }
+                }
+                
+                // Try width/height attributes
+                if (!width || !height) {
+                  const svgWidth = mainSvg.getAttribute('width');
+                  const svgHeight = mainSvg.getAttribute('height');
+                  if (svgWidth && svgHeight) {
+                    width = Math.ceil(parseFloat(svgWidth));
+                    height = Math.ceil(parseFloat(svgHeight));
+                  }
+                }
+                
+                // Last resort: bounding box
+                if (!width || !height) {
+                  const bbox = plotlyDiv.getBoundingClientRect();
+                  if (bbox.width > 0 && bbox.height > 0) {
+                    width = Math.ceil(bbox.width);
+                    height = Math.ceil(bbox.height);
+                  }
+                }
+                
+                if (width && height) {
+                  plotlyDimensions.set(id, { width, height });
+                }
               }
             }
           }
@@ -437,12 +496,39 @@ export default function createClipboardHelpers(context) {
             
             const id = svg.getAttribute('id');
             if (id) {
-              const bbox = svg.getBoundingClientRect();
-              if (bbox.width > 0 && bbox.height > 0) {
-                svgDimensions.set(id, {
-                  width: Math.ceil(bbox.width),
-                  height: Math.ceil(bbox.height)
-                });
+              let width, height;
+              
+              // Try viewBox first
+              const viewBox = svg.getAttribute('viewBox');
+              if (viewBox) {
+                const parts = viewBox.split(/\s+/);
+                if (parts.length === 4) {
+                  width = Math.ceil(parseFloat(parts[2]));
+                  height = Math.ceil(parseFloat(parts[3]));
+                }
+              }
+              
+              // Try width/height attributes
+              if (!width || !height) {
+                const svgWidth = svg.getAttribute('width');
+                const svgHeight = svg.getAttribute('height');
+                if (svgWidth && svgHeight) {
+                  width = Math.ceil(parseFloat(svgWidth));
+                  height = Math.ceil(parseFloat(svgHeight));
+                }
+              }
+              
+              // Last resort: bounding box
+              if (!width || !height) {
+                const bbox = svg.getBoundingClientRect();
+                if (bbox.width > 0 && bbox.height > 0) {
+                  width = Math.ceil(bbox.width);
+                  height = Math.ceil(bbox.height);
+                }
+              }
+              
+              if (width && height) {
+                svgDimensions.set(id, { width, height });
               }
             }
           }
