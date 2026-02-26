@@ -541,32 +541,6 @@ function DsViewPage() {
     }, 50);
   }, [dsName, dsView, navigate, setSearchParams, executeWithScrollPreservation]);
   
-  // Handle column resize to set the flag
-  const handleColumnResized = useCallback((column) => {
-    columnResizedRecentlyRef.current = true;
-    // Clear flag after 1 second
-    setTimeout(() => {
-      columnResizedRecentlyRef.current = false;
-    }, 1000);
-    
-    // Preserve scroll position during column resize to prevent unwanted scrolling
-    const table = tabulatorRef.current?.table;
-    if (table && table.element && table.rowManager?.element) {
-      // Store current scroll position before any operations
-      const scrollTop = table.rowManager.element.scrollTop;
-      const scrollLeft = table.rowManager.element.scrollLeft;
-      
-      // Use requestAnimationFrame to restore scroll position after Tabulator's internal updates
-      // This ensures scroll position is maintained even if Tabulator triggers layout changes
-      requestAnimationFrame(() => {
-        if (table.rowManager?.element) {
-          table.rowManager.element.scrollTop = scrollTop;
-          table.rowManager.element.scrollLeft = scrollLeft;
-        }
-      });
-    }
-  }, []);
-
   // Utility function to redraw table while preserving scroll position
   // Prevents unwanted scrolling when redrawing the table
   const redrawTableWithScrollPreservation = useCallback((table) => {
@@ -602,6 +576,21 @@ function DsViewPage() {
       });
     });
   }, []);
+
+  // Handle column resize to set the flag
+  const handleColumnResized = useCallback((column) => {
+    columnResizedRecentlyRef.current = true;
+    // Clear flag after 1 second
+    setTimeout(() => {
+      columnResizedRecentlyRef.current = false;
+    }, 1000);
+    
+    // Redraw table with new column widths while preserving scroll position
+    const table = tabulatorRef.current?.table;
+    if (table) {
+      redrawTableWithScrollPreservation(table);
+    }
+  }, [redrawTableWithScrollPreservation]);
 
   // Process search params (query string) and restore ad-hoc filter state
   // This mirrors the reference's processFilterViaUrl and takes precedence
