@@ -24,7 +24,7 @@ const MermaidChart = (code, title = '') => {
     
     // For newer mermaid versions, we output the code in a pre-formatted div
     // and let mermaid initialize it client-side
-    const escapedCode = htmlEntities(code);
+    // CRITICAL: Do NOT escape the code - mermaid needs plain text to parse
     
     if (title && String(title).length) {
       title = `<div class="mermaid-title">${htmlEntities(title)}</div>`;
@@ -32,8 +32,8 @@ const MermaidChart = (code, title = '') => {
     
     // Store the original source in a data attribute so we can detect if content changed
     // This helps preserve rendered SVGs during table redraws
-    // Output as a mermaid div that will be rendered client-side
-    return `<div class="mermaid" id="${needsUniqueId}" data-mermaid-source="${htmlEntities(code)}">${title}${escapedCode}</div>`;
+    // Output as a mermaid div that will be rendered client-side with PLAIN TEXT content
+    return `<div class="mermaid" id="${needsUniqueId}">${title}${code}</div>`;
   } catch (err) {
     console.error('Mermaid rendering error:', err);
     return `<pre>${htmlEntities(err.name)}: ${htmlEntities(err.message)}</pre>`;

@@ -130,6 +130,89 @@ export default function createClipboardHelpers(context) {
     }
   }
 
+  // Helper function to convert a Plotly graph (with multiple SVG layers) to a single PNG
+  async function convertPlotlyGraphToPng(plotlyDiv, forcedWidth = null, forcedHeight = null) {
+    try {
+      // Get all SVGs within the plotly graph
+      const svgs = plotlyDiv.querySelectorAll('svg');
+      if (svgs.length === 0) return null;
+      
+      // Get dimensions - use forced dimensions if provided, otherwise get from main SVG
+      let width, height;
+      if (forcedWidth && forcedHeight) {
+        width = forcedWidth;
+        height = forcedHeight;
+      } else {
+        const mainSvg = svgs[0];
+        const bbox = mainSvg.getBoundingClientRect();
+        width = Math.ceil(bbox.width) || parseInt(mainSvg.getAttribute('width')) || 800;
+        height = Math.ceil(bbox.height) || parseInt(mainSvg.getAttribute('height')) || 600;
+      }
+      
+      console.log(`[convertPlotlyGraphToPng] Converting plotly graph with ${svgs.length} SVG layers to ${width}x${height} PNG`);
+      
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: false });
+      
+      // Fill with white background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Draw each SVG layer on top of each other
+      for (let i = 0; i < svgs.length; i++) {
+        const svg = svgs[i];
+        
+        // Clone and prepare SVG for conversion
+        const svgClone = svg.cloneNode(true);
+        svgClone.removeAttribute('style');
+        svgClone.setAttribute('width', width);
+        svgClone.setAttribute('height', height);
+        svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        
+        // Serialize the SVG
+        const svgString = new XMLSerializer().serializeToString(svgClone);
+        const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+        
+        // Load SVG as image
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Image load timeout')), 5000);
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          img.onerror = (err) => {
+            clearTimeout(timeout);
+            reject(new Error('Image failed to load'));
+          };
+          img.src = svgDataUrl;
+        });
+        
+        // Draw this layer onto the canvas
+        ctx.drawImage(img, 0, 0, width, height);
+      }
+      
+      // Convert canvas to PNG data URL
+      const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+      
+      // Create replacement img element
+      const replacementImg = document.createElement('img');
+      replacementImg.src = pngDataUrl;
+      replacementImg.width = width;
+      replacementImg.height = height;
+      
+      return replacementImg;
+    } catch (err) {
+      console.error('[convertPlotlyGraphToPng] Failed to convert Plotly graph:', err);
+      return null;
+    }
+  }
+
   // Helper function to convert a single SVG element to PNG img element
   async function convertSvgToPng(svg) {
     try {
@@ -241,31 +324,29 @@ export default function createClipboardHelpers(context) {
       const cellElement = cell.getElement ? cell.getElement() : null;
       if (!cellElement) return false;
       
-      // Find all SVG elements and convert them to PNG images
-      const svgs = cellElement.querySelectorAll('svg');
-      const replacements = [];
+      // Clone the cell content first
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = cellElement.innerHTML;
       
-      for (let i = 0; i < svgs.length; i++) {
-        const svg = svgs[i];
-        const replacementImg = await convertSvgToPng(svg);
-        replacements.push({ svg, replacement: replacementImg });
+      // Handle Plotly graphs (multiple SVG layers) as single images
+      const plotlyGraphs = wrapper.querySelectorAll('.plotly-graph');
+      for (const plotlyDiv of plotlyGraphs) {
+        const pngImg = await convertPlotlyGraphToPng(plotlyDiv);
+        if (pngImg) {
+          // Replace the entire plotly-graph div with the single image
+          plotlyDiv.parentNode.replaceChild(pngImg, plotlyDiv);
+        }
       }
       
-      // Get the HTML content
-      let html = cellElement.innerHTML;
-      
-      // Clone the cell content
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html;
-      
-      // Replace SVGs with PNG images in the clone
-      const clonedSvgs = wrapper.querySelectorAll('svg');
-      for (let i = 0; i < replacements.length && i < clonedSvgs.length; i++) {
-        clonedSvgs[i].parentNode.replaceChild(replacements[i].replacement.cloneNode(true), clonedSvgs[i]);
+      // Handle standalone SVG elements (not part of Plotly graphs)
+      const svgs = wrapper.querySelectorAll('svg');
+      for (const svg of svgs) {
+        const replacementImg = await convertSvgToPng(svg);
+        svg.parentNode.replaceChild(replacementImg, svg);
       }
       
       // Get the modified HTML
-      html = wrapper.innerHTML;
+      let html = wrapper.innerHTML;
       
       // Reference: clipboardHelpers.js lines 96-97
       // Remove highlightjs badge wrapper and set white background for code blocks
@@ -286,8 +367,12 @@ export default function createClipboardHelpers(context) {
         const text = cell.getValue ? String(cell.getValue()) : '';
         copyTextToClipboard(text);
       }
+      
+      // Show success notification
+      showCopiedNotification(true);
       return true;
     } catch (err) {
+      console.error('[copyCellToClipboard] Error:', err);
       showCopiedNotification(false);
       return false;
     }
@@ -296,8 +381,9 @@ export default function createClipboardHelpers(context) {
   async function myCopyToClipboard(ref) {
     // Reference: clipboardHelpers.js lines 147-152
     
-    // Step 1: Get actual SVG dimensions from rendered cells BEFORE export
+    // Step 1: Get actual dimensions from rendered cells BEFORE export
     const svgDimensions = new Map();
+    const plotlyDimensions = new Map();
     try {
       const rows = ref.table.getRows();
       for (const row of rows) {
@@ -306,8 +392,27 @@ export default function createClipboardHelpers(context) {
           const cellElement = cell.getElement();
           if (!cellElement) continue;
           
+          // Collect Plotly graph dimensions
+          const plotlyGraphs = cellElement.querySelectorAll('.plotly-graph');
+          for (const plotlyDiv of plotlyGraphs) {
+            const id = plotlyDiv.getAttribute('id');
+            if (id) {
+              const bbox = plotlyDiv.getBoundingClientRect();
+              if (bbox.width > 0 && bbox.height > 0) {
+                plotlyDimensions.set(id, {
+                  width: Math.ceil(bbox.width),
+                  height: Math.ceil(bbox.height)
+                });
+              }
+            }
+          }
+          
+          // Collect standalone SVG dimensions
           const svgs = cellElement.querySelectorAll('svg');
           for (const svg of svgs) {
+            // Skip SVGs that are inside plotly graphs (they'll be handled as a group)
+            if (svg.closest('.plotly-graph')) continue;
+            
             const id = svg.getAttribute('id');
             if (id) {
               const bbox = svg.getBoundingClientRect();
@@ -321,9 +426,9 @@ export default function createClipboardHelpers(context) {
           }
         }
       }
-      console.log(`[myCopyToClipboard] Collected dimensions for ${svgDimensions.size} SVGs from live cells`);
+      console.log(`[myCopyToClipboard] Collected dimensions for ${plotlyDimensions.size} Plotly graphs and ${svgDimensions.size} standalone SVGs from live cells`);
     } catch (err) {
-      console.error('[myCopyToClipboard] Error collecting SVG dimensions:', err);
+      console.error('[myCopyToClipboard] Error collecting dimensions:', err);
     }
     
     // Step 2: Use Tabulator export module to generate HTML
@@ -333,15 +438,48 @@ export default function createClipboardHelpers(context) {
     let config = null;
     let html = ref.table.modules.export.getHtml(visible, style, config, colVisProp);
     
-    // Step 3: Post-process HTML to convert SVGs to PNGs using collected dimensions
+    // Step 3: Post-process HTML to convert graphs to PNGs
     try {
-      // Parse the HTML to find all SVGs
+      // Parse the HTML to find graphs
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
       
+      // First, handle Plotly graphs (multiple SVG layers) as single images
+      const plotlyGraphs = tempDiv.querySelectorAll('.plotly-graph');
+      if (plotlyGraphs.length > 0) {
+        console.log(`[myCopyToClipboard] Found ${plotlyGraphs.length} Plotly graphs to convert`);
+        
+        for (let i = 0; i < plotlyGraphs.length; i++) {
+          const plotlyDiv = plotlyGraphs[i];
+          try {
+            const plotlyId = plotlyDiv.getAttribute('id');
+            
+            // Use collected dimensions if available
+            let width = null, height = null;
+            if (plotlyId && plotlyDimensions.has(plotlyId)) {
+              const dims = plotlyDimensions.get(plotlyId);
+              width = dims.width;
+              height = dims.height;
+              console.log(`[myCopyToClipboard] Plotly graph ${i+1} (${plotlyId}): Using live dimensions ${width}x${height}`);
+            } else {
+              console.log(`[myCopyToClipboard] Plotly graph ${i+1}: No live dimensions, will use SVG dimensions`);
+            }
+            
+            const pngImg = await convertPlotlyGraphToPng(plotlyDiv, width, height);
+            if (pngImg) {
+              console.log(`[myCopyToClipboard] Plotly graph ${i+1} converted to PNG: ${pngImg.width}x${pngImg.height}`);
+              plotlyDiv.parentNode.replaceChild(pngImg, plotlyDiv);
+            }
+          } catch (err) {
+            console.error('[myCopyToClipboard] Failed to convert Plotly graph:', err);
+          }
+        }
+      }
+      
+      // Then, handle standalone SVGs (not part of already-processed Plotly graphs)
       const svgs = tempDiv.querySelectorAll('svg');
       if (svgs.length > 0) {
-        console.log(`[myCopyToClipboard] Found ${svgs.length} SVGs to convert`);
+        console.log(`[myCopyToClipboard] Found ${svgs.length} standalone SVGs to convert`);
         
         // Convert all SVGs to PNGs
         for (let i = 0; i < svgs.length; i++) {
