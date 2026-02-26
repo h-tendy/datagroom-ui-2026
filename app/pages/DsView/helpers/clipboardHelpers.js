@@ -133,9 +133,31 @@ export default function createClipboardHelpers(context) {
   // Helper function to convert a Plotly graph (with multiple SVG layers) to a single PNG
   async function convertPlotlyGraphToPng(plotlyDiv, forcedWidth = null, forcedHeight = null) {
     try {
-      // Get all SVGs within the plotly graph
-      const svgs = plotlyDiv.querySelectorAll('svg');
+      // Get all SVGs within the plotly graph, but exclude the mode bar and logo
+      const allSvgs = plotlyDiv.querySelectorAll('svg');
+      const svgs = Array.from(allSvgs).filter(svg => {
+        // Exclude SVGs that are part of the mode bar (Plotly toolbar) or logo
+        const parent = svg.closest('.modebar, .modebar-container, .modebar-group');
+        if (parent) return false;
+        
+        // Also exclude if the SVG itself has classes indicating it's a logo or icon
+        const svgClass = svg.getAttribute('class') || '';
+        if (svgClass.includes('modebar') || svgClass.includes('logo')) return false;
+        
+        // Check if it's a very small SVG (likely an icon)
+        const svgWidth = parseInt(svg.getAttribute('width')) || 0;
+        const svgHeight = parseInt(svg.getAttribute('height')) || 0;
+        if (svgWidth > 0 && svgHeight > 0 && svgWidth < 50 && svgHeight < 50) {
+          console.log(`[convertPlotlyGraphToPng] Excluding small SVG (${svgWidth}x${svgHeight}) - likely a logo/icon`);
+          return false;
+        }
+        
+        return true;
+      });
+      
       if (svgs.length === 0) return null;
+      
+      console.log(`[convertPlotlyGraphToPng] Found ${allSvgs.length} total SVGs, ${svgs.length} after excluding mode bar/logo`);
       
       // Get dimensions - use forced dimensions if provided, otherwise get from main SVG
       let width, height;
