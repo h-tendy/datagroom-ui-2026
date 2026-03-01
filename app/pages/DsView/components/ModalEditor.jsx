@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Modal, Button } from 'react-bootstrap'
+import styles from './ModalEditor.module.css'
 //import './codemirror.css';
 
 class ModalEditor extends React.Component {
@@ -125,67 +126,41 @@ class ModalEditor extends React.Component {
             });
         }
 
-        // The gray background
-        const backdropStyle = {
-            position: 'fixed',
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            padding: 10
-
-        };
-
-        // The modal "window"
-        const modalStyle = {
-            backgroundColor: 'var(--color-bg)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 5,
-            maxWidth: "55%",
-            height: "100%",
-            margin: '0 auto',
-            padding: 5
-        };
-        const bodyStyle = {
-            height: "80%",
-            overflowY: 'auto',
-            backgroundColor: 'var(--color-bg)',
-            color: 'var(--color-text)'
-        }
+        // We'll use CSS module classes for backdrop/modal/body to respect themes.
         const textareaStyle = {
-            // Makes no difference
+            // kept for any runtime tweaks
         }
         let width = this.props.width.replace('px', '');
         width = Number(width);
+        let modalMaxWidth = null;
         if (width > 450) {
-            console.log(`Width is: `, width);
-            modalStyle.maxWidth = `${width}px`;
+            modalMaxWidth = `${width}px`;
         }
         return (
-            <div style={backdropStyle}>
-                <div style={modalStyle}>
-                    <Modal.Header>
-                        <Modal.Title>{this.props.title}</Modal.Title>
+            <div className={styles.backdrop}>
+                <div className={styles.modal} style={modalMaxWidth ? { maxWidth: modalMaxWidth } : undefined} role="dialog" aria-modal="true">
+                    <Modal.Header className={styles.header}>
+                        <Modal.Title className={styles.title}>{this.props.title}</Modal.Title>
                     </Modal.Header>
-                    <div style={bodyStyle}>
-                        <Modal.Body><textarea ref={ref => {
-                            if (!me.state.textareaRef)
-                                me.setState({ textareaRef: ref })
-                        }}
-                            style={textareaStyle} value={this.props.text} onChange={(e) => { me.setState({ value: e.target.value }) }}></textarea></Modal.Body>
+                    <div className={styles.body}>
+                        <Modal.Body>
+                            <textarea ref={ref => {
+                                if (!me.state.textareaRef)
+                                    me.setState({ textareaRef: ref })
+                            }}
+                                className={styles.textarea} style={textareaStyle} value={this.props.text} onChange={(e) => { me.setState({ value: e.target.value }) }}></textarea>
+                        </Modal.Body>
                     </div>
-                    <Modal.Footer>
-                        <span><b style={{ 'color': 'green' }}>ESC</b> to cancel. <b style={{ 'color': 'green' }}>Ctrl+Enter</b> to save and close. </span>
-                        <Button variant="secondary" onClick={() => {
+                    <Modal.Footer className={styles.footer}>
+                        <span><b style={{ color: 'green' }}>ESC</b> to cancel. <b style={{ color: 'green' }}>Ctrl+Enter</b> to save and close. </span>
+                        <Button className={styles.cancel} variant="secondary" onClick={() => {
                             clearTimeout(me.inactivityTimer);
                             me.props.onClose(false, me.codeMirror.getValue());
                             me.inactivityTimer = null;
                         }}>
                             {this.props.cancel ? this.props.cancel : "Cancel"}
                         </Button>
-                        <Button variant="primary" onClick={() => {
+                        <Button className={styles.primary} variant="primary" onClick={() => {
                             clearTimeout(me.inactivityTimer);
                             me.props.onClose(true, me.codeMirror.getValue());
                             me.inactivityTimer = null;
