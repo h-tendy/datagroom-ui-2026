@@ -18,15 +18,14 @@ export function useInsertRow(dsName, dsView, userId) {
 
 /**
  * Hook to delete a single row
+ * Note: Does not invalidate queries - caller should handle row removal from Tabulator
+ * to avoid full table reload and preserve scroll position
  */
 export function useDeleteRow(dsName, dsView, userId) {
-  const queryClient = useQueryClient();
-
+  // Don't use queryClient - we handle row removal manually in the component
   return useMutation({
     mutationFn: (deleteData) => deleteRow(deleteData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
-    },
+    // No onSuccess handler - component will call row.delete() directly
   });
 }
 

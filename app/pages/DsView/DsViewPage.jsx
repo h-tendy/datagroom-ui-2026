@@ -1971,8 +1971,8 @@ function DsViewPage() {
   }, []);
 
   // Delete row handler
-  const handleDeleteRow = useCallback((_id) => {
-    console.log('[DELETE ROW] handleDeleteRow called with _id:', _id);
+  const handleDeleteRow = useCallback((_id, row) => {
+    console.log('[DELETE ROW] handleDeleteRow called with _id:', _id, ', row:', row);
     setModalTitle('Confirm Delete');
     setModalQuestion('Are you sure you want to delete this row?');
     setModalOk('Delete');
@@ -1987,6 +1987,17 @@ function DsViewPage() {
         },
         {
           onSuccess: () => {
+            // Delete row from Tabulator directly (no table reload)
+            // Reference: DsView.js lines 1268-1269
+            try {
+              if (row && typeof row.delete === 'function') {
+                row.delete();
+                console.log('[DELETE ROW] Row removed from table successfully');
+              }
+            } catch (err) {
+              console.error('[DELETE ROW] Failed to remove row from table:', err);
+            }
+            
             setNotificationType('success');
             setNotificationMessage('Row deleted successfully');
             setShowNotification(true);
@@ -2458,9 +2469,9 @@ function DsViewPage() {
         }
 
         // Otherwise open confirm modal which will call delete mutation on confirm
-        console.log('[DELETE ROW] About to call handleDeleteRow with id:', id);
+        console.log('[DELETE ROW] About to call handleDeleteRow with id:', id, ', and row:', row);
         if (handleDeleteRowRef.current) {
-          handleDeleteRowRef.current(id);
+          handleDeleteRowRef.current(id, row);
         }
       } catch (err) {
         console.error('deleteRowQuestion error', err);
