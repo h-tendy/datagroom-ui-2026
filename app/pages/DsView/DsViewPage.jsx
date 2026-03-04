@@ -2879,7 +2879,7 @@ function DsViewPage() {
             columns={columns}
             data={[]}
             options={{
-              layout: 'fitDataStretch',
+              //layout: 'fitDataStretch',
               //scrollbarTop: false,
               pagination: 'remote',
               paginationSize: pageSize,
