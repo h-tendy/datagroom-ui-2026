@@ -354,6 +354,8 @@ function DsViewPage() {
   // Prevent initial table mount until URL-derived filters/sorts/attrs are applied
   const [initialUrlProcessed, setInitialUrlProcessed] = useState(false);
   const lastGeneratedFilterAttrsRef = useRef('');
+  // Track viewConfig.columnAttrs hash to detect when backend columns change (e.g., after filter save)
+  const lastGeneratedViewConfigHashRef = useRef('');
 
   // Initialize chronologyDescending from localStorage on mount
   // Reference: DsView.js lines 138-143
@@ -817,9 +819,13 @@ function DsViewPage() {
           // Column attributes should be safe, but deep clone anyway
           const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
           
-          // Only update state if the filter name has changed
-          // (Avoid deep comparison to prevent circular reference issues)
-          if (filter !== filterParam) {
+          // Update state if filter name changed OR if filter data changed (e.g., after save)
+          // Compare stringified attrs to detect backend updates after filter save
+          const colAttrsStr = JSON.stringify(colAttrs);
+          const currentColAttrsStr = JSON.stringify(filterColumnAttrs);
+          const shouldUpdate = (filter !== filterParam) || (colAttrsStr !== currentColAttrsStr);
+          
+          if (shouldUpdate) {
             console.log('[FILTER] Applying filter from URL:', filterParam);
             setFilter(filterParam);
             setInitialHeaderFilter(hdrFilters);
@@ -2540,6 +2546,14 @@ function DsViewPage() {
       originalColumnAttrsRef.current = JSON.parse(JSON.stringify(viewConfig.columnAttrs));
     }
 
+    // For named filters, derive fresh filterColumnAttrs from viewConfig to get latest saved widths
+    // This ensures that after a filter save, the refreshed viewConfig data is used for column generation
+    let effectiveFilterColumnAttrs = filterColumnAttrs;
+    if (filterParam && viewConfig.filters?.[filterParam]?.filterColumnAttrs) {
+      effectiveFilterColumnAttrs = viewConfig.filters[filterParam].filterColumnAttrs;
+      console.log('[COLUMN-GEN] Using fresh filterColumnAttrs from viewConfig.filters for:', filterParam);
+    }
+
     const helperContext = {
       tabulatorRef,
       viewConfig,
@@ -2549,7 +2563,7 @@ function DsViewPage() {
       handlers,
       cellImEditingRef,
       frozenCol,
-      filterColumnAttrs,
+      filterColumnAttrs: effectiveFilterColumnAttrs,
       columnResizedRecently: columnResizedRecentlyRef.current,
       originalColumnAttrs: originalColumnAttrsRef.current,
       // Properties needed by domHelpers
@@ -2589,21 +2603,34 @@ function DsViewPage() {
     
     // Generate columns using tabulatorConfig
     if (tabulatorConfigHelper.current) {
-      console.log('[DEBUG REFRESH] ⚠️ GENERATING NEW COLUMNS - This will cause table remount!', {
-        filterColumnAttrs,
-        timestamp: new Date().toISOString()
-      });
-      urlRestoreLog('[URL RESTORE] Generating columns with filterColumnAttrs:', filterColumnAttrs);
-      const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
-      setColumns(generatedColumns);
-      try {
-        lastGeneratedFilterAttrsRef.current = JSON.stringify(filterColumnAttrs || {});
-        urlRestoreLog('[URL RESTORE] Columns generated, stored filterColumnAttrs ref:', lastGeneratedFilterAttrsRef.current);
-      } catch (e) {
-        lastGeneratedFilterAttrsRef.current = '';
+      // Check if we need to regenerate columns (avoid unnecessary rebuilds)
+      const viewConfigHash = JSON.stringify(viewConfig.columnAttrs || []);
+      const effectiveAttrsStr = JSON.stringify(effectiveFilterColumnAttrs || {});
+      const shouldRegenerate = (
+        lastGeneratedViewConfigHashRef.current !== viewConfigHash ||
+        lastGeneratedFilterAttrsRef.current !== effectiveAttrsStr
+      );
+      
+      if (shouldRegenerate) {
+        console.log('[DEBUG REFRESH] ⚠️ GENERATING NEW COLUMNS - This will cause table remount!', {
+          effectiveFilterColumnAttrs,
+          viewConfigChanged: lastGeneratedViewConfigHashRef.current !== viewConfigHash,
+          filterAttrsChanged: lastGeneratedFilterAttrsRef.current !== effectiveAttrsStr,
+          timestamp: new Date().toISOString()
+        });
+        urlRestoreLog('[URL RESTORE] Generating columns with filterColumnAttrs:', effectiveFilterColumnAttrs);
+        const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
+        setColumns(generatedColumns);
+        
+        // Store hashes to prevent unnecessary regeneration
+        lastGeneratedFilterAttrsRef.current = effectiveAttrsStr;
+        lastGeneratedViewConfigHashRef.current = viewConfigHash;
+        urlRestoreLog('[URL RESTORE] Columns generated, stored refs');
+      } else {
+        console.log('[DEBUG REFRESH] Skipping column regeneration - no changes detected');
       }
     }
-  }, [viewConfig, dsName, dsView, userId, showAllFilters, filterColumnAttrs, searchParams, urlRestoreLog]);
+  }, [viewConfig, dsName, dsView, userId, showAllFilters, filterColumnAttrs, filterParam, searchParams, urlRestoreLog]);
 
   // Once column definitions (including saved filter attrs) are generated, allow table to mount
   useEffect(() => {
@@ -2649,7 +2676,7 @@ function DsViewPage() {
     } catch (e) {
       console.error('Error rebuilding columns on showAllFilters change:', e);
     }
-  }, [showAllFilters, viewConfig, filterColumnAttrs]);
+  }, [showAllFilters, viewConfig]);
 
   // Continuously track scroll position to ensure we always have the latest position
   // This helps preserve scroll position during filter changes, pagination, etc.
