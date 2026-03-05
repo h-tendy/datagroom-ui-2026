@@ -120,7 +120,7 @@ export { md };
 export default function createTabulatorConfig(context) {
   const { tabulatorRef, viewConfig, dsName, dsView, userId, handlers, cellImEditingRef, frozenCol,
           MyInput, MyTextArea, MyCodeMirror, DateEditor, MyAutoCompleter, MySingleAutoCompleter,
-          filterColumnAttrs, columnResizedRecently, originalColumnAttrs } = context;
+          filterColumnAttrs, columnResizedRecently, originalColumnAttrs, scrollPositionRef } = context;
   
   // Extract handlers passed from DsViewPage
   const {
@@ -194,8 +194,36 @@ export default function createTabulatorConfig(context) {
         { label: "<i class='fas fa-eye'></i> Unhide all Columns", action: function(e, cell) { if (showAllCols) showAllCols(e, cell); } }
       ] },
       { label: "Add row.....", menu: [
-        { label: "Duplicate row & add (above)", action: function (e, cell) { if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, true); } },
-        { label: "Duplicate row & add (below)", action: function (e, cell) { if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, false); } },
+        { label: "Duplicate row & add (above)", action: function (e, cell) { 
+          // Capture BOTH window scroll AND table scroll position BEFORE calling handler
+          const table = tabulatorRef.current?.table;
+          const rowManager = table?.rowManager?.element;
+          if (scrollPositionRef) {
+            scrollPositionRef.current = {
+              top: rowManager?.scrollTop || 0,
+              left: rowManager?.scrollLeft || 0,
+              windowScrollY: window.scrollY,
+              windowScrollX: window.scrollX
+            };
+            console.log('[Context Menu] Captured scroll for duplicate above:', scrollPositionRef.current);
+          }
+          if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, true); 
+        } },
+        { label: "Duplicate row & add (below)", action: function (e, cell) { 
+          // Capture BOTH window scroll AND table scroll position BEFORE calling handler
+          const table = tabulatorRef.current?.table;
+          const rowManager = table?.rowManager?.element;
+          if (scrollPositionRef) {
+            scrollPositionRef.current = {
+              top: rowManager?.scrollTop || 0,
+              left: rowManager?.scrollLeft || 0,
+              windowScrollY: window.scrollY,
+              windowScrollX: window.scrollX
+            };
+            console.log('[Context Menu] Captured scroll for duplicate below:', scrollPositionRef.current);
+          }
+          if (duplicateAndAddRowHandler) duplicateAndAddRowHandler(e, cell, false); 
+        } },
         { label: "Add empty row...", action: function (e, cell) { if (addRow) addRow(e, cell, null, true); } }
       ] },
       { label: "Delete row....", menu: [

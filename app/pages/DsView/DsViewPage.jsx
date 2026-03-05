@@ -1968,14 +1968,44 @@ function DsViewPage() {
         throw new Error('Data contains circular reference');
       }
       
-      // Only pass rowComponent if it exists and we have a non-boolean position
-      let row;
-      if (rowComponent) {
-        row = await tabulatorRef.current.table.addRow(data, pos, rowComponent);
+      // Add row with scroll preservation to prevent jumping to top
+      let row = null;
+      const table = tabulatorRef.current.table;
+      const rowManager = table?.rowManager?.element;
+      
+      if (rowManager) {
+        const scrollBefore = {
+          top: rowManager.scrollTop,
+          left: rowManager.scrollLeft
+        };
+        console.log('[handleAddRow] Scroll position BEFORE addRow:', scrollBefore);
+        
+        executeWithScrollPreservation(table, () => {
+          // Only pass rowComponent if it exists and we have a non-boolean position
+          if (rowComponent) {
+            row = table.addRow(data, pos, rowComponent);
+          } else {
+            // For top button clicks, just pass data and position
+            row = table.addRow(data, pos);
+          }
+        });
+        
+        setTimeout(() => {
+          const scrollAfter = {
+            top: rowManager.scrollTop,
+            left: rowManager.scrollLeft
+          };
+          console.log('[handleAddRow] Scroll position AFTER addRow (delayed check):', scrollAfter);
+        }, 100);
       } else {
-        // For top button clicks, just pass data and position
-        row = await tabulatorRef.current.table.addRow(data, pos);
+        console.warn('[handleAddRow] No rowManager element found, adding row without scroll preservation');
+        if (rowComponent) {
+          row = table.addRow(data, pos, rowComponent);
+        } else {
+          row = table.addRow(data, pos);
+        }
       }
+      
       console.log('[handleAddRow] ✓ Row added successfully');
       return row;
     } catch (error) {
@@ -1985,7 +2015,7 @@ function DsViewPage() {
       setNotificationMessage(`Failed to add row: ${error.message}`);
       setShowNotification(true);
     }
-  }, [tabulatorRef, viewConfig, auth.userId, userId]);
+  }, [tabulatorRef, viewConfig, auth.userId, userId, executeWithScrollPreservation]);
 
   // Copy to clipboard handler
   const handleCopyToClipboard = useCallback(() => {
@@ -2436,8 +2466,12 @@ function DsViewPage() {
     },
     startPreso: () => {}, // Deferred
     urlGeneratorFunction: urlGeneratorFunction,
-    duplicateAndAddRowHandler: (e, cell, pos) => {
+    duplicateAndAddRowHandler: async (e, cell, pos) => {
       try {
+        // Context menu already captured scroll to scrollPositionBeforeLoadRef.current
+        // Log what was captured
+        console.log('[duplicateAndAddRowHandler] Using scroll captured by context menu:', scrollPositionBeforeLoadRef.current);
+        
         // Future: Check if JIRA row (currently deferred)
         // if (isJiraRow(rowData, jiraConfig, jiraAgileConfig)) { show modal }
         
@@ -2450,7 +2484,19 @@ function DsViewPage() {
         console.log('newData: ', newData);
         
         // Call handleAddRow with the duplicated data and position
-        handleAddRow(newData, cell, pos);
+        await handleAddRow(newData, cell, pos);
+        
+        // Restore window scroll immediately after adding row (in case rowAdded callback doesn't fire quickly enough)
+        const savedPosition = scrollPositionBeforeLoadRef.current;
+        if (savedPosition && (savedPosition.windowScrollY !== undefined || savedPosition.windowScrollX !== undefined)) {
+          console.log('[duplicateAndAddRowHandler] Restoring window scroll after handleAddRow:', savedPosition.windowScrollY);
+          window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+          
+          // Use requestAnimationFrame to ensure restoration after any browser reflows
+          requestAnimationFrame(() => {
+            window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+          });
+        }
       } catch (err) {
         console.error('duplicateAndAddRowHandler error', err);
       }
@@ -2601,6 +2647,7 @@ function DsViewPage() {
       filterColumnAttrs: effectiveFilterColumnAttrs,
       columnResizedRecently: columnResizedRecentlyRef.current,
       originalColumnAttrs: originalColumnAttrsRef.current,
+      scrollPositionRef: scrollPositionBeforeLoadRef, // For context menu to save scroll before actions
       // Properties needed by domHelpers
       component: { 
         cellImEditing: cellImEditingRef.current,
@@ -3000,6 +3047,28 @@ function DsViewPage() {
               },
               // Track manual column resizes to prevent conflicts with filter column widths
               columnResized: handleColumnResized,
+              // Row added callback - preserve scroll when adding rows locally (duplicate, etc.)
+              rowAdded: (row) => {
+                console.log('[rowAdded] Row added, current scroll:', scrollPositionBeforeLoadRef.current);
+                const savedPosition = scrollPositionBeforeLoadRef.current;
+                
+                if (!savedPosition) return;
+                
+                // Restore window scroll position FIRST
+                if (savedPosition.windowScrollY !== undefined || savedPosition.windowScrollX !== undefined) {
+                  console.log('[rowAdded] Restoring WINDOW scroll to:', savedPosition.windowScrollY, savedPosition.windowScrollX);
+                  window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+                }
+                
+                // Then restore table internal scroll position
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element && (savedPosition.top > 0 || savedPosition.left > 0)) {
+                  const rowManagerElement = table.rowManager.element;
+                  console.log('[rowAdded] Restoring TABLE scroll to:', savedPosition.top, savedPosition.left);
+                  rowManagerElement.scrollTop = savedPosition.top;
+                  rowManagerElement.scrollLeft = savedPosition.left;
+                }
+              },
               // Render complete callback for post-render processing
               // Reference: DsView.js line 1982 (renderComplete: this.renderComplete)
               renderComplete: handleRenderComplete,
