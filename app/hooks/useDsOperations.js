@@ -3,16 +3,14 @@ import { insertRow, deleteRow, deleteManyRows, addColumn, deleteColumn } from '.
 
 /**
  * Hook to insert a new row
+ * Note: Does not invalidate queries - component updates row with backend _id directly
+ * to avoid full table reload and preserve scroll position
  */
 export function useInsertRow(dsName, dsView, userId) {
-  const queryClient = useQueryClient();
-
+  // Don't use queryClient - component handles row update with _id manually
   return useMutation({
     mutationFn: (rowData) => insertRow(rowData),
-    onSuccess: () => {
-      // Invalidate to show new row
-      queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
-    },
+    // No onSuccess handler - component will update row with _id directly
   });
 }
 

@@ -1707,31 +1707,55 @@ function DsViewPage() {
         doc: rowData,         // Complete row data
       };
       
+      console.log('=== INSERT ROW PAYLOAD ===');
+      console.log('dsName:', dsName);
+      console.log('dsView:', dsView);
+      console.log('dsUser:', userId);
+      console.log('selectorObj (keyObj):', JSON.stringify(keyObj));
+      console.log('doc (rowData) keys:', Object.keys(rowData));
+      console.log('Full payload:', JSON.stringify(payload, null, 2));
+      console.log('=== END PAYLOAD ===');
+      
       const uiRow = cell.getRow();
       
       insertRowMutation.mutate(
         payload,
         {
           onSuccess: (result) => {
-            console.log('New row inserted successfully:', result);
+            console.log('INSERT ROW response from backend:', result);
             
-            // Update the UI row with the _id from backend
-            if (result._id) {
+            // Match old UI logic: DsView.js line 989
+            // Check result.status === 'success' first, then use result._id
+            if (result.status === 'success') {
+              console.log('Row insertion successful, updating with _id:', result._id);
               uiRow.update({ _id: result._id });
+              
+              // Clear the "new row" background color styling
+              const rowElement = uiRow.getElement();
+              rowElement.style.backgroundColor = '';
+              rowElement.style.borderLeft = '';
+              
+              setNotificationType('success');
+              setNotificationMessage('Row added successfully');
+              setShowNotification(true);
+            } else if (result.status === 'fail') {
+              // Match old UI logic: DsView.js line 987-988
+              console.log('Row insertion failed:', result);
+              setNotificationType('error');
+              setNotificationMessage(result.message || 'Row addition failed, key might already be used. Try a different key.');
+              setShowNotification(true);
+            } else {
+              // Unexpected response format
+              console.log('Unexpected response format:', result);
+              setNotificationType('warning');
+              setNotificationMessage('Unexpected response from server');
+              setShowNotification(true);
             }
-            
-            setNotificationType('success');
-            setNotificationMessage('Row added successfully');
-            setShowNotification(true);
           },
           onError: (error) => {
-            console.error('insertRow API error', error);
             setNotificationType('error');
             setNotificationMessage(`Failed to add row: ${error.message}`);
             setShowNotification(true);
-            
-            // Optionally remove the row from UI on failure
-            // uiRow.delete();
           },
         }
       );
@@ -2961,16 +2985,17 @@ function DsViewPage() {
               rowFormatter: (row) => {
                 const rootStyles = getComputedStyle(document.documentElement);
                 const rowElement = row.getElement();
+                const rowData = row.getData();
                 
-                if (!row.getData()._id) {
+                if (!rowData._id) {
                   // New unsaved row - use accent color with transparency + left border for high visibility
                   const accentColor = rootStyles.getPropertyValue('--color-accent').trim();
                   rowElement.style.backgroundColor = `${accentColor}22`; // 22 = ~13% opacity in hex
                   rowElement.style.borderLeft = `4px solid ${accentColor}`;
                 } else {
-                  // Saved row - use normal background color from theme
-                  rowElement.style.backgroundColor = rootStyles.getPropertyValue('--color-bg').trim();
-                  rowElement.style.borderLeft = 'none';
+                  // Saved row - clear inline styles to use normal CSS styling (odd/even row colors)
+                  rowElement.style.backgroundColor = '';
+                  rowElement.style.borderLeft = '';
                 }
               },
               // Track manual column resizes to prevent conflicts with filter column widths

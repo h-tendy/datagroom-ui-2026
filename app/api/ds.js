@@ -106,12 +106,15 @@ export async function editCell(body) {
  * Insert a new row/document
  */
 export async function insertRow(body) {
+  console.log('[API ds.js insertRow] Called with body:', JSON.stringify(body, null, 2));
   const headers = getAuthHeaders();
-  return api('/ds/view/insertOneDoc', {
+  const result = await api('/ds/view/insertOneDoc', {
     method: 'POST',
     body,
     headers,
   });
+  console.log('[API ds.js insertRow] Response:', JSON.stringify(result, null, 2));
+  return result;
 }
 
 /**
