@@ -229,7 +229,21 @@ export default function createTabulatorConfig(context) {
       { label: "Delete row....", menu: [
         { label: "Delete all rows in view...", action: function(e, cell) { if (deleteAllRowsInViewQuestion) deleteAllRowsInViewQuestion(e, cell); } },
         { label: "Delete all rows in query...", action: function(e, cell) { if (deleteAllRowsInQuery) deleteAllRowsInQuery(e, cell); } },
-        { label: "Delete row...", action: function(e, cell) { if (deleteRowQuestion) deleteRowQuestion(e, cell); } }
+        { label: "Delete row...", action: function(e, cell) { 
+          // Capture BOTH window scroll AND table scroll position BEFORE calling handler
+          const table = tabulatorRef.current?.table;
+          const rowManager = table?.rowManager?.element;
+          if (scrollPositionRef) {
+            scrollPositionRef.current = {
+              top: rowManager?.scrollTop || 0,
+              left: rowManager?.scrollLeft || 0,
+              windowScrollY: window.scrollY,
+              windowScrollX: window.scrollX
+            };
+            console.log('[Context Menu] Captured scroll for delete row:', scrollPositionRef.current);
+          }
+          if (deleteRowQuestion) deleteRowQuestion(e, cell); 
+        } }
       ] },
       { label: "Delete column...", menu: [ { label: "Delete column...", action: function (e, cell) { if (deleteColumnQuestion) deleteColumnQuestion(e, cell); } } ] },
       { label: "Add Column", menu: [ { label: "Add Column", action: function (_, cell) { if (addColumnQuestion) addColumnQuestion(cell.getColumn().getField()); } } ] },

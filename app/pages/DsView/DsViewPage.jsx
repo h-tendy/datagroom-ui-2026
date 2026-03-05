@@ -2052,6 +2052,18 @@ function DsViewPage() {
               console.error('[DELETE ROW] Failed to remove row from table:', err);
             }
             
+            // Restore window scroll position after deletion
+            const savedPosition = scrollPositionBeforeLoadRef.current;
+            if (savedPosition && (savedPosition.windowScrollY !== undefined || savedPosition.windowScrollX !== undefined)) {
+              console.log('[DELETE ROW] Restoring window scroll after deletion:', savedPosition.windowScrollY);
+              window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+              
+              // Use requestAnimationFrame to ensure restoration after any browser reflows
+              requestAnimationFrame(() => {
+                window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+              });
+            }
+            
             setNotificationType('success');
             setNotificationMessage('Row deleted successfully');
             setShowNotification(true);
@@ -3065,6 +3077,28 @@ function DsViewPage() {
                 if (table && table.rowManager?.element && (savedPosition.top > 0 || savedPosition.left > 0)) {
                   const rowManagerElement = table.rowManager.element;
                   console.log('[rowAdded] Restoring TABLE scroll to:', savedPosition.top, savedPosition.left);
+                  rowManagerElement.scrollTop = savedPosition.top;
+                  rowManagerElement.scrollLeft = savedPosition.left;
+                }
+              },
+              // Row deleted callback - preserve scroll when deleting rows
+              rowDeleted: (row) => {
+                console.log('[rowDeleted] Row deleted, current scroll:', scrollPositionBeforeLoadRef.current);
+                const savedPosition = scrollPositionBeforeLoadRef.current;
+                
+                if (!savedPosition) return;
+                
+                // Restore window scroll position FIRST
+                if (savedPosition.windowScrollY !== undefined || savedPosition.windowScrollX !== undefined) {
+                  console.log('[rowDeleted] Restoring WINDOW scroll to:', savedPosition.windowScrollY, savedPosition.windowScrollX);
+                  window.scrollTo(savedPosition.windowScrollX || 0, savedPosition.windowScrollY || 0);
+                }
+                
+                // Then restore table internal scroll position
+                const table = tabulatorRef.current?.table;
+                if (table && table.rowManager?.element && (savedPosition.top > 0 || savedPosition.left > 0)) {
+                  const rowManagerElement = table.rowManager.element;
+                  console.log('[rowDeleted] Restoring TABLE scroll to:', savedPosition.top, savedPosition.left);
                   rowManagerElement.scrollTop = savedPosition.top;
                   rowManagerElement.scrollLeft = savedPosition.left;
                 }
