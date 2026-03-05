@@ -1162,7 +1162,13 @@ function DsViewPage() {
           setNotificationMessage('Delete completed');
           setShowNotification(true);
           setShowModal(false);
-          try { tabulatorRef.current?.table?.setData(); } catch (e) { console.error(e); }
+          // Clear table data locally instead of refreshing from server
+          // This shows empty table confirming deletion while preserving filters
+          try { 
+            if (tabulatorRef.current?.table?.clearData) {
+              tabulatorRef.current.table.clearData();
+            }
+          } catch (e) { console.error(e); }
         } catch (err) {
           console.error('deleteAllRowsInQuery error', err);
           setNotificationType('error');
@@ -1229,8 +1235,13 @@ function DsViewPage() {
               setNotificationMessage(`Successfully deleted ${objects.length} rows`);
               setShowNotification(true);
               setShowModal(false);
-              // Refresh table data
-              try { tabulatorRef.current?.table?.setData(); } catch (e) { console.error(e); }
+              // Clear table data locally instead of refreshing from server
+              // This shows empty table confirming deletion while preserving filters
+              try { 
+                if (tabulatorRef.current?.table?.clearData) {
+                  tabulatorRef.current.table.clearData();
+                }
+              } catch (e) { console.error(e); }
             },
             onError: (error) => {
               setNotificationType('error');

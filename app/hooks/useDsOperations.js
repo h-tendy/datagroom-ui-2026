@@ -29,15 +29,14 @@ export function useDeleteRow(dsName, dsView, userId) {
 
 /**
  * Hook to delete multiple rows
+ * Note: Does not invalidate queries - caller should handle row removal from Tabulator
+ * to avoid full table reload and preserve scroll position
  */
 export function useDeleteManyRows(dsName, dsView, userId) {
-  const queryClient = useQueryClient();
-
+  // Don't use queryClient - we handle row removal manually in the component
   return useMutation({
     mutationFn: (deleteData) => deleteManyRows(deleteData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
-    },
+    // No onSuccess handler - component will call table.clearData() or row.delete() directly
   });
 }
 
