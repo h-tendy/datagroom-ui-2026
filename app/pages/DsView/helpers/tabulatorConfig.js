@@ -371,6 +371,7 @@ export default function createTabulatorConfig(context) {
           // We can't change it. But in some scenarios, there is a bit of 
           // clipping at the bottom because of this. We need to find a way to
           // solve this. 
+          // Also try changing height to max-height, that works perfectly. 
           //const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px;height:200px;overflow-x:auto; overflow-y:auto">${value}</div>`;
           const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;overflow-x:auto;overflow-y:auto;width:${width - 8}px">${value}</div>`;
           
