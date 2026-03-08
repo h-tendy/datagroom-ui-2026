@@ -9,7 +9,7 @@
  * Features hover-to-expand behavior to conserve space
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './ControlPanel.module.css';
 
@@ -41,12 +41,43 @@ function ControlPanel({
   viewConfig,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleMouseEnter = () => {
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    // Set a timeout to expand after 150ms
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, 150);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear the timeout if user leaves before it triggers
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    // Collapse immediately
+    setIsExpanded(false);
+  };
 
   return (
     <div 
       className={`${styles.controlPanel} ${isExpanded ? styles.expanded : ''}`}
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Top Row: Settings, Quick Actions, and Navigation side-by-side */}
       <div className={styles.topRow}>
