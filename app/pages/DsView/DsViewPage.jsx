@@ -18,9 +18,10 @@
 import React, { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Row, Col } from 'react-bootstrap';
+import { useQueryClient } from '@tanstack/react-query';
 import styles from './DsViewPage.module.css';
 import { useAuth } from '../../auth/AuthProvider';
-import { downloadXlsx } from '../../api/ds';
+import { downloadXlsx, fetchViewColumns, setViewDefinitions } from '../../api/ds';
 
 // Hooks
 import useDsView from '../../hooks/useDsView';
@@ -36,6 +37,7 @@ import ControlPanel from './components/ControlPanel.jsx';
 import FilterControls from './components/FilterControls.jsx';
 import Modal from './components/Modal.jsx';
 import ModalEditor from './components/ModalEditor.jsx';
+import DescriptionEditorModal from './components/DescriptionEditorModal.jsx';
 import JiraForm from './components/jiraForm.jsx';
 import AddColumnForm from './components/AddColumnForm';
 
@@ -184,6 +186,13 @@ function DsViewPage() {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationType, setNotificationType] = useState('success');
   const [notificationMessage, setNotificationMessage] = useState('');
+  
+  // Description editor state
+  const queryClient = useQueryClient();
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [freshViewConfig, setFreshViewConfig] = useState(null);
+  const [isLoadingFreshConfig, setIsLoadingFreshConfig] = useState(false);
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
   
   // Add column modal state
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
@@ -1319,6 +1328,99 @@ function DsViewPage() {
       }
     );
   }, [dsName, dsView, userId, refreshJiraMutation]);
+
+  // Handle opening the description editor with fresh config
+  const handleOpenDescriptionEditor = useCallback(async () => {
+    setIsEditingDescription(true);
+    setIsLoadingFreshConfig(true);
+    
+    try {
+      // Fetch fresh view config to ensure we have latest backend state
+      const freshConfig = await fetchViewColumns(dsName, dsView, userId);
+      setFreshViewConfig(freshConfig);
+      setIsLoadingFreshConfig(false);
+    } catch (error) {
+      console.error('Error fetching fresh config:', error);
+      setNotificationType('error');
+      setNotificationMessage('Failed to load latest configuration');
+      setShowNotification(true);
+      setIsEditingDescription(false);
+      setIsLoadingFreshConfig(false);
+    }
+  }, [dsName, dsView, userId]);
+
+  // Handle saving the edited description
+  const handleSaveDescription = useCallback(async (editedDescription) => {
+    setIsSavingDescription(true);
+    
+    try {
+      // Validate that we have proper column data before sending
+      if (!freshViewConfig || !freshViewConfig.columnAttrs || freshViewConfig.columnAttrs.length === 0) {
+        console.error('Critical: Cannot save - column attributes missing or empty!');
+        setIsSavingDescription(false);
+        setNotificationType('error');
+        setNotificationMessage('Cannot save - missing column configuration. Please refresh and try again.');
+        setShowNotification(true);
+        return;
+      }
+
+      // Construct payload with all settings, only description changed
+      // CRITICAL: API returns 'columnAttrs' but expects 'viewDefs' in the request
+      const payload = {
+        dsName,
+        dsView,
+        dsUser: userId,
+        viewDefs: freshViewConfig.columnAttrs,  // Use columnAttrs from API response
+        jiraConfig: freshViewConfig.jiraConfig || null,
+        jiraAgileConfig: freshViewConfig.jiraAgileConfig || null,
+        dsDescription: { dsDescription: editedDescription },
+        otherTableAttrs: freshViewConfig.otherTableAttrs || {},
+        aclConfig: freshViewConfig.aclConfig || null,
+        jiraProjectName: freshViewConfig.jiraProjectName || '',
+        perRowAccessConfig: freshViewConfig.perRowAccessConfig || {},
+      };
+
+      console.log('Saving description with payload:', {
+        ...payload,
+        viewDefs: `[Array of ${payload.viewDefs.length} columns]`,
+      });
+
+      const [success, result] = await setViewDefinitions(payload);
+      
+      if (success) {
+        // Close modal and clear fresh config
+        setIsEditingDescription(false);
+        setFreshViewConfig(null);
+        setIsSavingDescription(false);
+        
+        // Invalidate React Query cache to refetch the updated data
+        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
+        
+        // Show success notification
+        setNotificationType('success');
+        setNotificationMessage('Description updated successfully');
+        setShowNotification(true);
+      } else {
+        setIsSavingDescription(false);
+        setNotificationType('error');
+        setNotificationMessage(result?.message || 'Failed to update description');
+        setShowNotification(true);
+      }
+    } catch (error) {
+      console.error('Error saving description:', error);
+      setIsSavingDescription(false);
+      setNotificationType('error');
+      setNotificationMessage('Failed to update description');
+      setShowNotification(true);
+    }
+  }, [dsName, dsView, userId, freshViewConfig, queryClient]);
+
+  // Handle canceling the description editor
+  const handleCancelDescriptionEditor = useCallback(() => {
+    setIsEditingDescription(false);
+    setFreshViewConfig(null);
+    setIsLoadingFreshConfig(false);
+  }, []);
 
   // Check for concurrent edit conflicts - prevents editing cells locked by other users
   // Reference: DsView.js lines 567-577 (cellEditCheckForConflicts)
@@ -2873,7 +2975,53 @@ function DsViewPage() {
               if (descriptionText) {
                 const renderedHtml = md.render(descriptionText);
                 return (
-                  <div className={styles.dsDescription} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                  <div
+                    style={{
+                      border: '1px solid var(--color-border, #ddd)',
+                      borderRadius: '8px',
+                      padding: '1rem 1.5rem',
+                      marginBottom: '1rem',
+                      width: '59%',
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+                    }}
+                  >
+                    <div className={styles.dsDescription} dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                    <button
+                      className="btn btn-link"
+                      onClick={handleOpenDescriptionEditor}
+                      style={{
+                        padding: '0 6px',
+                        fontSize: '1.45rem',
+                        lineHeight: '1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        marginTop: '0.5rem',
+                      }}
+                      title="Edit description"
+                    >
+                      <i className="fas fa-edit" style={{ fontSize: '1.45rem', marginRight: '6px' }}></i>Edit
+                    </button>
+                  </div>
+                );
+              } else {
+                // Show edit button even when description is empty
+                return (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <button
+                      className="btn btn-link"
+                      onClick={handleOpenDescriptionEditor}
+                      style={{
+                        padding: '0 6px',
+                        fontSize: '1.45rem',
+                        lineHeight: '1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                      title="Add description"
+                    >
+                      <i className="fas fa-plus" style={{ fontSize: '1.45rem', marginRight: '6px' }}></i>Add Description
+                    </button>
+                  </div>
                 );
               }
             } catch (e) {
@@ -2881,26 +3029,61 @@ function DsViewPage() {
             }
             return null;
           })()}
+
+          {/* Control Panel - below description */}
+          <div style={{ width: '59%', marginBottom: '1rem' }}>
+            <ControlPanel
+              chronologyDescending={chronologyDescending}
+              setChronologyDescending={setChronologyDescending}
+              showAllFilters={showAllFilters}
+              handleShowAllFiltersToggle={handleShowAllFiltersToggle}
+              singleClickEdit={singleClickEdit}
+              handleSingleClickEditToggle={handleSingleClickEditToggle}
+              disableEditing={disableEditing}
+              disableEditingRef={disableEditingRef}
+              setDisableEditing={setDisableEditing}
+              toggleEditing={toggleEditing}
+              setForceRefresh={setForceRefresh}
+              handleAddRow={handleAddRow}
+              handleRefreshJira={handleRefreshJira}
+              handleCopyToClipboard={handleCopyToClipboard}
+              refreshJiraMutation={refreshJiraMutation}
+              dsName={dsName}
+              dsView={dsView}
+              viewConfig={viewConfig}
+            />
+          </div>
         </Col>
       </Row>
       <Row className={styles.controlRow}>
-        <Col xs={12} lg={7}>
-          {/* Left side: FilterControls and Data bar */}
-          <div className={styles.leftPanel}>
-            {/* FilterControls component */}
-            <FilterControls
-              show={showAllFilters}
-              dsName={dsName}
-              dsView={dsView}
-              userId={userId}
-              tableRef={tabulatorRef.current}
-              onFilterChange={processFilterChange}
-              defaultValue={filter}
-              viewConfig={viewConfig}
-            />
+        <Col xs={12}>
+          {/* FilterControls - same width as description and control panel */}
+          {showAllFilters && (
+            <div
+              style={{
+                border: '1px solid var(--color-border, #ddd)',
+                borderRadius: '8px',
+                padding: '1rem 1.5rem',
+                marginBottom: '1rem',
+                width: '59%',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+              }}
+            >
+              <FilterControls
+                show={showAllFilters}
+                dsName={dsName}
+                dsView={dsView}
+                userId={userId}
+                tableRef={tabulatorRef.current}
+                onFilterChange={processFilterChange}
+                defaultValue={filter}
+                viewConfig={viewConfig}
+              />
+            </div>
+          )}
 
-            {/* Data bar - minimal info above table */}
-            <div className={styles.dataBar}>
+          {/* Data bar - full width above table */}
+          <div className={styles.dataBar}>
             {tabulatorRef.current?.table?.getHeaderFilters()?.length > 0 ? (
               fetchAllMatchingRecords ? (
                 <b className={styles.totalCount}><i className={`fas fa-clone ${styles.totalIcon}`}></i> Total matching records: {totalRecs}</b>
@@ -2930,30 +3113,6 @@ function DsViewPage() {
               <i className='fas fa-redo'></i><b className={styles.refreshLabel}>Refresh</b>
             </button>
           </div>
-          </div>
-        </Col>
-        <Col xs={12} lg={5}>
-          {/* Right side: Control Panel */}
-          <ControlPanel
-            chronologyDescending={chronologyDescending}
-            setChronologyDescending={setChronologyDescending}
-            showAllFilters={showAllFilters}
-            handleShowAllFiltersToggle={handleShowAllFiltersToggle}
-            singleClickEdit={singleClickEdit}
-            handleSingleClickEditToggle={handleSingleClickEditToggle}
-            disableEditing={disableEditing}
-            disableEditingRef={disableEditingRef}
-            setDisableEditing={setDisableEditing}
-            toggleEditing={toggleEditing}
-            setForceRefresh={setForceRefresh}
-            handleAddRow={handleAddRow}
-            handleRefreshJira={handleRefreshJira}
-            handleCopyToClipboard={handleCopyToClipboard}
-            refreshJiraMutation={refreshJiraMutation}
-            dsName={dsName}
-            dsView={dsView}
-            viewConfig={viewConfig}
-          />
         </Col>
       </Row>
       <Row>
@@ -3233,6 +3392,16 @@ function DsViewPage() {
             message={notificationMessage}
             onClose={() => setShowNotification(false)}
             autoHideDuration={3000}
+          />
+
+          {/* Description Editor Modal */}
+          <DescriptionEditorModal
+            show={isEditingDescription}
+            initialValue={freshViewConfig?.dsDescription?.dsDescription || ''}
+            onSave={handleSaveDescription}
+            onCancel={handleCancelDescriptionEditor}
+            isLoading={isLoadingFreshConfig}
+            isSaving={isSavingDescription}
           />
 
           {/* Confirmation Modal */}

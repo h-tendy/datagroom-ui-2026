@@ -5,9 +5,11 @@
  * - Settings (checkboxes for view options)
  * - Quick Actions (Add Row, Refresh Jira, Copy-to-clipboard)
  * - Navigation (links to related pages)
+ * 
+ * Features hover-to-expand behavior to conserve space
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './ControlPanel.module.css';
 
@@ -38,9 +40,14 @@ function ControlPanel({
   // View config for Jira check
   viewConfig,
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className={styles.controlPanel}>
+    <div 
+      className={`${styles.controlPanel} ${isExpanded ? styles.expanded : ''}`}
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+    >
       {/* Top Row: Settings, Quick Actions, and Navigation side-by-side */}
       <div className={styles.topRow}>
         {/* Settings Section */}
