@@ -21,7 +21,7 @@ import { Row, Col } from 'react-bootstrap';
 import { useQueryClient } from '@tanstack/react-query';
 import styles from './DsViewPage.module.css';
 import { useAuth } from '../../auth/AuthProvider';
-import { downloadXlsx, fetchViewColumns, setViewDefinitions } from '../../api/ds';
+import { downloadXlsx, fetchViewColumns, setViewDefinitions, getOtherTableAttrs, setOtherTableAttrs } from '../../api/ds';
 
 // Hooks
 import useDsView from '../../hooks/useDsView';
@@ -205,6 +205,17 @@ function DsViewPage() {
   // Delete column modal state
   const [showDeleteColumnModal, setShowDeleteColumnModal] = useState(false);
   const [columnToDelete, setColumnToDelete] = useState('');
+
+  // Table attributes modal state
+  const [showTableAttributesModal, setShowTableAttributesModal] = useState(false);
+  const [tableAttrsFixedHeight, setTableAttrsFixedHeight] = useState(false);
+  const [tableAttrsRowMaxHeightEnabled, setTableAttrsRowMaxHeightEnabled] = useState(false);
+  const [tableAttrsRowMaxHeight, setTableAttrsRowMaxHeight] = useState(100);
+  const [tableAttrsRowHeightEnabled, setTableAttrsRowHeightEnabled] = useState(false);
+  const [tableAttrsRowHeight, setTableAttrsRowHeight] = useState(50);
+  const [tableAttrsLoading, setTableAttrsLoading] = useState(false);
+  const [tableAttrsSaving, setTableAttrsSaving] = useState(false);
+  const [tableAttrsError, setTableAttrsError] = useState('');
 
   // Memoize user object to prevent socket reconnections
   const socketUser = useMemo(() => ({ user: userId }), [userId]);
@@ -2563,6 +2574,112 @@ function DsViewPage() {
     );
   }, [dsName, dsView, userId, deleteColumnMutation]);
 
+  // Edit table attributes - opens modal to edit otherTableAttrs
+  const editTableAttributesHandler = useCallback(async () => {
+    console.log('[EDIT TABLE ATTRS] Opening table attributes modal');
+    setTableAttrsError('');
+    setTableAttrsLoading(true);
+    setShowTableAttributesModal(true);
+    
+    try {
+      // Fetch current attributes
+      const result = await getOtherTableAttrs(dsName, dsView, userId);
+      console.log('[EDIT TABLE ATTRS] Fetched attributes:', result);
+      
+      // Set form state from fetched data
+      setTableAttrsFixedHeight(result.fixedHeight || false);
+      
+      if (result.rowMaxHeight !== undefined && result.rowMaxHeight !== null) {
+        setTableAttrsRowMaxHeightEnabled(true);
+        setTableAttrsRowMaxHeight(result.rowMaxHeight);
+      } else {
+        setTableAttrsRowMaxHeightEnabled(false);
+        setTableAttrsRowMaxHeight(100);
+      }
+      
+      if (result.rowHeight !== undefined && result.rowHeight !== null) {
+        setTableAttrsRowHeightEnabled(true);
+        setTableAttrsRowHeight(result.rowHeight);
+      } else {
+        setTableAttrsRowHeightEnabled(false);
+        setTableAttrsRowHeight(50);
+      }
+      
+      setTableAttrsLoading(false);
+    } catch (error) {
+      console.error('[EDIT TABLE ATTRS] Error fetching attributes:', error);
+      setTableAttrsError('Failed to load table attributes: ' + error.message);
+      setTableAttrsLoading(false);
+    }
+  }, [dsName, dsView, userId]);
+
+  // Save table attributes - saves otherTableAttrs via API
+  const saveTableAttributesHandler = useCallback(async () => {
+    console.log('[EDIT TABLE ATTRS] Saving table attributes');
+    setTableAttrsError('');
+    setTableAttrsSaving(true);
+    
+    try {
+      // Build payload
+      const otherTableAttrs = {};
+      
+      // Always include fixedHeight
+      otherTableAttrs.fixedHeight = tableAttrsFixedHeight;
+      
+      // Only include rowMaxHeight if enabled
+      if (tableAttrsRowMaxHeightEnabled) {
+        const val = parseInt(tableAttrsRowMaxHeight, 10);
+        if (isNaN(val)) {
+          setTableAttrsError('Row Max Height must be a valid integer');
+          setTableAttrsSaving(false);
+          return;
+        }
+        otherTableAttrs.rowMaxHeight = val;
+      }
+      
+      // Only include rowHeight if enabled
+      if (tableAttrsRowHeightEnabled) {
+        const val = parseInt(tableAttrsRowHeight, 10);
+        if (isNaN(val)) {
+          setTableAttrsError('Row Height must be a valid integer');
+          setTableAttrsSaving(false);
+          return;
+        }
+        otherTableAttrs.rowHeight = val;
+      }
+      
+      const payload = {
+        dsName,
+        dsView,
+        dsUser: userId,
+        otherTableAttrs
+      };
+      
+      const [success, result] = await setOtherTableAttrs(payload);
+      
+      if (success) {
+        // Invalidate and refetch the view config to get updated otherTableAttrs
+        await queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
+        
+        setShowTableAttributesModal(false);
+        setNotificationType('success');
+        setNotificationMessage('Table attributes updated successfully');
+        setShowNotification(true);
+        
+        // Force table refresh to pick up changes
+        setForceRefresh(prev => prev + 1);
+      } else {
+        setTableAttrsError('Failed to save: ' + (result.message || 'Unknown error'));
+      }
+      
+      setTableAttrsSaving(false);
+    } catch (error) {
+      console.error('[EDIT TABLE ATTRS] Error saving attributes:', error);
+      setTableAttrsError('Failed to save table attributes: ' + error.message);
+      setTableAttrsSaving(false);
+    }
+  }, [dsName, dsView, userId, tableAttrsFixedHeight, tableAttrsRowMaxHeightEnabled, tableAttrsRowMaxHeight, tableAttrsRowHeightEnabled, tableAttrsRowHeight]);
+
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
     console.log('[HANDLERS] Creating handlers object', {
@@ -2711,12 +2828,13 @@ function DsViewPage() {
 
       downloadXlsx({ dsName, dsView, dsUser: userId, query });
     },
+    editTableAttributes: editTableAttributesHandler,
     convertToJiraRow: () => {}, // Deferred
     addJiraRow: () => {}, // Deferred
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
   };
-  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion, dsName, dsView, userId, _id]);
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion, editTableAttributesHandler, dsName, dsView, userId, _id]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
@@ -3446,6 +3564,130 @@ function DsViewPage() {
                 onColumnNameChange={setNewColumnName}
                 onPositionChange={setAddColumnPosition}
               />
+            </Modal>
+          )}
+
+          {/* Table Attributes Modal */}
+          {showTableAttributesModal && (
+            <Modal
+              show={true}
+              title="Edit Table Attributes"
+              ok="Save"
+              cancel="Cancel"
+              okDisabled={tableAttrsSaving || tableAttrsLoading}
+              onClose={(confirmed) => {
+                if (confirmed) {
+                  saveTableAttributesHandler();
+                } else {
+                  setShowTableAttributesModal(false);
+                  setTableAttrsError('');
+                }
+              }}
+            >
+              <div style={{ padding: '10px' }}>
+                {tableAttrsLoading && (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <span>Loading attributes...</span>
+                  </div>
+                )}
+                
+                {!tableAttrsLoading && (
+                  <>
+                    {tableAttrsError && (
+                      <div style={{ 
+                        color: 'red', 
+                        marginBottom: '15px', 
+                        padding: '8px', 
+                        border: '1px solid red', 
+                        borderRadius: '4px',
+                        backgroundColor: '#ffebee'
+                      }}>
+                        {tableAttrsError}
+                      </div>
+                    )}
+                    
+                    {/* Fixed Height */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={tableAttrsFixedHeight}
+                          onChange={(e) => setTableAttrsFixedHeight(e.target.checked)}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span>Fixed Height</span>
+                      </label>
+                      <div style={{ fontSize: '0.85em', color: '#666', marginLeft: '24px' }}>
+                        Enable fixed table height for better viewing experience
+                      </div>
+                    </div>
+                    
+                    {/* Row Max Height */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={tableAttrsRowMaxHeightEnabled}
+                          onChange={(e) => setTableAttrsRowMaxHeightEnabled(e.target.checked)}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span>Row Max Height</span>
+                      </label>
+                      {tableAttrsRowMaxHeightEnabled && (
+                        <div style={{ marginLeft: '24px', marginTop: '8px' }}>
+                          <input
+                            type="number"
+                            value={tableAttrsRowMaxHeight}
+                            onChange={(e) => setTableAttrsRowMaxHeight(e.target.value)}
+                            style={{ 
+                              width: '100px', 
+                              padding: '4px 8px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px'
+                            }}
+                            min="1"
+                          />
+                          <span style={{ marginLeft: '8px', fontSize: '0.85em', color: '#666' }}>
+                            Maximum height for rows in pixels
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Row Height */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={tableAttrsRowHeightEnabled}
+                          onChange={(e) => setTableAttrsRowHeightEnabled(e.target.checked)}
+                          style={{ marginRight: '8px' }}
+                        />
+                        <span>Row Height</span>
+                      </label>
+                      {tableAttrsRowHeightEnabled && (
+                        <div style={{ marginLeft: '24px', marginTop: '8px' }}>
+                          <input
+                            type="number"
+                            value={tableAttrsRowHeight}
+                            onChange={(e) => setTableAttrsRowHeight(e.target.value)}
+                            style={{ 
+                              width: '100px', 
+                              padding: '4px 8px',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px'
+                            }}
+                            min="1"
+                          />
+                          <span style={{ marginLeft: '8px', fontSize: '0.85em', color: '#666' }}>
+                            Default height for rows in pixels
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </Modal>
           )}
 

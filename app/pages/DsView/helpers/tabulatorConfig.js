@@ -144,6 +144,7 @@ export default function createTabulatorConfig(context) {
     deleteColumnQuestion,
     addColumnQuestion,
     downloadXlsx,
+    editTableAttributes,
     convertToJiraRow,
     addJiraRow,
     isJiraRow,
@@ -250,7 +251,8 @@ export default function createTabulatorConfig(context) {
       { label: "Get xlsx....", menu: [
         { label: "Get xlsx for whole DS...", action: function () { if (downloadXlsx) downloadXlsx(false); } },
         { label: "Get xlsx in query...", action: function () { if (downloadXlsx) downloadXlsx(true); } }
-      ] }
+      ] },
+      { label: "Edit table attributes...", action: function () { if (editTableAttributes) editTableAttributes(); } }
     ];
 
     const columns = [];
@@ -373,7 +375,14 @@ export default function createTabulatorConfig(context) {
           // solve this. 
           // Also try changing height to max-height, that works perfectly. 
           //const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;width:${width - 8}px;height:200px;overflow-x:auto; overflow-y:auto">${value}</div>`;
-          const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;overflow-x:auto;overflow-y:auto;width:${width - 8}px">${value}</div>`;
+          let rowMaxHeight = '', rowHeight = '';
+          if (viewConfig.otherTableAttrs && viewConfig.otherTableAttrs.rowMaxHeight) {
+            rowMaxHeight = `max-height:${viewConfig.otherTableAttrs.rowMaxHeight}px;`;
+          }
+          if (viewConfig.otherTableAttrs && viewConfig.otherTableAttrs.rowHeight) {
+            rowHeight = `height:${viewConfig.otherTableAttrs.rowHeight}px;`;
+          }
+          const html = `<div style="white-space:normal;word-wrap:break-word;margin-bottom:-12px;overflow-x:auto;overflow-y:auto;width:${width - 8}px;${rowMaxHeight}${rowHeight}">${value}</div>`;
           
           return html;
         };

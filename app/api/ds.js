@@ -296,6 +296,34 @@ export async function getProjectsMetaData(body) {
 }
 
 /**
+ * Get otherTableAttrs metadata
+ */
+export async function getOtherTableAttrs(dsName, dsView, dsUser) {
+  const headers = getAuthHeaders();
+  return api(`/ds/view/otherTableAttrs/${dsName}/${dsView}/${dsUser}`, {
+    method: 'GET',
+    headers,
+  });
+}
+
+/**
+ * Set otherTableAttrs metadata
+ */
+export async function setOtherTableAttrs(body) {
+  const headers = getAuthHeaders();
+  try {
+    const result = await api('/ds/view/otherTableAttrs/set', {
+      method: 'POST',
+      body,
+      headers,
+    });
+    return [true, result];
+  } catch (error) {
+    return [false, { status: 'fail', message: error.message || 'setOtherTableAttrs service exception' }];
+  }
+}
+
+/**
  * Set view definitions (column config, formatters, etc.)
  */
 export async function setViewDefinitions(body) {
@@ -394,6 +422,8 @@ export default {
   addJiraRow,
   getProjectsMetaData,
   setViewDefinitions,
+  getOtherTableAttrs,
+  setOtherTableAttrs,
   addFilter,
   editFilter,
   deleteFilter,
