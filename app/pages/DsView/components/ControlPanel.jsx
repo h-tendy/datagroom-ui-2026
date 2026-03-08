@@ -16,7 +16,7 @@ function ControlPanel({
   chronologyDescending,
   setChronologyDescending,
   showAllFilters,
-  setShowAllFilters,
+  handleShowAllFiltersToggle,
   singleClickEdit,
   handleSingleClickEditToggle,
   disableEditing,
@@ -66,10 +66,7 @@ function ControlPanel({
               <input
                 type="checkbox"
                 checked={showAllFilters}
-                onChange={(e) => {
-                  setShowAllFilters(e.target.checked);
-                  localStorage.setItem('showAllFilters', JSON.stringify(e.target.checked));
-                }}
+                onChange={(e) => handleShowAllFiltersToggle(e.target.checked)}
               />
               Show filters <i className='fas fa-filter'></i>
             </label>

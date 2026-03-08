@@ -544,6 +544,21 @@ function DsViewPage() {
     }, 50);
   }, [dsName, dsView, navigate, setSearchParams, executeWithScrollPreservation]);
   
+  // Handle Show Filters toggle - when turning off, navigate to default view
+  const handleShowAllFiltersToggle = useCallback((checked) => {
+    setShowAllFilters(checked);
+    localStorage.setItem('showAllFilters', JSON.stringify(checked));
+    
+    // If turning OFF filters, navigate to default view (existing effects will handle cleanup)
+    if (!checked) {
+      // Don't clear if viewing single row (preserves _id URL)
+      if (searchParams.get('_id')) return;
+      
+      // Navigate to base view - this will trigger effects that clear all filter state
+      navigate(`/ds/${dsName}/${dsView}`, { replace: true });
+    }
+  }, [dsName, dsView, navigate, searchParams]);
+  
   // Utility function to redraw table while preserving scroll position
   // Prevents unwanted scrolling when redrawing the table
   const redrawTableWithScrollPreservation = useCallback((table) => {
@@ -2923,7 +2938,7 @@ function DsViewPage() {
             chronologyDescending={chronologyDescending}
             setChronologyDescending={setChronologyDescending}
             showAllFilters={showAllFilters}
-            setShowAllFilters={setShowAllFilters}
+            handleShowAllFiltersToggle={handleShowAllFiltersToggle}
             singleClickEdit={singleClickEdit}
             handleSingleClickEditToggle={handleSingleClickEditToggle}
             disableEditing={disableEditing}
