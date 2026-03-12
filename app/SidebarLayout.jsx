@@ -103,6 +103,29 @@ export default function SidebarLayout({ children, onLogout }) {
                 <i className={`fa fa-home ${styles.sidebarHomeIcon}`} aria-hidden="true" />
                 Your datasets
               </button>
+              <button
+                type="button"
+                className="btn btn-outline-light"
+                style={{
+                  textAlign: 'left',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-text-muted)',
+                  fontWeight: 500,
+                  fontSize: '1rem',
+                  borderRadius: 'var(--border-radius)',
+                  padding: '0.5rem 0.7rem',
+                  transition: 'background 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.7em'
+                }}
+                onClick={() => navigate('/settings/pats')}
+                title="Personal Access Tokens"
+              >
+                <i className="fa fa-key" aria-hidden="true" style={{ opacity: 0.8 }} />
+                PAT
+              </button>
             </div>
             <div style={{flex:1}} />
             <ThemeSwitcher />
