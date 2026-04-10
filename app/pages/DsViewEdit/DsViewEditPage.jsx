@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Row, Col, Form, Button } from 'react-bootstrap';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthProvider';
 import MyTabulator from '../../components/MyTabulator';
 import styles from '../DsView/DsViewPage.module.css';
@@ -39,6 +40,7 @@ function DsViewEditPage() {
   const { dsName, dsView } = useParams();
   const auth = useAuth();
   const userId = auth.userId;
+  const queryClient = useQueryClient();
 
   // State management
   const [viewData, setViewData] = useState(null);
@@ -696,6 +698,10 @@ function DsViewEditPage() {
       
       if (response.ok && result.status === 'success') {
         setSetViewStatus(`success at ${new Date()}`);
+
+        // Invalidate the React Query cache so the view page refetches fresh
+        // column definitions (including updated conditional formatting) on next load
+        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
         
         // Clear success message after 2 seconds
         if (saveTimerRef.current) {
