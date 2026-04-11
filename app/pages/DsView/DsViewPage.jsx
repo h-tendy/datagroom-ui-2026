@@ -803,32 +803,25 @@ function DsViewPage() {
 
   // Process filter from URL - only when filterParam actually changes
   useEffect(() => {
-    console.log('[FILTER-EFFECT] Running. filterParam:', filterParam, ', current filter state:', filter, ', viewConfig.filters:', Object.keys(viewConfig?.filters || {}));
-    if (!viewConfig) {
-      console.log('[FILTER-EFFECT] No viewConfig, returning');
-      return;
-    }
+    if (!viewConfig) return;
+    
     // If viewing single row via _id param, don't process pathname filters
-    if (searchParams.get('_id')) {
-      console.log('[FILTER-EFFECT] Has _id in searchParams, returning');
+    if (searchParams.get('_id')) return;
+    
+    // If a query string with actual filter params is present, it takes precedence over pathname-based saved filters
+    // Only skip if we have multiple params or params other than just filterParam-related ones
+    const searchString = searchParams.toString();
+    if (searchString && !filterParam) {
+      // Has search params but no pathname filter - this is an ad-hoc query string filter
       return;
-    }
-    // If a query string is present, it takes precedence over pathname-based saved filters
-    if (searchParams.toString()) {
-      console.log('[FILTER-EFFECT] Has searchParams, returning');
       return;
     }
     // If in single-row mode (_id state is set), don't process pathname filters
-    if (_id) {
-      console.log('[FILTER-EFFECT] Has _id state, returning');
-      return;
-    }
+    if (_id) return;
     
     // Update filter state based on URL parameter
     if (filterParam) {
-      console.log('[FILTER-EFFECT] Processing filterParam:', filterParam);
       const filterData = viewConfig.filters?.[filterParam];
-      console.log('[FILTER-EFFECT] Filter data for', filterParam, ':', filterData ? 'FOUND' : 'NOT FOUND');
       
       if (filterData) {
         // Sanitize and deep clone filter data
@@ -844,37 +837,55 @@ function DsViewPage() {
             : [];
           
           // Sanitize hdrSorters to remove any circular references from Tabulator objects
+          // Backend stores sorters as: { column: 'fieldName', dir: 'asc' }
+          // Pattern matches filterHelpers.js line 148-151
           const rawHdrSorters = filterData.hdrSorters || [];
           const hdrSorters = Array.isArray(rawHdrSorters)
-            ? rawHdrSorters.map(hs => ({
-                column: typeof hs.column === 'string' ? hs.column : hs.field,
-                dir: hs.dir
-              }))
+            ? rawHdrSorters.map(hs => {
+                // Extract field name, handling legacy data with Column objects
+                let fieldName = hs.column;
+                if (typeof fieldName !== 'string') {
+                  // Handle corrupted data with Column objects
+                  fieldName = typeof hs.field === 'string' ? hs.field : 'unknown';
+                }
+                return {
+                  column: fieldName,
+                  dir: hs.dir
+                };
+              })
             : [];
           
-          // Column attributes should be safe, but deep clone anyway
-          const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
+          // Column attributes should be safe, but deep clone anyway with error handling
+          let colAttrs = {};
+          try {
+            colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
+          } catch (e) {
+            console.warn('[FILTER] Failed to clone filterColumnAttrs, using original:', e.message);
+            colAttrs = filterData.filterColumnAttrs || {};
+          }
           
           // Update state if filter name changed OR if filter data changed (e.g., after save)
           // Compare all filter components to detect backend updates after filter save
-          const colAttrsStr = JSON.stringify(colAttrs);
-          const currentColAttrsStr = JSON.stringify(filterColumnAttrs);
-          const hdrFiltersStr = JSON.stringify(hdrFilters);
-          const currentHdrFiltersStr = JSON.stringify(initialHeaderFilter);
-          const hdrSortersStr = JSON.stringify(hdrSorters);
-          const currentHdrSortersStr = JSON.stringify(initialSort);
-          const shouldUpdate = (filter !== filterParam) || 
-                               (colAttrsStr !== currentColAttrsStr) ||
-                               (hdrFiltersStr !== currentHdrFiltersStr) ||
-                               (hdrSortersStr !== currentHdrSortersStr);
+          // Wrap in try-catch to handle potential circular references in existing state
+          let shouldUpdate = false;
+          try {
+            const colAttrsStr = JSON.stringify(colAttrs);
+            const currentColAttrsStr = JSON.stringify(filterColumnAttrs);
+            const hdrFiltersStr = JSON.stringify(hdrFilters);
+            const currentHdrFiltersStr = JSON.stringify(initialHeaderFilter);
+            const hdrSortersStr = JSON.stringify(hdrSorters);
+            const currentHdrSortersStr = JSON.stringify(initialSort);
+            
+            shouldUpdate = (filter !== filterParam) || 
+                          (colAttrsStr !== currentColAttrsStr) ||
+                          (hdrFiltersStr !== currentHdrFiltersStr) ||
+                          (hdrSortersStr !== currentHdrSortersStr);
+          } catch (e) {
+            // If comparison fails (e.g., circular refs in old state), force update
+            shouldUpdate = true;
+          }
           
           if (shouldUpdate) {
-            console.log('[FILTER] Applying filter from URL:', filterParam, {
-              nameChanged: filter !== filterParam,
-              colAttrsChanged: colAttrsStr !== currentColAttrsStr,
-              hdrFiltersChanged: hdrFiltersStr !== currentHdrFiltersStr,
-              hdrSortersChanged: hdrSortersStr !== currentHdrSortersStr
-            });
             setFilter(filterParam);
             setInitialHeaderFilter(hdrFilters);
             setInitialSort(hdrSorters);
@@ -933,13 +944,8 @@ function DsViewPage() {
             }, 100);
           }
         } catch (e) {
-          console.error('Error parsing filter data:', e);
+          console.error('[FILTER] Error loading filter data:', e);
         }
-      } else {
-        // Filter name in URL but no data found in viewConfig yet
-        // Don't set filter state - wait for viewConfig to update with the filter data
-        // The useEffect will run again when viewConfig updates (it's in dependencies)
-        console.log('[FILTER] Filter not found in viewConfig yet:', filterParam, '- waiting for data');
       }
     } else {
       // No filter in URL - clear everything
