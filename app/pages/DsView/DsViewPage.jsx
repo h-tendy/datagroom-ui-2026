@@ -856,13 +856,25 @@ function DsViewPage() {
           const colAttrs = JSON.parse(JSON.stringify(filterData.filterColumnAttrs || {}));
           
           // Update state if filter name changed OR if filter data changed (e.g., after save)
-          // Compare stringified attrs to detect backend updates after filter save
+          // Compare all filter components to detect backend updates after filter save
           const colAttrsStr = JSON.stringify(colAttrs);
           const currentColAttrsStr = JSON.stringify(filterColumnAttrs);
-          const shouldUpdate = (filter !== filterParam) || (colAttrsStr !== currentColAttrsStr);
+          const hdrFiltersStr = JSON.stringify(hdrFilters);
+          const currentHdrFiltersStr = JSON.stringify(initialHeaderFilter);
+          const hdrSortersStr = JSON.stringify(hdrSorters);
+          const currentHdrSortersStr = JSON.stringify(initialSort);
+          const shouldUpdate = (filter !== filterParam) || 
+                               (colAttrsStr !== currentColAttrsStr) ||
+                               (hdrFiltersStr !== currentHdrFiltersStr) ||
+                               (hdrSortersStr !== currentHdrSortersStr);
           
           if (shouldUpdate) {
-            console.log('[FILTER] Applying filter from URL:', filterParam);
+            console.log('[FILTER] Applying filter from URL:', filterParam, {
+              nameChanged: filter !== filterParam,
+              colAttrsChanged: colAttrsStr !== currentColAttrsStr,
+              hdrFiltersChanged: hdrFiltersStr !== currentHdrFiltersStr,
+              hdrSortersChanged: hdrSortersStr !== currentHdrSortersStr
+            });
             setFilter(filterParam);
             setInitialHeaderFilter(hdrFilters);
             setInitialSort(hdrSorters);
