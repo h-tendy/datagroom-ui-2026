@@ -2420,6 +2420,13 @@ function DsViewPage() {
       return;
     }
     
+    // Validate column name pattern
+    const pattern = /^[a-zA-Z_][a-zA-Z0-9_\[\]-]*$/;
+    if (!pattern.test(newColumnName)) {
+      setAddColumnError('Column name must start with a letter or underscore and contain only alphanumeric characters, underscores, square brackets, and hyphens');
+      return;
+    }
+    
     // Clear any previous errors
     setAddColumnError('');
     setAddColumnProcessing(true);
