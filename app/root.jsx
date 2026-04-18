@@ -17,6 +17,7 @@ import DsBulkEditPage from './pages/DsBulkEdit/DsBulkEditPage';
 import PATManager from './pages/Settings/PATManager';
 import SidebarLayout from './SidebarLayout';
 import { useAuth } from './auth/AuthProvider';
+import MarkdownViewer from './components/MarkdownViewer';
 
 function DsViewWithLayout() {
     const auth = useAuth();
@@ -67,6 +68,7 @@ export function AppRoutes() {
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireAuth><MainPage /></RequireAuth>} />
+            <Route path="/attachments/*" element={<MarkdownViewer />} />
             <Route path="/dsViewEdit/:dsName/:dsView" element={<RequireAuth><DsViewEditWithLayout /></RequireAuth>} />
             <Route path="/dsEditLog/:dsName" element={<RequireAuth><DsEditLogWithLayout /></RequireAuth>} />
             <Route path="/dsAttachments/:dsName" element={<RequireAuth><DsAttachmentsPage /></RequireAuth>} />
