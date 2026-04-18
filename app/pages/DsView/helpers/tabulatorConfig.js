@@ -48,11 +48,19 @@ md.use(mditPlantuml, {
 md.use(mditContainer, 'slide')
   .use(mditFancyLists);
 
-// Custom link renderer - open in new tab
+// Custom link renderer - open in new tab, rewrite .md attachment links to use /view-md/ prefix
 const defaultLinkOpen = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
   return self.renderToken(tokens, idx, options);
 };
 md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
+  const hrefIndex = tokens[idx].attrIndex('href');
+  const href = hrefIndex >= 0 ? tokens[idx].attrs[hrefIndex][1] : '';
+  
+  // Rewrite /attachments/*.md links to /view-md/attachments/*.md for React rendering
+  if (href.startsWith('/attachments') && href.endsWith('.md')) {
+    tokens[idx].attrs[hrefIndex][1] = '/view-md' + href;
+  }
+  
   const aIndex = tokens[idx].attrIndex('target');
   if (aIndex < 0) {
     tokens[idx].attrPush(['target', '_blank']);
