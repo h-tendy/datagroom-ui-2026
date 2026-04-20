@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Row, Col, Form, Button } from 'react-bootstrap';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthProvider';
 import MyTabulator from '../../components/MyTabulator';
 import styles from '../DsView/DsViewPage.module.css';
@@ -39,6 +40,7 @@ function DsViewEditPage() {
   const { dsName, dsView } = useParams();
   const auth = useAuth();
   const userId = auth.userId;
+  const queryClient = useQueryClient();
 
   // State management
   const [viewData, setViewData] = useState(null);
@@ -230,35 +232,11 @@ function DsViewEditPage() {
     setTableColumns(columns);
   }, [viewData]);
 
-  // Update table columns when configuration changes
-  useEffect(() => {
-    if (!viewData?.columnAttrs || !tabulatorRef.current || somethingChanged === 0) return;
-
-    const columns = viewData.columnAttrs.map(col => {
-      const colCopy = JSON.parse(JSON.stringify(col));
-      
-      // Set header menu based on whether it's a key column
-      const isKeyCol = viewData.keys?.includes(colCopy.field);
-      colCopy.headerMenu = isKeyCol ? getHeaderMenuWithoutHide() : getHeaderMenuWithHide();
-      
-      // Store original editor type
-      if (!editorsRef.current[colCopy.field]) {
-        editorsRef.current[colCopy.field] = colCopy.editor;
-      }
-      
-      // Convert codemirror/date to textarea for display
-      if (colCopy.editor === "codemirror" || colCopy.editor === "date") {
-        colCopy.editor = "textarea";
-      }
-      
-      // Make table read-only
-      colCopy.editable = () => false;
-      
-      return colCopy;
-    });
-
-    setTableColumns(columns);
-  }, [somethingChanged]);
+  // NOTE: The old "somethingChanged" useEffect that rebuilt tableColumns from
+  // viewData.columnAttrs has been removed. It was resetting Tabulator back to
+  // original server data (wiping updateColumnDefinition changes) every time any
+  // control changed. React re-renders from setSomethingChanged still refresh the
+  // UI controls by re-reading live state from Tabulator.getColumn().getDefinition().
 
   // Cleanup on unmount
   useEffect(() => {
@@ -696,6 +674,10 @@ function DsViewEditPage() {
       
       if (response.ok && result.status === 'success') {
         setSetViewStatus(`success at ${new Date()}`);
+
+        // Invalidate the React Query cache so the view page refetches fresh
+        // column definitions (including updated conditional formatting) on next load
+        queryClient.invalidateQueries({ queryKey: ['dsView', dsName, dsView, userId] });
         
         // Clear success message after 2 seconds
         if (saveTimerRef.current) {
@@ -1042,9 +1024,11 @@ function DsViewEditPage() {
                       onChange={(event) => {
                         if (!tabulatorRef.current) return;
                         const value = event.target.value;
-                        handleDebounce(col.field, () => {
-                          if (!value) return;
-                          const curFormatterParams = columnDef.formatterParams || {};
+                        handleDebounce(col.field + '_condExprs', () => {
+                          // Read fresh formatterParams from Tabulator at fire time,
+                          // not from the stale render-time columnDef snapshot.
+                          const liveCol = tabulatorRef.current.table.getColumn(col.field);
+                          const curFormatterParams = (liveCol ? liveCol.getDefinition().formatterParams : null) || {};
                           let condExprs = value.split('\n').map(v => v.trim());
                           condExprs = condExprs.filter(v => v !== "");
                           const formatterParams = {
