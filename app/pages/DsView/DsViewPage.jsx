@@ -2769,6 +2769,30 @@ function DsViewPage() {
     }
   }, []);
 
+  // Freeze/unfreeze the clicked column and every column to its left.
+  // Mirrors reference DsView.js setFreezeColumn behavior, including the
+  // last-column no-op guard.
+  const setFreezeColumnImpl = useCallback((column, freeze) => {
+    const table = tabulatorRef.current?.table;
+    if (!table) return;
+
+    if (!column || typeof column.getField !== 'function') {
+      console.warn('setFreezeColumnImpl: no valid column argument');
+      return;
+    }
+
+    // Last column freezing or unfreezing is a no-op by design.
+    const currentDefs = table.getColumnDefinitions();
+    if (
+      currentDefs.length &&
+      currentDefs[currentDefs.length - 1].field === column.getField()
+    ) {
+      return;
+    }
+
+    setFrozenCol(freeze ? column.getField() : null);
+  }, []);
+
   // Freeze column: freeze the clicked column and every column to its left
   const freezeColumn = useCallback((...args) => {
     try {
@@ -2779,24 +2803,27 @@ function DsViewPage() {
       } else if (args.length >= 2) {
         column = args[1];
       }
-      if (!column || typeof column.getField !== 'function') {
-        console.warn('freezeColumn: no valid column argument');
-        return;
-      }
-      setFrozenCol(column.getField());
+      setFreezeColumnImpl(column, true);
     } catch (err) {
       console.error('freezeColumn error', err);
     }
-  }, []);
+  }, [setFreezeColumnImpl]);
 
   // Unfreeze all frozen columns
-  const unfreezeColumn = useCallback(() => {
+  const unfreezeColumn = useCallback((...args) => {
     try {
-      setFrozenCol(null);
+      let column = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        if (a0 && typeof a0.getField === 'function') column = a0;
+      } else if (args.length >= 2) {
+        column = args[1];
+      }
+      setFreezeColumnImpl(column, false);
     } catch (err) {
       console.error('unfreezeColumn error', err);
     }
-  }, []);
+  }, [setFreezeColumnImpl]);
 
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
