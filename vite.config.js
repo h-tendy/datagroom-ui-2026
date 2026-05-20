@@ -49,7 +49,7 @@ export default defineConfig({
         ws: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      '^/(login|logout|sessionCheck)': {
+      '^/(login|logout|sessionCheck|api-docs)': {
         target: API_TARGET,
         changeOrigin: true,
         secure: false,
@@ -61,6 +61,31 @@ export default defineConfig({
         ws: true,
       },
       '/attachments': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/ds': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/upload': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/uploadCsv': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/uploadAttachments': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/users': {
         target: API_TARGET,
         changeOrigin: true,
         secure: false,

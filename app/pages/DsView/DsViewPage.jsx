@@ -2733,6 +2733,71 @@ function DsViewPage() {
     }
   }, [dsName, dsView, userId, tableAttrsFixedHeight, tableAttrsRowMaxHeightEnabled, tableAttrsRowMaxHeight, tableAttrsRowHeightEnabled, tableAttrsRowHeight]);
 
+  // Toggle a single column's header filter on/off
+  // Mirrors reference DsView.js behavior: toggles between false and 'input'
+  // (or the column's headerFilterType if defined)
+  const toggleSingleFilter = useCallback((...args) => {
+    try {
+      const table = tabulatorRef.current?.table;
+      if (!table) return;
+
+      // Normalize args: menu actions are called with (e, column)
+      let column = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        if (a0 && typeof a0.getField === 'function') column = a0;
+      } else if (args.length >= 2) {
+        column = args[1];
+      }
+      if (!column || typeof column.getField !== 'function') {
+        console.warn('toggleSingleFilter: no valid column argument');
+        return;
+      }
+
+      const field = column.getField();
+      const currentDefs = table.getColumnDefinitions();
+      for (let j = 0; j < currentDefs.length; j++) {
+        if (currentDefs[j].field === field) {
+          const desiredType = currentDefs[j].headerFilterType || 'input';
+          const newVal = currentDefs[j].headerFilter ? false : desiredType;
+          table.updateColumnDefinition(field, { headerFilter: newVal });
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('toggleSingleFilter error', err);
+    }
+  }, []);
+
+  // Freeze column: freeze the clicked column and every column to its left
+  const freezeColumn = useCallback((...args) => {
+    try {
+      let column = null;
+      if (args.length === 1) {
+        const a0 = args[0];
+        if (a0 && typeof a0.getField === 'function') column = a0;
+      } else if (args.length >= 2) {
+        column = args[1];
+      }
+      if (!column || typeof column.getField !== 'function') {
+        console.warn('freezeColumn: no valid column argument');
+        return;
+      }
+      setFrozenCol(column.getField());
+    } catch (err) {
+      console.error('freezeColumn error', err);
+    }
+  }, []);
+
+  // Unfreeze all frozen columns
+  const unfreezeColumn = useCallback(() => {
+    try {
+      setFrozenCol(null);
+    } catch (err) {
+      console.error('unfreezeColumn error', err);
+    }
+  }, []);
+
   // Handlers object for tabulatorConfig (defined after all handler functions)
   const handlers = useMemo(() => {
     console.log('[HANDLERS] Creating handlers object', {
@@ -2743,9 +2808,9 @@ function DsViewPage() {
     cellEditCheck: cellEditCheck,
     cellForceEditTrigger: cellForceEditTrigger, // Separate function that triggers edit
     isKey: (field) => viewConfig?.keys?.includes(field) || false,
-    toggleSingleFilter: () => {}, // TODO
-    freezeColumn: () => {}, // TODO
-    unfreezeColumn: () => {}, // TODO
+    toggleSingleFilter: toggleSingleFilter,
+    freezeColumn: freezeColumn,
+    unfreezeColumn: unfreezeColumn,
     hideColumn: hideColumn,
     hideColumnFromCell: hideColumnFromCell,
     showAllCols: showAllCols,
@@ -2887,7 +2952,7 @@ function DsViewPage() {
     isJiraRow: () => false, // Deferred
     showAllFilters: showAllFilters,
   };
-  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion, editTableAttributesHandler, dsName, dsView, userId, _id]);
+  }, [handleCellEditing, handleAddRow, viewConfig, showAllFilters, cellEditCheck, cellForceEditTrigger, hideColumn, hideColumnFromCell, showAllCols, toggleSingleFilter, freezeColumn, unfreezeColumn, deleteAllRowsInView, deleteAllRowsInQuery, urlGeneratorFunction, addColumnQuestion, deleteColumnQuestion, editTableAttributesHandler, dsName, dsView, userId, _id]);
 
   // Initialize helper modules and generate columns
   useEffect(() => {
@@ -3024,7 +3089,7 @@ function DsViewPage() {
         console.log('[DEBUG REFRESH] Skipping column regeneration - no changes detected');
       }
     }
-  }, [viewConfig, dsName, dsView, userId, showAllFilters, filterColumnAttrs, filterParam, searchParams, urlRestoreLog]);
+  }, [viewConfig, dsName, dsView, userId, showAllFilters, filterColumnAttrs, filterParam, searchParams, urlRestoreLog, frozenCol]);
 
   // Once column definitions (including saved filter attrs) are generated, allow table to mount
   useEffect(() => {
@@ -3071,6 +3136,22 @@ function DsViewPage() {
       console.error('Error rebuilding columns on showAllFilters change:', e);
     }
   }, [showAllFilters, viewConfig]);
+
+  // Rebuild Tabulator columns when `frozenCol` changes so freeze/unfreeze applies
+  useEffect(() => {
+    if (!viewConfig || !tabulatorConfigHelper.current) return;
+
+    try {
+      const generatedColumns = tabulatorConfigHelper.current.setColumnDefinitions();
+      setColumns(generatedColumns);
+
+      if (tabulatorRef.current?.table) {
+        tabulatorRef.current.table.setColumns(generatedColumns);
+      }
+    } catch (e) {
+      console.error('Error rebuilding columns on frozenCol change:', e);
+    }
+  }, [frozenCol, viewConfig]);
 
   // Continuously track scroll position to ensure we always have the latest position
   // This helps preserve scroll position during filter changes, pagination, etc.
