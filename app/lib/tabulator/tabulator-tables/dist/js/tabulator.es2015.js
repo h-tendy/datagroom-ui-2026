@@ -2894,6 +2894,16 @@ RowManager.prototype.getVisibleRows = function (viewable) {
     topRow = 0,
     bottomRow = 0,
     rows = this.getDisplayRows();
+  // In classic render mode (virtualDom: false) all display rows are
+  // already rendered in the DOM and vDomTop/vDomBottom are never
+  // advanced past 0. Falling through the vDom logic below would return
+  // only the first row, which breaks features such as FrozenColumns
+  // re-layout during horizontal scroll (only the first row's frozen
+  // cells get re-positioned while scrolling). Return all display rows
+  // here so consumers see the full set in classic mode.
+  if (this.renderMode !== "virtual") {
+    return rows;
+  }
   if (viewable) {
     this.getDisplayRows();
     for (var i = this.vDomTop; i <= this.vDomBottom; i++) {
