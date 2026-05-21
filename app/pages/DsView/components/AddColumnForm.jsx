@@ -25,6 +25,7 @@ function AddColumnForm({ columnName, position, error, onColumnNameChange, onPosi
           className={styles.input}
           value={columnName}
           onChange={(e) => onColumnNameChange(e.target.value)}
+          required
           pattern="^[a-zA-Z_][a-zA-Z0-9_\[\]-]*$"
           title="Column name must start with a letter or underscore and contain only alphanumeric characters, underscores, square brackets, and hyphens"
           placeholder="Enter column name"
